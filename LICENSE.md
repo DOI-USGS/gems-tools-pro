@@ -1,4 +1,4 @@
-GeMS Toolbox license
+GeMS Tools license
 --------------------
 
 This software is made available under the terms of the Creative Commons CC0 1.0 Public Domain Dedication: You can copy, modify, distribute and perform the work, even for commercial purposes, all without asking permission. See https://creativecommons.org/publicdomain/zero/1.0/    
