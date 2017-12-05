@@ -1,4 +1,4 @@
-GeMS Toolbox
+GeMS Tools  v0.2
 
 This repository contains an ArcGIS toolbox and associated scripts and resources for creating, manipulating, and validating GeMS-style geologic map databases, as well as documentation.  See the Docs folder for more information. 
 
@@ -14,19 +14,19 @@ Any use of trade, firm, or product names is for descriptive purposes only and do
 
 To install the GeMS toolbox, either
 
-1. Create a folder GeMS_Toolbox in a locale of your choice. Copy 
+1. Create a folder GeMS_Tools in a locale of your choice. Copy 
 
         Resources (folder)
 
-        Scripts  (folder) 
+        Scripts   (folder) 
 
         GeMS_ToolsArc10.tbx  (file; for ArcGIS versions 10.0 - 10.4)
 
-        GeMS_ToolsArc105.tbx  (file; for ArcGIS version 10.5)
+        GeMS_ToolsArc105.tbx (file; for ArcGIS version 10.5)
     
         license.md    (file)
 
-    into this folder. Start ArcCatalog or ArcMap, open the Arc Toolbox window, right click on empty space in the Arc Toolbox window, and select "Add Toolbox".  Then navigate to the GeMS_Toolbox folder and select file GeMSToolsArc105.tbx (if you are running ArcGIS 10.5) or file GeMSToolsArc10.tbx (if you are running an older version of ArcGIS).
+    into this folder. Start ArcCatalog or ArcMap, open the Arc Toolbox window, right click on empty space in the Arc Toolbox window, and select "Add Toolbox".  Then navigate to the GeMS_Tools folder and select file GeMSToolsArc105.tbx (if you are running ArcGIS 10.5) or file GeMSToolsArc10.tbx (if you are running an older version of ArcGIS).
 
     Right-click again on empty space in the Arc Toolbox window and select "Save settings" and then "Default" to have the GeMS toolbox available next time you open ArcCatalog or ArcMap.
 
