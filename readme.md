@@ -16,15 +16,15 @@ To install the GeMS toolbox, either
 
 1. Create a folder GeMS_Toolbox in a locale of your choice. Copy 
 
-    Resources (folder)
+        Resources (folder)
 
-    Scripts  (folder) 
+        Scripts  (folder) 
 
-    GeMS_ToolsArc10.tbx  (file)
+        GeMS_ToolsArc10.tbx  (file)
 
-    GeMS_ToolsArc105.tbx  (file)
+        GeMS_ToolsArc105.tbx  (file)
     
-    license.md    (file)
+        license.md    (file)
 
     into this folder. Start ArcCatalog or ArcMap, open the Arc Toolbox window, right click on empty space in the Arc Toolbox window, and select "Add Toolbox".  Then navigate to the GeMS_Toolbox folder and select file GeMSToolsArc105.tbx (if you are running ArcGIS 10.5) or file GeMSToolsArc10.tbx (if you are running an older version of ArcGIS).
 
@@ -34,9 +34,9 @@ or
 
 2. Place the folders and files identified above in
 
-C:\Documents and Settings\<user>\AppData\Roaming\ESRI\Desktop10.5\ArcToolbox\My Toolboxes
+    C:\Documents and Settings\<user>\AppData\Roaming\ESRI\Desktop10.5\ArcToolbox\My Toolboxes
 
-    (this is the pathname for ArcGIS 10.5 on Windows 7; it may differ with other operating systems). Then, in ArcCatalog, scroll to the bottom of the left-hand "Catalog Tree" pane, open Toolboxes/My Toolboxes, and the new toolboxes should be present. You may need to refresh the listing. 
+    This is the pathname for ArcGIS 10.5 on Windows 7; it may differ with other operating systems. Then, in ArcCatalog, scroll to the bottom of the left-hand "Catalog Tree" pane, open Toolboxes/My Toolboxes, and the new toolboxes should be present. You may need to refresh the listing. 
 
 See the help that is part of the individual tool interfaces for documentation. Also the Docs subdirectory of this package for documentation in .docx and .pdf format. 
 
