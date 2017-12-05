@@ -16,9 +16,9 @@ To install the GeMS toolbox, either
 
 1) Create a folder GeMS_Toolbox in a locale of your choice. Copy 
 
-    Resources (folder)
-    Scripts  (folder) 
-    GeMS_ToolsArc10.tbx  (file)
+Resources (folder)
+Scripts  (folder) 
+GeMS_ToolsArc10.tbx  (file)
     GeMS_ToolsArc105.tbx  (file)
     license.md    (file)
 
