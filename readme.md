@@ -48,7 +48,7 @@ Known issues with these scripts include:
 
 * "MapOutline" stumbles over some choices of datum.
 
-* ".docx to DMU" and "DMU to .docx" are incompletely debugged and do not produce the desired output. These modules also 
+* ".docx to DMU" and "DMU to .docx" are incomplete and do not produce the desired output. These modules also 
 require the lxml Python module, which some find difficult to install. The other scripts run without lxml.  
 
 * "Purge Metadata" requires that the USGS EGIS tools for ArcGIS be installed. 
