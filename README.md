@@ -12,27 +12,15 @@ Any use of trade, firm, or product names is for descriptive purposes only and do
 
 -----------------------------------------------------------------
 
-To install the GeMS toolbox, either
+To install the GeMS toolbox, download this repository. On GitHub, tap the Clone or download (green box with down caret at upper right of screen) button and select "Download ZIP". Go to your download directory and unzip the just-downloaded file. Inside the unzipped file there will be a single folder named something like "GeMS_Tools-0.2-master". Either 
 
-1. Create a folder GeMS_Tools in a locale of your choice. Copy 
-
-        Resources (folder)
-
-        Scripts   (folder) 
-
-        GeMS_ToolsArc10.tbx  (file; for ArcGIS versions 10.0 - 10.4)
-
-        GeMS_ToolsArc105.tbx (file; for ArcGIS version 10.5)
-    
-        license.md    (file)
-
-    into this folder. Start ArcCatalog or ArcMap, open the Arc Toolbox window, right click on empty space in the Arc Toolbox window, and select "Add Toolbox".  Then navigate to the GeMS_Tools folder and select file GeMSToolsArc105.tbx (if you are running ArcGIS 10.5) or file GeMSToolsArc10.tbx (if you are running an older version of ArcGIS).
+1. Copy this folder to a locale of your choice. Start ArcCatalog or ArcMap, open the Arc Toolbox window, right click on empty space in the Arc Toolbox window, and select "Add Toolbox".  Then navigate to the GeMS_Tools folder and select file GeMSToolsArc105.tbx (if you are running ArcGIS 10.5) or file GeMSToolsArc10.tbx (if you are running an older version of ArcGIS).
 
     Right-click again on empty space in the Arc Toolbox window and select "Save settings" and then "Default" to have the GeMS toolbox available next time you open ArcCatalog or ArcMap.
 
 or 
 
-2. Place the folders and files identified above in
+2. Place the CONTENTS of the GeMS_Tools folder (including folders Resources and Scripts, and files GeMS_ToolsArc10.tbx, GeMS_ToolsArc105.tbx, README.md, and LICENSE.md) in
 
     C:\Documents and Settings\<user>\AppData\Roaming\ESRI\Desktop10.5\ArcToolbox\My Toolboxes
 
