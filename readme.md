@@ -20,9 +20,9 @@ To install the GeMS toolbox, either
 
         Scripts  (folder) 
 
-        GeMS_ToolsArc10.tbx  (file)
+        GeMS_ToolsArc10.tbx  (file; for ArcGIS versions 10.0 - 10.4)
 
-        GeMS_ToolsArc105.tbx  (file)
+        GeMS_ToolsArc105.tbx  (file; for ArcGIS version 10.5)
     
         license.md    (file)
 
@@ -36,7 +36,7 @@ or
 
     C:\Documents and Settings\<user>\AppData\Roaming\ESRI\Desktop10.5\ArcToolbox\My Toolboxes
 
-    This is the pathname for ArcGIS 10.5 on Windows 7; it may differ with other operating systems. Then, in ArcCatalog, scroll to the bottom of the left-hand "Catalog Tree" pane, open Toolboxes/My Toolboxes, and the new toolboxes should be present. You may need to refresh the listing. 
+    This is the pathname for ArcGIS 10.5 on Windows 7; it may differ with other operating systems and ArcGIS versions. Delete the .tbx file that is not needed. Then, in ArcCatalog, scroll to the bottom of the left-hand "Catalog Tree" pane, open Toolboxes/My Toolboxes, and the new toolboxes should be present. You may need to refresh the listing. 
 
 See the help that is part of the individual tool interfaces for documentation. Also the Docs subdirectory of this package for documentation in .docx and .pdf format. 
 
