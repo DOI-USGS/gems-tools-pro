@@ -14,7 +14,7 @@ Any use of trade, firm, or product names is for descriptive purposes only and do
 
 To install the GeMS toolbox, either
 
-1) Create a folder GeMS_Toolbox in a locale of your choice. Copy 
+1. Create a folder GeMS_Toolbox in a locale of your choice. Copy 
 
     Resources (folder)
 
@@ -32,7 +32,7 @@ Right-click again on empty space in the Arc Toolbox window and select "Save sett
 
 or 
 
-2) place the folders and files identified above in
+2. Place the folders and files identified above in
 
 C:\Documents and Settings\<user>\AppData\Roaming\ESRI\Desktop10.5\ArcToolbox\My Toolboxes
 
