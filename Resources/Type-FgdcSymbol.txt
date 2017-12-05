@@ -1,0 +1,102 @@
+# Dictionary of Type-FGDC symbol correlations for some standard line and point types
+#   lines beginning with *** should not be edited!
+#   lines beginning with # are comments and can be freely revised
+#   blank lines anywhere are OK
+# NOTE THAT THESE CORRELATIONS ARE NOT REQUIRED BY THE GEMS SCHEMA!
+#   However, if you depart from most of them, such departures should be noted
+#   in geodatabase table RepurposedSymbols.
+
+***Eight-fold Lines***
+# These lines have 8 variants:
+#       certain, accurate       certain, inferred
+#       queried, accurate       queried, inferred
+#       certain, approximate    certain, concealed
+#       queried, approximate    queried, concealed
+# Symbols for approximate, inferred, queried, and/or concealed lines
+# can be calculated from 'certain-accurate' symbol:"
+#     if queried, increment symbolNumber by 1
+#     if concealed, increment by 6
+#     else
+#	if approximate, increment by 2
+#       elif inferred, increment by 4
+# Type | certain-accurate symbol
+contact                 | 01.01.01
+internal contact        | 01.01.09
+gradational contact     | 01.01.17
+unconformable contact   | 01.01.25
+key bed                 | 01.02.01
+clay bed                | 01.02.09
+bed of economically important commodity | 01.02.17
+coal bed                | 01.02.25
+clinkered coal bed      | 01.02.33
+fault                   | 02.01.01
+normal fault            | 02.02.01
+low-angle normal fault  | 02.03.01
+reverse fault           | 02.04.01
+rotational or scissor fault, reverse-slip offset | 02.05.01
+rotational or scissor fault, normal-slip offset  | 02.05.09
+strike-slip fault, right-lateral offset     | 02.06.01
+right-lateral strike-slip fault             | 02.06.01
+strike-slip fault, left-lateral offset      | 02.06.09
+left-lateral strike-slip fault		    | 02.06.09
+oblique-slip fault, right-lateral offset    | 02.07.01
+right-lateral oblique-slip fault            | 02.07.01
+oblique-slip fault, left-lateral offset     | 02.07.09
+left-lateral oblique-slip fault             | 02.07.09
+thrust fault            | 02.08.01
+overturned thrust fault | 02.09.01
+detachment fault        | 02.10.01
+master detachment fault | 02.10.25
+listric fault at head of detachment fault   | 02.10.33
+anticline               | 05.01.01
+antiform                | 05.02.01
+syncline                | 05.05.01 
+synform                 | 05.06.01
+monocline               | 05.09.01
+caldera margin		| 18.08
+flow contact            | 18.24
+
+***Two-fold Orientation Points***
+# Some orientation data are symbolized differently depending on the value of
+#   OrientationConfidenceDegrees
+# Not all orientation types have different symbols for good and poor orientations
+#   thus the repeated symbol values at the bottom of the list
+# Type  | well-oriented symbol  | approximately-oriented symbol
+bedding             | 06.02     | 06.33
+inclined bedding    | 06.02     | 06.33
+bedding, inclined   | 06.02     | 06.33
+upright bedding     | 06.13     | 06.36
+bedding, upright    | 06.13     | 06.36
+overturned bedding  | 06.15     | 06.38
+bedding, overturned | 06.15     | 06.38
+vertical bedding    | 06.03     | 06.34
+bedding, vertical   | 06.03     | 06.34
+horizontal bedding  | 06.01     | 06.01
+bedding, horizontal | 06.01     | 06.01
+
+***My Symbols***
+# Type | symbol
+scratch boundary    | NoSymbol
+waterline           | 30.02.29 
+shoreline           | 26.05.11
+fossil shoreline    | 26.05.09
+glacier boundary    | 30.02.44
+map boundary	    | 31.08
+neatline            | 31.08
+cross-section line  | 31.10
+bedding trace	    | BedTrace
+glauconitic sandstone bed | GlauconiteBed
+igneous foliation   | 08.02.03
+cleavage	    | 07.02
+platy parting       | 04.03.08
+joint               | 04.03.02
+joint, vertical	    | 04.03.03
+lineation           | 09.001
+dike                | 01.03.01
+moraine crest	    | 13.10
+foliation           | 08.03.02
+small fold axis	    | 09.097
+slickenline         | 09.017
+# 
+
+   
