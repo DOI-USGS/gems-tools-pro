@@ -16,13 +16,17 @@ To install the GeMS toolbox, either
 
 1) Create a folder GeMS_Toolbox in a locale of your choice. Copy 
 
-Resources (folder)
-Scripts  (folder) 
-GeMS_ToolsArc10.tbx  (file)
+    Resources (folder)
+
+    Scripts  (folder) 
+
+    GeMS_ToolsArc10.tbx  (file)
+
     GeMS_ToolsArc105.tbx  (file)
+    
     license.md    (file)
 
-into this folder. Start ArcCatalog or ArcMap, open the Arc Toolbox window, right click on empty space in the Arc Toolbox window, and select "Add Toolbox".  Then navigate to the GeMSv2_Toolbox folder and select file GeMSToolsArc105.tbx (if you are running ArcGIS 10.5) or file GeMSToolsArc10.tbx (if you are running an older version of ArcGIS).
+into this folder. Start ArcCatalog or ArcMap, open the Arc Toolbox window, right click on empty space in the Arc Toolbox window, and select "Add Toolbox".  Then navigate to the GeMS_Toolbox folder and select file GeMSToolsArc105.tbx (if you are running ArcGIS 10.5) or file GeMSToolsArc10.tbx (if you are running an older version of ArcGIS).
 
 Right-click again on empty space in the Arc Toolbox window and select "Save settings" and then "Default" to have the GeMS toolbox available next time you open ArcCatalog or ArcMap.
 
