@@ -4,11 +4,13 @@
 import arcpy, os.path, time, sys, math
 from GeMS_utilityFunctions import *
 
-versionString = 'GeMS_TopologyCheck_Arc10.py, version of 2 September 2017'
 # minor changes to CAF node check logic
 # modified to explicitly disable M and Z values in FeatureToLine output, circa line 585
 # further improved CAF node check
 # fixed Fault Direction
+# 11 December 2017  Improved node-check logic, added pre-clean for layer and table views, add cleanup for layer and table views
+
+versionString = 'GeMS_TopologyCheck_Arc10.py, version of 11 December 2017'
 
 tooSmallAreaMM2 = 12 # minimum mapunit poly area in mm2
 tooSkinnyWidthMM = 2   # minimum mapunit poly "width" in mm
@@ -263,6 +265,7 @@ def lineDirections(inFds,outFds,outHtml):
     fNodes2 = fNodes+'2'
     ### NEXT LINE IS A PROBLEM--NEED BETTER WAY TO SELECT FAULTS
     query = """ "TYPE" LIKE '%fault%' """
+    testAndDelete('xxxFaults')
     arcpy.MakeFeatureLayer_management(inCaf,'xxxFaults',query)
     testAndDelete(fNodes)
     addMsgAndPrint('  getting TO and FROM nodes')
@@ -341,6 +344,7 @@ def adjacentMapUnits(inFds,outFds,outHtml,validateCafTopology,planCaf):
     sortedDMU = os.path.dirname(outFds)+'/sortedDMU'
     testAndDelete(sortedDMU)
     dmu = os.path.dirname(inFds)+'/DescriptionOfMapUnits'
+    testAndDelete('dmuView')
     arcpy.MakeTableView_management(dmu,'dmuView')
     arcpy.Sort_management('dmuView',sortedDMU,[['HierarchyKey','ASCENDING']])
     dmuUnits = []
@@ -387,6 +391,7 @@ def adjacentMapUnits(inFds,outFds,outHtml,validateCafTopology,planCaf):
     writeLineAdjacencyTable('Contacts (not concealed)',outHtml,contactLinesDict,dmuUnits,'internalContacts')
     outHtml.write('<br>\n')
     writeLineAdjacencyTable('Faults (not concealed)',outHtml,faultLinesDict,dmuUnits,'')
+    testAndDelete('dmuView')
     return badConcealed,internalContacts,idCaf
 
 ############ check for too-small features ###############################
@@ -427,6 +432,7 @@ def smallFeaturesCheck(inFds,outFds,mapScaleString,outHtml,tooShortArcMM,tooSmal
     outHtml.write('&nbsp;&nbsp; map scale = 1:'+mapScaleString+'<br>\n')
     
     # short arcs
+    testAndDelete('cafLayer')
     arcpy.MakeFeatureLayer_management(inFds+'/'+inCaf, 'cafLayer', 'Shape_Length < '+str(tooShortArcLength))
     arcpy.CopyFeatures_management('cafLayer',tooShortArcs)
     outHtml.write('&nbsp;&nbsp; '+str(numberOfRows(tooShortArcs))+' arcs shorter than '+str(tooShortMM)+' mm<br>\n')
@@ -435,12 +441,14 @@ def smallFeaturesCheck(inFds,outFds,mapScaleString,outHtml,tooShortArcMM,tooSmal
     if arcpy.Exists(inMup):
         # small polys
         addMsgAndPrint('  tooSmallPolyArea = '+str(tooSmallPolyArea))
+        testAndDelete('mupLayer')
         arcpy.MakeFeatureLayer_management(inFds+'/'+inMup,'mupLayer','Shape_Area < '+str(tooSmallPolyArea))
         arcpy.CopyFeatures_management('mupLayer',tooSmallPolys)
         addMsgAndPrint('  '+str(numberOfRows(tooSmallPolys))+ ' too-small polygons')
         arcpy.FeatureToPoint_management(tooSmallPolys,tooSmallPolyPoints,'INSIDE')
         outHtml.write('&nbsp;&nbsp; '+str(numberOfRows(tooSmallPolys))+' polys with area less than '+str(tooSmallAreaMM2)+' mm<sup>2</sup><br>\n')
         # sliver polys
+        testAndDelete('sliverLayer')
         arcpy.MakeFeatureLayer_management(inFds+'/'+inMup,'sliverLayer')
         arcpy.AddField_management('sliverLayer','AreaDivLength','FLOAT')
         arcpy.CalculateField_management('sliverLayer','AreaDivLength',"!Shape_Area! / !Shape_Length!","PYTHON")
@@ -454,6 +462,10 @@ def smallFeaturesCheck(inFds,outFds,mapScaleString,outHtml,tooShortArcMM,tooSmal
             if numberOfRows(fc) == 0: testAndDelete(fc)
     else:
         outHtml.write('&nbsp;&nbsp; No MapUnitPolys feature class<br>\n')
+
+        for xx in 'cafLayer','mupLayer','sliverLayer':
+            testAndDelete(xx)
+
     return      
 
 ############# checking arc-defined formal topology #####################
@@ -519,7 +531,7 @@ def validateCafTopology(inFds,outFds,outHtml):
     # export topology errors
     addMsgAndPrint('  exporting topology errors')
     arcpy.ExportTopologyErrors_management(ourTop,outFds,nameToken)
-    outHtml.write('<h3>Line and point topology</h3>\n')
+    outHtml.write('<h3>Line and polygon topology</h3>\n')
     outHtml.write('<blockquote><i>Note that the map boundary commonly results in a "Must Not Have Gaps" error</i></blockquote>')
     for sfx in ('_point','_line','_poly'):
         fc = outFds+'/'+nameToken+sfx
@@ -618,16 +630,22 @@ def validateCafNodes(inFds,outFds,outHtml,planCaf):
         ##    This code is not case sensitive--all Type values are here converted to lower case
         if numArcs == 1:
             if isFault(arcs[0][3]):
-                nodeStatus = 'OK'  # dangling faults are OK
+                nodeStatus = 'OK dangling fault' 
             else:
-                nodeStatus = 'BAD DANGLE'
                 if arcs[0][4] == 'Y':
                     nodeStatus = 'CHECK  dangling concealed contact'
+                else:
+                    nodeStatus = 'BAD DANGLE'
         elif numArcs == 2:
             if arcs[0][2] == arcs[1][2]:  # nodes belong to same arc, i.e., a loop
-                nodeStatus = 'OK LOOP'
+                nodeStatus = 'OK loop'
             elif arcTypes.count('#CON') == 1: # one arc is concealed, other is not
                 nodeStatus = 'BAD  pseudonode with 1 arc concealed, 1 not'
+            elif arcs[0][3] <> arcs[1][3]:   # arc Type values don't match
+                if isFault(arcs[0][3]) and isFault(arcs[1][3]):
+                    nodeStatus = 'CHECK  pseudonode with change in fault type'
+                else:
+                    nodeStatus = 'BAD  pseudonode with mismatched arc Types'
             else:  # we assume that this is a permissible pseudonode
                 nodeStatus = 'OK  pseudonode'
         elif numArcs == 3:
@@ -649,16 +667,27 @@ def validateCafNodes(inFds,outFds,outHtml,planCaf):
                 ## this flags junctions where a concealed contact merges with a contact as BAD
                 ## maybe it shouldn't?
         elif numArcs == 4:
+            arcs.sort() # first element is LineDir. so arcs are now in order around point
             if arcTypes.count('#CON') == 0:
-                nodeStatus = 'BAD  4 arcs, none concealed'
+                if arcs[0][3] == arcs[2][3] and arcs[1][3] == arcs[3][3] and ( isFault(arcs[0][3]) or isFault(arcs[1][3]) ):
+                    nodeStatus = 'BAD  fault with no offset'
+                else:                                                                   
+                    nodeStatus = 'BAD  4 arcs, none concealed'
             elif arcTypes.count('#CON') in (3,4):
                 nodeStatus == 'BAD  4 arcs, too many concealed'
             # must have two "contact", unconcealed, of same type, and
             #  and two other lines of identical type, at least one of which is concealed
             elif arcTypes.count('#CON') == 2:
-                nodeStatus = 'CHECK 4 arcs, two concealed'
+                if arcs[0][3] <> arcs[2][3] or arcs[1][3] <> arcs[3][3]:
+                    nodeStatus = 'BAD  4 arcs, incompatible Type values'
+                else:
+                    conNumber = concealedArcNumber(arcs)
+                    if conNumber == 3: nextNumber = 0
+                    else: nextNumber = conNumber+1
+                    if not isContact(arcs[nextNumber][3]):
+                        nodeStatus = 'BAD  4 arcs, crossing arc(s) must be contact'
+                    else: nodeStatus = 'OK'  # 4 arcs, contact crosses concealed concealed contact or fault'
             else:  # one of the 4 joining arcs is concealed
-                arcs.sort()  # first element is LineDir. so arcs are now in order around point
                 if arcs[0][3] <> arcs[2][3] or arcs[1][3] <> arcs[3][3]:
                     nodeStatus = 'BAD  4 arcs, incompatible Type values'
                 elif not isContact(arcs[0][3]) and not isContact(arcs[1][3]):
@@ -671,27 +700,7 @@ def validateCafNodes(inFds,outFds,outHtml,planCaf):
                         nodeStatus = 'BAD  crossing arc(s) must be contact'
                     else:
                         nodeStatus = 'OK'
-            """
-            else:
-              try:
-                arcs4 = arcTypes.split(',')
-                i = 0
-                while arcs4[i].find('#CON') < 0:
-                    i = i+1
-                concealedType = arcs4[i].replace('#CON','')
-                arcs4.remove(arcs4[i])
-                i = 0
-                while arcs4[i].find(concealedType) < 0:
-                    i = i+1
-                arcs4.remove(arcs4[i])
-                # there should now be two elements in arcs4
-                if arcs4[0] <> arcs4[1] or arcs4[0].find('contact') < 0:
-                    nodeStatus = 'BAD'
-                else:
-                    nodeStatus = 'CHECK: 4 arcs, probably OK'
-              except:
-                nodeStatus = 'BAD'  """
-              
+                        
         else:  # more than 4 arcs 
             nodeStatus = 'BAD too many lines' 
         xy = (un[0],un[1])
