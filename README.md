@@ -29,6 +29,11 @@ or
 See the help that is part of the individual tool interfaces for documentation. Also the Docs subdirectory of this package for documentation in .docx and .pdf format. 
 
 -----------------------------------------------------------------
+To collaborate, suggestions and edited files submitted by email will be considered but you are strongly encouraged to use git and GitHub to fork a copy of this repo, make changes, and submit a pull request to have your changes merged with the master copy. Excellent guides for various aspects of the git workflow can be found here:
+
+[https://guides.github.com/](https://guides.github.com/)
+
+-----------------------------------------------------------------
 
 Known issues with these scripts include:
 
