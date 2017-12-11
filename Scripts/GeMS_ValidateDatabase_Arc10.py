@@ -18,7 +18,7 @@
 #   Zip up the database, the conformance report (if one is written), 
 #   a brief discussion of what's wrong, and email zip file to me at
 #   	rhaugerud@usgs.gov
-#   Please include "NCGMP09" in the subject line.
+#   Please include "GeMS" in the subject line.
 #   Thanks!
 
 print '  importing arcpy...'
@@ -27,7 +27,7 @@ from GeMS_Definition import tableDict, fieldNullsOKDict
 from GeMS_utilityFunctions import *
 
 
-versionString = 'GeMS_ValidateDatabase_Arc10.py, version of 2 September 2017'
+versionString = 'GeMS_ValidateDatabase_Arc10.py, version of 9 December 2017'
 # modified to have output folder default to folder hosting input database
 # modified for HTML output
 # 15 Sept 2016  tableToHtml modified to better handle special characters
@@ -310,7 +310,7 @@ def checkFieldsAndFieldDefinitions():
     for table in tables:
         if debug: addMsgAndPrint('    Table = '+table)
         arcpy.env.workspace = thisDatabase
-        if not tableDict.has_key(table): 
+        if not ( tableDict.has_key(table) or table == 'GeoMaterialDict'): 
             schemaExtensions.append('Table '+table+' is not required')
         else:
           if table <> 'GeoMaterialDict':
