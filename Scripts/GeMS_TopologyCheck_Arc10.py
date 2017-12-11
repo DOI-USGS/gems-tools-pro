@@ -464,6 +464,8 @@ def validateCafTopology(inFds,outFds,outHtml):
     outCaf = outFds+'/'+caf
     inMup = inFds+'/'+nameToken+'MapUnitPolys'
     outMup = outFds+'/'+nameToken+'MapUnitPolys'
+    inGel = inFds+'/'+nameToken+'GeologicLines'
+    outGel = outFds+'/'+nameToken+'GeologicLines'
             
     # First delete any existing topology
     ourTop = os.path.basename(outFds)+'_topology'
@@ -471,18 +473,25 @@ def validateCafTopology(inFds,outFds,outHtml):
     # copy CAF to _errors.gdb
     testAndDelete(outCaf)
     arcpy.Copy_management(inCaf,outCaf)
-
     # copy MUP to _errors.gdb
     testAndDelete(outMup)
     if arcpy.Exists(inMup):
         arcpy.Copy_management(inMup,outMup)
+    # copy GeL to _errors.gdb
+    testAndDelete(outGel)
+    if arcpy.Exists(inGel):
+        arcpy.Copy_management(inGel,outGel)
+  
     # create topology
     addMsgAndPrint('  creating topology '+ourTop)
     arcpy.CreateTopology_management(outFds,ourTop)
     ourTop = outFds+'/'+ourTop
     # add feature classes to topology
     arcpy.AddFeatureClassToTopology_management(ourTop, outCaf,1,1)
-    arcpy.AddFeatureClassToTopology_management(ourTop, outMup,2,2)
+    if arcpy.Exists(outMup):
+        arcpy.AddFeatureClassToTopology_management(ourTop, outMup,2,2)
+    if arcpy.Exists(outGel):
+        arcpy.AddFeatureClassToTopology_management(ourTop, outGel,3,3)
     # add rules to topology
     addMsgAndPrint('  adding rules to topology:')
     for aRule in ('Must Not Overlap (Line)','Must Not Self-Overlap (Line)','Must Not Self-Intersect (Line)','Must Be Single Part (Line)'):
@@ -494,6 +503,11 @@ def validateCafTopology(inFds,outFds,outHtml):
             arcpy.AddRuleToTopology_management(ourTop, aRule, outMup)
         addMsgAndPrint('    '+'Boundary Must Be Covered By (Area-Line)')
         arcpy.AddRuleToTopology_management(ourTop,'Boundary Must Be Covered By (Area-Line)',outMup,'',outCaf)
+    if arcpy.Exists(outGel):
+        for aRule in ('Must Be Single Part (Line)','Must Not Self-Overlap (Line)','Must Not Self-Intersect (Line)'):
+            addMsgAndPrint('    '+aRule)
+            arcpy.AddRuleToTopology_management(ourTop, aRule, outGel)
+        
     # validate topology
     addMsgAndPrint('  validating topology')
     arcpy.ValidateTopology_management(ourTop)
