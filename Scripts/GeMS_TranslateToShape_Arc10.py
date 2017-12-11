@@ -14,12 +14,14 @@
 #  Ralph Haugerud, USGS, Seattle
 #    rhaugerud@usgs.gov
 
+# 10 Dec 2017. Fixed bug that prevented dumping of not-GeologicMap feature datasets to OPEN version
+
 import arcpy
 import sys, os, glob, time
 from GeMS_utilityFunctions import *
 from numbers import Number
 
-versionString = 'GeMS_TranslateToShape_Arc10.5.py, version of 2 September 2017'
+versionString = 'GeMS_TranslateToShape_Arc10.5.py, version of 10 December 2017'
 
 debug = False
 
@@ -374,6 +376,7 @@ def main(gdbCopy,outWS,oldgdb):
     # list featuredatasets
     arcpy.env.workspace = gdbCopy
     fds = arcpy.ListDatasets()
+    addMsgAndPrint('datasets = '+str(fds))
     # for each featuredataset
     for fd in fds:
         arcpy.workspace = gdbCopy
@@ -394,6 +397,7 @@ def main(gdbCopy,outWS,oldgdb):
             if fd[i] == fd[i].upper():
                 pfx = pfx + fd[i]
         # for each featureclass in dataset
+        arcpy.env.workspace = gdbCopy
         arcpy.env.workspace = fd
         fcList = arcpy.ListFeatureClasses()
         if fcList <> None:
