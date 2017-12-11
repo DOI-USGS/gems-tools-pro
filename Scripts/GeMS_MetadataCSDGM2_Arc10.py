@@ -54,7 +54,7 @@ from GeMS_Definition import enumeratedValueDomainFieldList, rangeDomainDict, unr
 from GeMS_utilityFunctions import *
 from xml.dom.minidom import *
 
-versionString = 'GeMS_MetadataCSDGM2_Arc10.py, version of 2 September 2017'
+versionString = 'GeMS_MetadataCSDGM2_Arc10.py, version of 10 December 2017'
 translator = arcpy.GetInstallInfo("desktop")["InstallDir"]+'Metadata/Translator/ARCGIS2FGDC.xml'
 
 debug = False
@@ -77,10 +77,11 @@ gdbDesc2 = gdbDesc2+('of their purposes, constituent entities, and attributes. N
 'level metadata, including LocationConfidenceMeters, one or more Source attributes, and--as '+
 'appropriate--ExistenceConfidence, IdentityConfidence, and OrientationConfidenceDegrees. ')
 gdbDesc2 = gdbDesc2+"""
-"""+('Two shapefile versions of the dataset are also available. The COMPLETE shapefile version consists '+
+"""+('Two shapefile versions of the dataset are also available. The OPEN shapefile version consists '+
 'of shapefiles, DBF files, and delimited text files and retains all information in the native '+
-'geodatabase, but has limited usability. The SIMPLE shapefile version consists only of shapefiles '+
-'and is easily used, but lacks some information present in the native geodatabase.')
+'geodatabase, but some programming will likely be necessary to assemble these components into '+
+'usable formats. The SIMPLE shapefile version consists only of shapefiles and is easily used, but '+
+'lacks some information present in the native geodatabase.')
 gdbDesc2 = gdbDesc2+ """
 """+'These metadata were generated with script ' + versionString + '. '
 
