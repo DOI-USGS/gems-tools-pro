@@ -358,7 +358,7 @@ def main(gdbCopy,outWS,oldgdb):
     else:
         stdLithDict = 'None'
     mapUnitPolys(stdLithDict,outputDir,logfile)
-    arcpy.env.workspace = 'GeologicMap'
+    arcpy.env.workspace = gdbCopy+'/GeologicMap'
     pointfcs = arcpy.ListFeatureClasses('','POINT')
     linefcs = arcpy.ListFeatureClasses('','LINE')
     arcpy.env.workspace = gdbCopy
