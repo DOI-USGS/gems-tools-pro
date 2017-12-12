@@ -448,12 +448,13 @@ def smallFeaturesCheck(inFds,outFds,mapScaleString,outHtml,tooShortArcMM,tooSmal
         arcpy.FeatureToPoint_management(tooSmallPolys,tooSmallPolyPoints,'INSIDE')
         outHtml.write('&nbsp;&nbsp; '+str(numberOfRows(tooSmallPolys))+' polys with area less than '+str(tooSmallAreaMM2)+' mm<sup>2</sup><br>\n')
         # sliver polys
+        arcpy.CopyFeatures_management(inFds+'/'+inMup,tooSkinnyPolys)
         testAndDelete('sliverLayer')
-        arcpy.MakeFeatureLayer_management(inFds+'/'+inMup,'sliverLayer')
+        arcpy.MakeFeatureLayer_management(tooSkinnyPolys,'sliverLayer')
         arcpy.AddField_management('sliverLayer','AreaDivLength','FLOAT')
         arcpy.CalculateField_management('sliverLayer','AreaDivLength',"!Shape_Area! / !Shape_Length!","PYTHON")
-        arcpy.SelectLayerByAttribute_management('sliverLayer','NEW_SELECTION',"AreaDivLength < "+str(tooSkinnyWidth))
-        arcpy.CopyFeatures_management('sliverLayer',tooSkinnyPolys)
+        arcpy.SelectLayerByAttribute_management('sliverLayer','NEW_SELECTION',"AreaDivLength >= "+str(tooSkinnyWidth))
+        arcpy.DeleteFeatures_management('sliverLayer')
         addMsgAndPrint('  tooSkinnyPolyWidth = '+str(tooSkinnyWidth))
         addMsgAndPrint('  '+str(numberOfRows(tooSkinnyPolys))+ ' too-skinny polygons')
         
