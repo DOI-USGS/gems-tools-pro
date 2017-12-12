@@ -330,7 +330,7 @@ entityDict = {
     'CMUMapUnitPolys':'Polygons (representing map units) of the Correlation of Map Units diagram.',
     'CMUText':'Text of the Correlation of Map Units diagram.',
     'ContactsAndFaults':'Contacts between map units, faults that bound map units, and associated dangling faults. Includes concealed faults and contacts, waterlines, snowfield and glacier boundaries, and map boundary.',
-    'CorrelationOfMapUnits':'Feature dataset that encodes the Correlation of Map Units (CMU) diagram found on many geologic maps. Spatial reference frame is arbitrary; units may be page inches.',
+    'CorrelationOfMapUnits':'CorrelationOfMapUnits is a feature dataset that encodes the Correlation of Map Units (CMU) diagram found on many geologic maps. Spatial reference frame is arbitrary; units may be page inches.',
     'CrossSection':'Feature dataset equivalent to a cross section.',
     'DataSourcePolys':'Polygons that delineate data sources for all parts of the map.',
     'DataSources':'Non-spatial table of sources of all spatial features, sources of some attributes of spatial features, and sources of some attributes of non-spatial table entries.',
