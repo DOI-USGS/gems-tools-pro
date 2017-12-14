@@ -197,7 +197,6 @@ def dumpTable(fc,outName,isSpatial,outputDir,logfile,isOpen,fcName):
     addMsgAndPrint('    Finished dump\n')
               
     
-
 def makeOutputDir(gdb,outWS,isOpen):
     outputDir = os.path.join(outWS, os.path.basename(gdb)[0:-4])
     #outputDir = outWS+'/'+os.path.basename(gdb)[0:-4]
@@ -268,8 +267,9 @@ def makeStdLithDict():
     stdLithDict[unit] = description(unitDesc)
     return stdLithDict
 
-def mapUnitPolys(stdLithDict,outputDir,logfile):
+def mup2shp(gdbCopy,stdLithDict,outputDir,logfile):
     addMsgAndPrint('  Translating GeologicMap\MapUnitPolys...')
+    arcpy.env.workspace = gdbCopy
     try:
         arcpy.MakeTableView_management('DescriptionOfMapUnits','DMU')
         if stdLithDict <> 'None':
@@ -282,7 +282,7 @@ def mapUnitPolys(stdLithDict,outputDir,logfile):
                         rows.updateRow(row)
                     row = rows.next()
                 del row, rows
-        arcpy.MakeFeatureLayer_management("GeologicMap/MapUnitPolys","MUP")
+        arcpy.MakeFeatureLayer_management("GeologicMap\MapUnitPolys","MUP")
         arcpy.AddJoin_management('MUP','MapUnit','DMU','MapUnit')
         arcpy.AddJoin_management('MUP','DataSourceID','DataSources','DataSources_ID')
         arcpy.CopyFeatures_management('MUP','MUP2')
@@ -324,13 +324,13 @@ def removeJoins(fc):
             jts = jts+' '+jt
         addMsgAndPrint('      removed joined tables '+jts) 
         
-def remove_rc(tempWS):
+def remove_rc(gdb):
     """ET - added this function to check for and remove all relationship 
     classes from the copy of the geodatabase. You can't delete fields that 
-    are involved in relationship classes"""
+    are involved in relationship classes. Consider moving this to utility
+    functions"""
     origWS = arcpy.env.workspace
-    #arcpy.env.workspace = tempWS
-    relclass_list = arcpy.da.Walk(tempWS, datatype = "RelationshipClass",
+    relclass_list = arcpy.da.Walk(gdb, datatype = "RelationshipClass",
                     followlinks = True)
     for wkspc, path, relclasses in relclass_list:
         arcpy.env.workspace = wkspc
@@ -338,7 +338,8 @@ def remove_rc(tempWS):
             arcpy.Delete_management(relclass)  
     arcpy.env.workspace = origWS        
 
-def linesAndPoints(fc, outputDir, logfile):
+def linesAndPoints(gdbCopy, fc, outputDir, logfile):
+    """Are we only going to export lines and points inside GeologicMap?"""
     """ET -Don't understand why this function was being passed 
     'GeologicMap/<featureclass>'. I removed that from input variable
     and built it up the path with os.path.join for proper 
@@ -347,16 +348,16 @@ def linesAndPoints(fc, outputDir, logfile):
     field object not a string"""
     fcname = arcpy.Describe(fc).baseName  
     fcInFD = os.path.join('GeologicMap', fcname)
-    glosPath = os.path.join(newgdb, 'Glossary')
-    dsPath = os.path.join(newgdb, 'DataSources')
     addMsgAndPrint('  Translating {}...'.format(fcInFD))
+    
+    glosPath = os.path.join(gdbCopy, 'Glossary')
+    dsPath = os.path.join(gdbCopy, 'DataSources')  
+    #ET-set workspace to GeologicMap inside this funcion instead of in main()
+    geomapFD = os.path.join(gdbCopy, 'GeologicMap')
+    arcpy.env.workspace = geomapFD
     if debug:
         print 1
         printFieldNames(fc)
-    # cp = fc.find('/')
-    # fcShp = fc[cp+1:]+'.shp'
-    # LIN2 = fc[cp+1:]+'2'
-    # LIN = 'xx'+fc[cp+1:]
     
     fcShp = fcname + '.shp'
     LIN = 'xx' + fcname
@@ -386,44 +387,38 @@ def linesAndPoints(fc, outputDir, logfile):
     arcpy.Delete_management(LIN)
     arcpy.Delete_management(LIN2)
     
-def main(gdbCopy,outWS,oldgdb):
+def main(gdbCopy,outWS,gdbSrc):
+    arcpy.env.workspace = gdbCopy
     #
     # Simple version
     #
     isOpen = False
     addMsgAndPrint('')
-    outputDir, logfile = makeOutputDir(oldgdb,outWS,isOpen)
-    # point feature classes
-    arcpy.env.workspace = gdbCopy
+    outputDir, logfile = makeOutputDir(gdbCopy,outWS,isOpen)
+    
+    #ET- first dump MapUnitPolys
+    #arcpy.env.workspace = gdbCopy
     if 'StandardLithology' in arcpy.ListTables():
         stdLithDict = makeStdLithDict()
     else:
         stdLithDict = 'None'
-    mapUnitPolys(stdLithDict, outputDir, logfile)
+    mup2shp(gdbCopy, stdLithDict, outputDir, logfile)
+    
+    #ET - now dump points and lines
     #ET - arcpy.env.workspace = 'GeologicMap' is not a robust way to set the workspace
-    geomapFD = os.path.join(gdbCopy, 'GeologicMap')
-    arcpy.env.workspace = geomapFD
     pointfcs = arcpy.ListFeatureClasses('','POINT')
     linefcs = arcpy.ListFeatureClasses('','LINE')
     #ET - concatenate lists so we only have one for loop below
     fcs = pointfcs + linefcs
     for fc in fcs:
-        linesAndPoints(fc, outputDir, logfile)
-    #arcpy.env.workspace = gdbCopy
-    # for fc in linefcs:
-        ##linesAndPoints('GeologicMap/'+fc,outputDir,logfile)
-        # fcPath = os.path.join('GeologicMap', fc)
-        # linesAndPoints(fcPath,outputDir,logfile)
-    # for fc in pointfcs:
-        # fcPath = os.path.join('GeologicMap', fc)
-        # linesAndPoints(fcPath,outputDir,logfile)	
+        linesAndPoints(gdbCopy, fc, outputDir, logfile)
     logfile.close()
     #
     # Open version
     #
     isOpen = True
     addMsgAndPrint('')
-    outputDir, logfile = makeOutputDir(oldgdb,outWS,isOpen)
+    outputDir, logfile = makeOutputDir(gdbCopy,outWS,isOpen)
     # list featuredatasets
     arcpy.env.workspace = gdbCopy
     fds = arcpy.ListDatasets('', 'Feature')
@@ -454,7 +449,7 @@ def main(gdbCopy,outWS,oldgdb):
         fcList = arcpy.ListFeatureClasses()
         if fcList <> None:
             for fc in fcList:
-                addMsgAndPrint('catalogPath: {}'.format(arcpy.Describe(fc).catalogPath))
+                #addMsgAndPrint('catalogPath: {}'.format(arcpy.Describe(fc).catalogPath))
                 # don't dump Anno classes
                 if arcpy.Describe(fc).featureType <> 'Annotation':
                     outName = pfx+'_'+fc+'.shp'
@@ -475,31 +470,31 @@ def main(gdbCopy,outWS,oldgdb):
 if len(sys.argv) <> 3 or not os.path.exists(sys.argv[1]) or not os.path.exists(sys.argv[2]):
     usage()
 else:
-    addMsgAndPrint('  '+versionString)
-    gdb = os.path.abspath(sys.argv[1])
+    addMsgAndPrint('  {}'.format(versionString))
+    gdbSrc = os.path.abspath(sys.argv[1])
     ows = os.path.abspath(sys.argv[2])
     arcpy.env.QualifiedFieldNames = False
     arcpy.env.overwriteoutput = True
     ## fix the new workspace name so it is guaranteed to be novel, no overwrite
-    global newgdb
-    newgdb = os.path.join(ows, 'xx' + os.path.basename(gdb))
-    #newgdb = ows+'/xx'+os.path.basename(gdb)
-    if arcpy.Exists(newgdb):
-        arcpy.Delete_management(newgdb)
-    addMsgAndPrint('  Copying '+os.path.basename(gdb)+' to temporary geodatabase...')
-    arcpy.Copy_management(gdb,newgdb)
+    gdbCopy = os.path.join(ows, 'xx' + os.path.basename(gdbSrc))
+    if arcpy.Exists(gdbCopy):
+        arcpy.Delete_management(gdbCopy)
+    addMsgAndPrint('  Copying {} to temporary geodatabase...'.format(os.path.basename(gdbSrc)))
+    arcpy.Copy_management(gdbSrc,gdbCopy)
     
     #ET - if relationships exist in the source gdb, remove them in the copy
     #ET - DeleteField_management in def linesAndPoints cannot run if the field is involved in a relationship
-    addMsgAndPrint('  Looking for and removing relationships from {}'.format(newgdb))
-    remove_rc(newgdb) 
+    addMsgAndPrint('  Looking for and removing relationships from {}'.format(gdbCopy))
+    remove_rc(gdbCopy) 
     
-    main(newgdb,ows,gdb)
+    main(gdbCopy,ows,gdbSrc)
     addMsgAndPrint('\n  Deleting temporary geodatabase...')
     arcpy.env.workspace = ows
     time.sleep(5)
     try:
-        arcpy.Delete_management(newgdb)
+        arcpy.Delete_management(gdbCopy)
     except:
         addMsgAndPrint('    As usual, failed to delete temporary geodatabase')
-        addMsgAndPrint('    Please delete '+newgdb+'\n')
+        addMsgAndPrint('    Please delete {}\n'.format(gdbCopy))
+        
+        
