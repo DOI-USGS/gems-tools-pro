@@ -129,7 +129,7 @@ def dumpTable(fc,outName,isSpatial,outputDir,logfile,isOpen,fcName):
         print
     
     desc = arcpy.Describe(fc)
-    addMsgAndPrint('{}, {}'.format(desc.baseName, desc.catalogPath))
+    #addMsgAndPrint('{}, {}'.format(desc.baseName, desc.catalogPath))
    
     fields = arcpy.ListFields(fc)
     longFields = []
@@ -209,14 +209,7 @@ def makeOutputDir(gdb,outWS,isOpen):
         """ET - easier way to remove directory and 
         subdirectories, empty or not is with shutil"""
         shutil.rmtree(outputDir) 
-        # infoPath = os.path.join(outputDir, 'info')
-        # if os.path.exists(infoPath):
-            # for fl in glob.glob(outputDir+'/info/*'):
-                # os.remove(fl)
-            # os.rmdir(outputDir+'/info')
-        # for fl in glob.glob(outputDir+'/*'):
-            # os.remove(fl)
-        # os.rmdir(outputDir)
+
     os.mkdir(outputDir)
     logPath = os.path.join(outputDir, 'logfile.txt')
     logfile = open(logPath,'w')
@@ -344,28 +337,26 @@ def linesAndPoints(gdbCopy, fc, outputDir, logfile):
     'GeologicMap/<featureclass>'. I removed that from input variable
     and built it up the path with os.path.join for proper 
     delimiter only for the message"""
-    """using Describe to get the name just because fc is actually a 
-    field object not a string"""
-    fcname = arcpy.Describe(fc).baseName  
-    fcInFD = os.path.join('GeologicMap', fcname)
+    fcInFD = os.path.join('GeologicMap', fc)
     addMsgAndPrint('  Translating {}...'.format(fcInFD))
     
+    desc = arcpy.Describe(fc)
     glosPath = os.path.join(gdbCopy, 'Glossary')
     dsPath = os.path.join(gdbCopy, 'DataSources')  
     #ET-set workspace to GeologicMap inside this funcion instead of in main()
-    geomapFD = os.path.join(gdbCopy, 'GeologicMap')
-    arcpy.env.workspace = geomapFD
+    #geomapFD = os.path.join(gdbCopy, 'GeologicMap')
+    #arcpy.env.workspace = geomapFD
     if debug:
         print 1
         printFieldNames(fc)
     
-    fcShp = fcname + '.shp'
-    LIN = 'xx' + fcname
-    LIN2 = fcname + '2'
+    fcShp = fc + '.shp'
+    LIN = 'xx' + fc
+    LIN2 = fc + '2'
     removeJoins(fc)
     
     addMsgAndPrint('    Making layer {} from {}'.format(LIN, fcInFD))
-    arcpy.MakeFeatureLayer_management(fcname, LIN)
+    arcpy.MakeFeatureLayer_management(desc.catalogPath, LIN)
     fieldNames = fieldNameList(LIN)
     if 'Type' in fieldNames:
         arcpy.AddField_management(LIN, 'Definition', 'TEXT', '#', '#', '254')
@@ -373,7 +364,7 @@ def linesAndPoints(gdbCopy, fc, outputDir, logfile):
         arcpy.CalculateField_management(LIN, 'Definition', '!Glossary.Definition![0:254]', 'PYTHON')
         arcpy.RemoveJoin_management(LIN, 'Glossary')
     # command below are 9.3+ specific
-    sourceFields = arcpy.ListFields(fcname, '*SourceID')
+    sourceFields = arcpy.ListFields(fc, '*SourceID')
     for sField in sourceFields:
         nFieldName = sField.name[:-2]
         arcpy.AddField_management(LIN, nFieldName, 'TEXT', '#', '#', '254')
@@ -382,7 +373,6 @@ def linesAndPoints(gdbCopy, fc, outputDir, logfile):
         arcpy.RemoveJoin_management(LIN, 'DataSources')
         arcpy.DeleteField_management(LIN, sField.name)
     arcpy.CopyFeatures_management(LIN, LIN2)
-    #dumpTable(LIN2,fcShp,True,outputDir,logfile,False,fc[cp+1:])
     dumpTable(LIN2, fcShp, True, outputDir, logfile, False, fc)
     arcpy.Delete_management(LIN)
     arcpy.Delete_management(LIN2)
@@ -394,7 +384,7 @@ def main(gdbCopy,outWS,gdbSrc):
     #
     isOpen = False
     addMsgAndPrint('')
-    outputDir, logfile = makeOutputDir(gdbCopy,outWS,isOpen)
+    outputDir, logfile = makeOutputDir(gdbSrc,outWS,isOpen)
     
     #ET- first dump MapUnitPolys
     #arcpy.env.workspace = gdbCopy
@@ -406,11 +396,20 @@ def main(gdbCopy,outWS,gdbSrc):
     
     #ET - now dump points and lines
     #ET - arcpy.env.workspace = 'GeologicMap' is not a robust way to set the workspace
+    arcpy.env.workspace = gdbCopy
+    #ET- get points and lines not in any feature dataset
     pointfcs = arcpy.ListFeatureClasses('','POINT')
     linefcs = arcpy.ListFeatureClasses('','LINE')
-    #ET - concatenate lists so we only have one for loop below
-    fcs = pointfcs + linefcs
-    for fc in fcs:
+    fcList = pointfcs + linefcs
+    #ET- append fcs in any feature dataset
+    for fd in arcpy.ListDatasets('', 'Feature'):
+        arcpy.env.workspace = fd
+        for pointfc in arcpy.ListFeatureClasses('','POINT'):
+            fcList.append(pointfc)
+        for linefc in arcpy.ListFeatureClasses('','LINE'):
+            fcList.append(linefc)
+
+    for fc in fcList:
         linesAndPoints(gdbCopy, fc, outputDir, logfile)
     logfile.close()
     #
@@ -418,7 +417,7 @@ def main(gdbCopy,outWS,gdbSrc):
     #
     isOpen = True
     addMsgAndPrint('')
-    outputDir, logfile = makeOutputDir(gdbCopy,outWS,isOpen)
+    outputDir, logfile = makeOutputDir(gdbSrc,outWS,isOpen)
     # list featuredatasets
     arcpy.env.workspace = gdbCopy
     fds = arcpy.ListDatasets('', 'Feature')
@@ -445,7 +444,7 @@ def main(gdbCopy,outWS,gdbSrc):
                 pfx = pfx + fd[i]
         # for each featureclass in dataset
         arcpy.env.workspace = fd
-        addMsgAndPrint('workspace = {}'.format(arcpy.env.workspace))
+        #addMsgAndPrint('workspace = {}'.format(arcpy.env.workspace))
         fcList = arcpy.ListFeatureClasses()
         if fcList <> None:
             for fc in fcList:
