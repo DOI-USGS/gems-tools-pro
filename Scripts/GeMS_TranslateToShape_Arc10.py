@@ -15,7 +15,7 @@
 #    rhaugerud@usgs.gov
 
 import arcpy
-import sys, os, glob, time
+import sys, os, glob, time, shutil
 from GeMS_utilityFunctions import *
 from numbers import Number
 
@@ -114,20 +114,23 @@ def printFieldNames(fc):
     print
 
 def dumpTable(fc,outName,isSpatial,outputDir,logfile,isOpen,fcName):
-    dumpString = '  Dumping '+outName+'...'
-    if isSpatial: dumpString = '  '+dumpString
+    dumpString = '  Dumping {}...'.format(outName)
+    if isSpatial: dumpString = '  {}'.format(dumpString)
     addMsgAndPrint(dumpString)
     if isSpatial:
-        logfile.write('  feature class '+fc+' dumped to shapefile '+outName+'\n')
+        logfile.write('  feature class {} dumped to shapefile {}\n'.format(fc, outName))
     else:
-        logfile.write('  table '+fc+' dumped to table '+outName+'\n')
+        logfile.write('  table {} dumped to table {}\n'.format(fc, outName))
     logfile.write('    field name remapping: \n')
     # describe
 
     if debug:
         printFieldNames(fc)
         print
-          
+    
+    desc = arcpy.Describe(fc)
+    addMsgAndPrint('{}, {}'.format(desc.baseName, desc.catalogPath))
+   
     fields = arcpy.ListFields(fc)
     longFields = []
     shortFieldName = {}
@@ -145,6 +148,7 @@ def dumpTable(fc,outName,isSpatial,outputDir,logfile,isOpen,fcName):
         else:
             shortFieldName[field.name] = fName
         if field.name not in ('OBJECTID','Shape','SHAPE','Shape_Length','Shape_Area'):
+            #addMsgAndPrint(field.name)
             arcpy.AlterField_management(fc,field.name,shortFieldName[field.name])
         if field.length > 254:
             longFields.append(shortFieldName[field.name])
@@ -164,8 +168,9 @@ def dumpTable(fc,outName,isSpatial,outputDir,logfile,isOpen,fcName):
         # if any field lengths > 254, write .txt file
         if len(longFields) > 0:
             outText = outName[0:-4]+'.txt'
+            logPath = os.path.join(outputDir, outText)
             logfile.write('    table '+fc+' has long fields, thus dumped to file '+outText+'\n')
-            csvFile = open(outputDir+'/'+outText,'w')
+            csvFile = open(logPath,'w')
             fields = fieldNameList(fc)
             if isSpatial:
                 try:
@@ -194,22 +199,28 @@ def dumpTable(fc,outName,isSpatial,outputDir,logfile,isOpen,fcName):
     
 
 def makeOutputDir(gdb,outWS,isOpen):
-    outputDir = outWS+'/'+os.path.basename(gdb)[0:-4]
+    outputDir = os.path.join(outWS, os.path.basename(gdb)[0:-4])
+    #outputDir = outWS+'/'+os.path.basename(gdb)[0:-4]
     if isOpen:
         outputDir = outputDir+'-open'
     else:
         outputDir = outputDir+'-simple'
-    addMsgAndPrint('  Making '+outputDir+'/...')
+    addMsgAndPrint('  Making {}\...'.format(outputDir))
     if os.path.exists(outputDir):
-        if os.path.exists(outputDir+'/info'):
-            for fl in glob.glob(outputDir+'/info/*'):
-                os.remove(fl)
-            os.rmdir(outputDir+'/info')
-        for fl in glob.glob(outputDir+'/*'):
-            os.remove(fl)
-        os.rmdir(outputDir)
+        """ET - easier way to remove directory and 
+        subdirectories, empty or not is with shutil"""
+        shutil.rmtree(outputDir) 
+        # infoPath = os.path.join(outputDir, 'info')
+        # if os.path.exists(infoPath):
+            # for fl in glob.glob(outputDir+'/info/*'):
+                # os.remove(fl)
+            # os.rmdir(outputDir+'/info')
+        # for fl in glob.glob(outputDir+'/*'):
+            # os.remove(fl)
+        # os.rmdir(outputDir)
     os.mkdir(outputDir)
-    logfile = open(outputDir+'/logfile.txt','w')
+    logPath = os.path.join(outputDir, 'logfile.txt')
+    logfile = open(logPath,'w')
     logfile.write('file written by '+versionString+'\n\n')
     return outputDir, logfile
 
@@ -258,7 +269,7 @@ def makeStdLithDict():
     return stdLithDict
 
 def mapUnitPolys(stdLithDict,outputDir,logfile):
-    addMsgAndPrint('  Translating GeologicMap/MapUnitPolys...')
+    addMsgAndPrint('  Translating GeologicMap\MapUnitPolys...')
     try:
         arcpy.MakeTableView_management('DescriptionOfMapUnits','DMU')
         if stdLithDict <> 'None':
@@ -283,6 +294,8 @@ def mapUnitPolys(stdLithDict,outputDir,logfile):
                       DS+'OBJECTID',DS+DS+'ID',DS+'Notes',DS+'URL'):
             arcpy.DeleteField_management('MUP2',field)
         dumpTable('MUP2','MapUnitPolys.shp',True,outputDir,logfile,False,'MapUnitPolys')
+        #arcpy.Delete_management('MUP2')
+        
     except:
         addMsgAndPrint(arcpy.GetMessages())
         addMsgAndPrint('  Failed to translate MapUnitPolys')
@@ -309,39 +322,70 @@ def removeJoins(fc):
         jts = ''
         for jt in joinedTables:
             jts = jts+' '+jt
-        addMsgAndPrint('      removed joined tables '+jts)            
+        addMsgAndPrint('      removed joined tables '+jts) 
+        
+def remove_rc(tempWS):
+    """ET - added this function to check for and remove all relationship 
+    classes from the copy of the geodatabase. You can't delete fields that 
+    are involved in relationship classes"""
+    origWS = arcpy.env.workspace
+    #arcpy.env.workspace = tempWS
+    relclass_list = arcpy.da.Walk(tempWS, datatype = "RelationshipClass",
+                    followlinks = True)
+    for wkspc, path, relclasses in relclass_list:
+        arcpy.env.workspace = wkspc
+        for relclass in relclasses:
+            arcpy.Delete_management(relclass)  
+    arcpy.env.workspace = origWS        
 
-def linesAndPoints(fc,outputDir,logfile):
-    addMsgAndPrint('  Translating '+fc+'...')
+def linesAndPoints(fc, outputDir, logfile):
+    """ET -Don't understand why this function was being passed 
+    'GeologicMap/<featureclass>'. I removed that from input variable
+    and built it up the path with os.path.join for proper 
+    delimiter only for the message"""
+    """using Describe to get the name just because fc is actually a 
+    field object not a string"""
+    fcname = arcpy.Describe(fc).baseName  
+    fcInFD = os.path.join('GeologicMap', fcname)
+    glosPath = os.path.join(newgdb, 'Glossary')
+    dsPath = os.path.join(newgdb, 'DataSources')
+    addMsgAndPrint('  Translating {}...'.format(fcInFD))
     if debug:
         print 1
         printFieldNames(fc)
-    cp = fc.find('/')
-    fcShp = fc[cp+1:]+'.shp'
-    LIN2 = fc[cp+1:]+'2'
-    LIN = 'xx'+fc[cp+1:]
+    # cp = fc.find('/')
+    # fcShp = fc[cp+1:]+'.shp'
+    # LIN2 = fc[cp+1:]+'2'
+    # LIN = 'xx'+fc[cp+1:]
+    
+    fcShp = fcname + '.shp'
+    LIN = 'xx' + fcname
+    LIN2 = fcname + '2'
     removeJoins(fc)
-    addMsgAndPrint('    Making layer '+LIN+' from '+fc)
-    arcpy.MakeFeatureLayer_management(fc,LIN)
+    
+    addMsgAndPrint('    Making layer {} from {}'.format(LIN, fcInFD))
+    arcpy.MakeFeatureLayer_management(fcname, LIN)
     fieldNames = fieldNameList(LIN)
     if 'Type' in fieldNames:
-        arcpy.AddField_management(LIN,'Definition','TEXT','#','#','254')
-        arcpy.AddJoin_management(LIN,'Type','Glossary','Term')
-        arcpy.CalculateField_management(LIN,'Definition','!Glossary.Definition![0:254]','PYTHON')
-        arcpy.RemoveJoin_management(LIN,'Glossary')
+        arcpy.AddField_management(LIN, 'Definition', 'TEXT', '#', '#', '254')
+        arcpy.AddJoin_management(LIN, 'Type', glosPath, 'Term')
+        arcpy.CalculateField_management(LIN, 'Definition', '!Glossary.Definition![0:254]', 'PYTHON')
+        arcpy.RemoveJoin_management(LIN, 'Glossary')
     # command below are 9.3+ specific
-    sourceFields = arcpy.ListFields(fc,'*SourceID')
+    sourceFields = arcpy.ListFields(fcname, '*SourceID')
     for sField in sourceFields:
         nFieldName = sField.name[:-2]
-        arcpy.AddField_management(LIN,nFieldName,'TEXT','#','#','254')
-        arcpy.AddJoin_management(LIN,sField.name,'DataSources','DataSources_ID')
-        arcpy.CalculateField_management(LIN,nFieldName,'!DataSources.Source![0:254]','PYTHON')
-        arcpy.RemoveJoin_management(LIN,'DataSources')
-        arcpy.DeleteField_management(LIN,sField.name)
-    arcpy.CopyFeatures_management(LIN,LIN2)
+        arcpy.AddField_management(LIN, nFieldName, 'TEXT', '#', '#', '254')
+        arcpy.AddJoin_management(LIN, sField.name, dsPath, 'DataSources_ID')
+        arcpy.CalculateField_management(LIN, nFieldName, '!DataSources.Source![0:254]', 'PYTHON')
+        arcpy.RemoveJoin_management(LIN, 'DataSources')
+        arcpy.DeleteField_management(LIN, sField.name)
+    arcpy.CopyFeatures_management(LIN, LIN2)
+    #dumpTable(LIN2,fcShp,True,outputDir,logfile,False,fc[cp+1:])
+    dumpTable(LIN2, fcShp, True, outputDir, logfile, False, fc)
     arcpy.Delete_management(LIN)
-    dumpTable(LIN2,fcShp,True,outputDir,logfile,False,fc[cp+1:])
-
+    arcpy.Delete_management(LIN2)
+    
 def main(gdbCopy,outWS,oldgdb):
     #
     # Simple version
@@ -355,15 +399,24 @@ def main(gdbCopy,outWS,oldgdb):
         stdLithDict = makeStdLithDict()
     else:
         stdLithDict = 'None'
-    mapUnitPolys(stdLithDict,outputDir,logfile)
-    arcpy.env.workspace = 'GeologicMap'
+    mapUnitPolys(stdLithDict, outputDir, logfile)
+    #ET - arcpy.env.workspace = 'GeologicMap' is not a robust way to set the workspace
+    geomapFD = os.path.join(gdbCopy, 'GeologicMap')
+    arcpy.env.workspace = geomapFD
     pointfcs = arcpy.ListFeatureClasses('','POINT')
     linefcs = arcpy.ListFeatureClasses('','LINE')
-    arcpy.env.workspace = gdbCopy
-    for fc in linefcs:
-        linesAndPoints('GeologicMap/'+fc,outputDir,logfile)
-    for fc in pointfcs:
-        linesAndPoints('GeologicMap/'+fc,outputDir,logfile)	
+    #ET - concatenate lists so we only have one for loop below
+    fcs = pointfcs + linefcs
+    for fc in fcs:
+        linesAndPoints(fc, outputDir, logfile)
+    #arcpy.env.workspace = gdbCopy
+    # for fc in linefcs:
+        ##linesAndPoints('GeologicMap/'+fc,outputDir,logfile)
+        # fcPath = os.path.join('GeologicMap', fc)
+        # linesAndPoints(fcPath,outputDir,logfile)
+    # for fc in pointfcs:
+        # fcPath = os.path.join('GeologicMap', fc)
+        # linesAndPoints(fcPath,outputDir,logfile)	
     logfile.close()
     #
     # Open version
@@ -373,19 +426,21 @@ def main(gdbCopy,outWS,oldgdb):
     outputDir, logfile = makeOutputDir(oldgdb,outWS,isOpen)
     # list featuredatasets
     arcpy.env.workspace = gdbCopy
-    fds = arcpy.ListDatasets()
+    fds = arcpy.ListDatasets('', 'Feature')
     # for each featuredataset
     for fd in fds:
-        arcpy.workspace = gdbCopy
-        addMsgAndPrint( '  Processing feature data set '+fd+'...')
-        logfile.write('Feature data set '+fd+' \n')
+        fdPath = arcpy.Describe(fd).catalogPath
+        #addMsgAndPrint('feature dataset {}'.format(arcpy.Describe(fd).catalogPath))
+        #arcpy.workspace = gdbCopy
+        addMsgAndPrint( '  Processing feature data set {}...'.format(fdPath))
+        logfile.write('Feature data set {} \n'.format(fd))
         try:
             spatialRef = arcpy.Describe(fd).SpatialReference
             logfile.write('  spatial reference framework\n')
-            logfile.write('    name = '+spatialRef.Name+'\n')
-            logfile.write('    spheroid = '+spatialRef.SpheroidName+'\n')
-            logfile.write('    projection = '+spatialRef.ProjectionName+'\n')
-            logfile.write('    units = '+spatialRef.LinearUnitName+'\n')
+            logfile.write('    name = {}\n'.format(spatialRef.Name))
+            logfile.write('    spheroid = {}\n'.format(spatialRef.SpheroidName))
+            logfile.write('    projection = {}\n'.format(spatialRef.ProjectionName))
+            logfile.write('    units = {}\n'.format(spatialRef.LinearUnitName))
         except:
             logfile.write('  spatial reference framework appears to be undefined\n')
         # generate featuredataset prefix
@@ -395,9 +450,11 @@ def main(gdbCopy,outWS,oldgdb):
                 pfx = pfx + fd[i]
         # for each featureclass in dataset
         arcpy.env.workspace = fd
+        addMsgAndPrint('workspace = {}'.format(arcpy.env.workspace))
         fcList = arcpy.ListFeatureClasses()
         if fcList <> None:
-            for fc in arcpy.ListFeatureClasses():
+            for fc in fcList:
+                addMsgAndPrint('catalogPath: {}'.format(arcpy.Describe(fc).catalogPath))
                 # don't dump Anno classes
                 if arcpy.Describe(fc).featureType <> 'Annotation':
                     outName = pfx+'_'+fc+'.shp'
@@ -424,11 +481,19 @@ else:
     arcpy.env.QualifiedFieldNames = False
     arcpy.env.overwriteoutput = True
     ## fix the new workspace name so it is guaranteed to be novel, no overwrite
-    newgdb = ows+'/xx'+os.path.basename(gdb)
+    global newgdb
+    newgdb = os.path.join(ows, 'xx' + os.path.basename(gdb))
+    #newgdb = ows+'/xx'+os.path.basename(gdb)
     if arcpy.Exists(newgdb):
         arcpy.Delete_management(newgdb)
     addMsgAndPrint('  Copying '+os.path.basename(gdb)+' to temporary geodatabase...')
     arcpy.Copy_management(gdb,newgdb)
+    
+    #ET - if relationships exist in the source gdb, remove them in the copy
+    #ET - DeleteField_management in def linesAndPoints cannot run if the field is involved in a relationship
+    addMsgAndPrint('  Looking for and removing relationships from {}'.format(newgdb))
+    remove_rc(newgdb) 
+    
     main(newgdb,ows,gdb)
     addMsgAndPrint('\n  Deleting temporary geodatabase...')
     arcpy.env.workspace = ows
