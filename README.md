@@ -1,4 +1,4 @@
-GeMS Tools  v0.2
+GeMS Tools
 
 This repository contains an ArcGIS toolbox and associated scripts and resources for creating, manipulating, and validating GeMS-style geologic map databases, as well as documentation.  See the Docs folder for more information. 
 
