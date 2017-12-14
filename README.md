@@ -12,7 +12,9 @@ Any use of trade, firm, or product names is for descriptive purposes only and do
 
 -----------------------------------------------------------------
 
-To install the GeMS toolbox, download this repository. On GitHub, tap the Clone or download (green box with down caret at upper right of screen) button and select "Download ZIP". Go to your download directory and unzip the just-downloaded file. Inside the unzipped file there will be a single folder named something like "GeMS_Tools-0.2-master". Either 
+To install the GeMS toolbox, download this repository. On GitHub, at the mid-upper left of this repository page, tap gray "Branch:master" button, tap "Tags" in the window that opens, and select the appropriate (probably the most recent) entry.  Then tap the "Clone or download button" (green box with down caret at upper right of screen) and select "Download ZIP". 
+
+After the download completes, go to your download directory and unzip the just-downloaded file. Inside the unzipped file there will be a single folder named something like "GeMS_Tools-0.2-version14Dec2017". Either 
 
 1. Copy this folder to a locale of your choice. Start ArcCatalog or ArcMap, open the Arc Toolbox window, right click on empty space in the Arc Toolbox window, and select "Add Toolbox".  Then navigate to the GeMS_Tools folder and select file GeMSToolsArc105.tbx (if you are running ArcGIS 10.5) or file GeMSToolsArc10.tbx (if you are running an older version of ArcGIS).
 
