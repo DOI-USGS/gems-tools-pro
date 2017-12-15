@@ -18,7 +18,7 @@
 #   Zip up the database, the conformance report (if one is written), 
 #   a brief discussion of what's wrong, and email zip file to me at
 #   	rhaugerud@usgs.gov
-#   Please include "GeMS" in the subject line.
+#   Please include "NCGMP09" in the subject line.
 #   Thanks!
 
 print '  importing arcpy...'
@@ -27,7 +27,7 @@ from GeMS_Definition import tableDict, fieldNullsOKDict
 from GeMS_utilityFunctions import *
 
 
-versionString = 'GeMS_ValidateDatabase_Arc10.py, version of 9 December 2017'
+versionString = 'GeMS_ValidateDatabase_Arc10.py, version of 6 December 2017'
 # modified to have output folder default to folder hosting input database
 # modified for HTML output
 # 15 Sept 2016  tableToHtml modified to better handle special characters
@@ -39,6 +39,7 @@ versionString = 'GeMS_ValidateDatabase_Arc10.py, version of 9 December 2017'
 # 19 Dec 2016   Deleted requirement that GenLith and GenLithConf be defined in Glossary
 # 17 Mar 2017   Added MiscellaneousMapInformation and StandardLithology to tables listed to output HTML
 # 13 August 2017  Cleaned up required table and feature class definition; added GeoMaterialDict to required elements
+# 6 December 2017   Did a re-vamp on html, added style, tables, etc. - Tanner Arrington
 
 ## need to check for and flag zero-length strings: should be '#', '#null' or None
 
@@ -46,15 +47,100 @@ debug = False
 space6 = '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp'
 space4 = '&nbsp;&nbsp;&nbsp;&nbsp;'
 space2 = '&nbsp;&nbsp;'
-startMonospace = '<font face="Courier New, Courier, monospace">'
-endMonospace = '</font>'
+
+rdiv = '<div class="report">\n'
+divend = '</div>\n'    
+
+style = """ 
+    <style>
+        .report {
+            font-family: Courier New, Courier, monospace;
+            margin-left: 20px;
+            margin-right: 20px;
+        }
+        h3, .tablediv h4 {
+            margin-left:15px;
+        }
+        h2,
+        h3 {
+            background-color: lightgray;
+            padding: 5px;
+            border-radius: 4px;
+            font-family: "Century Gothic", CenturyGothic, AppleGothic, sans-serif;
+        }
+        .ess-tables {
+            width: 95%;
+            margin-left: 15px;
+        }
+        .table-header:hover {
+            cursor:pointer;
+        }
+        table,
+        th,
+        td {
+            border: 1px solid gray;
+            border-collapse: collapse;
+            padding: 10px;
+        }
+        .fields {
+            color: darkblue;
+            font-weight:bold;
+        }
+        .tables {
+            color:darkorange;
+            font-weight:bold;
+        }
+        .values {
+            color:darkgreen;
+            font-weight:bold;
+        }
+        .highlight{
+            background-color:#f2fcd6;
+            padding:0 2px;
+            border-radius:3px;
+            border-bottom:1px solid gray;
+        }
+        li {
+            list-style: none;
+            margin-top: 5px;
+            margin-bottom: 5px;
+        }
+        #back-to-top {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 10px;
+            margin: 10px;
+            background-color: rgba(250,250,250,0.7);
+            border-radius:5px;
+        }
+    </style>"""
+
+overviewhtml = """
+    <h2>Contents</h2>\n
+    <div class="report" id="contents">
+        <a href="#schema-errors">Schema Errors</a><br>
+        <a href="#extensions">Extensions to Schema</a><br>
+        <a href="#content-errors">Content Errors</a><br>
+        <a href="#match">MapUnits Match across map, DMU, CMU, and cross-sections</a><br>
+        <a href="#essential">Essential Tables</a><br>
+        <a href="#gdb-desc">Geodatabase Description</a><br>
+    </div>
+    <div class="report">
+        <h4>Color Codes</h4>
+        <span class="tables">Orange</span> are tables, feature classes, or feature datasets in the geodatabase.<br>
+        <span class="fields">Blue</span> are fields in a table.</br>
+        <span class="values">Green</span> are values in a field.</br>
+    </div>
+    <div id="back-to-top"><a href="#overview">Back to Top</a></div>
+    """
 
 # fields we don't want listed or described when inventorying dataset:
 standardFields = ('OBJECTID','SHAPE','Shape','SHAPE_Length','SHAPE_Area','ZOrder',
                   'AnnotationClassID','Status','TextString','FontName','FontSize','Bold',
                   'Italic','Underline','VerticalAlignment','HorizontalAlignment',
                   'XOffset','YOffset','Angle','FontLeading','WordSpacing','CharacterWidth',
-			'CharacterSpacing','FlipAngle','Override','Shape_Length','Shape_Area') 
+			'CharacterSpacing','FlipAngle','Override','Shape_Length','Shape_Area','last_edited_date','last_edited_user','created_date','created_user') 
 
 # fields whose values must be defined in Glossary
 gFieldDefList = ('Type','TypeModifier','LocationMethod','Lithology','ProportionTerm','TimeScale',
@@ -71,57 +157,59 @@ all_IDs = []		# list of should-be unique identifiers
 allMapUnitRefs = []	# list of MapUnit references (from various Poly feature data sets)
 allGlossaryRefs = []	# list of all references to Glossary
 allDataSourcesRefs = [] # list of all references to DataSources
-missingRequiredValues = ['Fields that are missing required values']
+missingRequiredValues = ['<span class="highlight">Fields that are missing required values</span>']
 
 gdbDescription = []
 schemaErrors = []
 schemaExtensions = []
 
-duplicateIDs = ['Duplicate _ID values']
-unreferencedIds = ['OwnerIDs and ValueLinkIDs in ExtendedAttributes that are absent elsewhere in the database']
+duplicateIDs = ['<span class="highlight">Duplicate _ID values</span>']
+unreferencedIds = ['<span class="highlight">OwnerIDs and ValueLinkIDs in ExtendedAttributes that are absent elsewhere in the database</span>']
 extendedAttribIDs = []
-missingSourceIDs = ['Missing DataSources entries. Only one reference to each missing source is cited']
-unusedDataSources = ['Entries in DataSources that are not otherwise referenced in database']
+missingSourceIDs = ['<span class="highlight">Missing DataSources entries. Only one reference to each missing source is cited</span>']
+unusedDataSources = ['<span class="highlight">Entries in DataSources that are not otherwise referenced in database</span>']
 dataSourcesIDs = []
-missingDmuMapUnits = ['MapUnits missing from DMU. Only one reference to each missing unit is cited']
-missingStandardLithMapUnits = ['MapUnits missing from StandardLithology. Only one reference to each missing unit is cited']
-unreferencedDmuMapUnits = ['MapUnits in DMU that are not present on map or in CMU']
-unreferencedStandardLithMapUnits = ['MapUnits in StandardLithology that are not present on map']
-equivalenceErrors = ['map, DMU, CMU, cross sections']
+missingDmuMapUnits = ['<span class="highlight">MapUnits missing from DMU. Only one reference to each missing unit is cited</span>']
+missingStandardLithMapUnits = ['<span class="highlight">MapUnits missing from StandardLithology. Only one reference to each missing unit is cited</span>']
+unreferencedDmuMapUnits = ['<span class="highlight">MapUnits in DMU that are not present on map or in CMU</span>']
+unreferencedStandardLithMapUnits = ['<span class="highlight">MapUnits in StandardLithology that are not present on map</span>']
+equivalenceErrors = ['<table style="text-align:center"><tr><th>MapUnit</th><th>map</th><th>DMU</th><th>CMU</th><th>cross sections</th></tr>']
 dmuMapUnits = []
 cmuMapUnits = []
 gmapMapUnits = []
 csMapUnits = []
 standardLithMapUnits = []
-missingGlossaryTerms = ['Missing terms in Glossary. Only one reference to each missing term is cited']
-unusedGlossaryTerms = ['Terms in Glossary that are not otherwise used in geodatabase']
+missingGlossaryTerms = ['<span class="highlight">Missing terms in Glossary. Only one reference to each missing term is cited</span>']
+unusedGlossaryTerms = ['<span class="highlight">Terms in Glossary that are not otherwise used in geodatabase</span>']
 glossaryTerms = []
-unusedGeologicEvents = ['Events in GeologicEvents that are not cited in ExtendedAttributes']
-hKeyErrors = ['HierarchyKey errors, DescriptionOfMapUnits']
-zeroLengthStrings = ['Zero-length strings']
+unusedGeologicEvents = ['<span class="highlight">Events in GeologicEvents that are not cited in ExtendedAttributes</span>']
+hKeyErrors = ['<span class="highlight">HierarchyKey errors, DescriptionOfMapUnits</span>']
+zeroLengthStrings = ['<span class="highlight">Zero-length strings</span>']
 
 def listDataSet(dataSet):
     addMsgAndPrint('    '+dataSet)
     startTime = time.time()
     try:
-      nrows = arcpy.GetCount_management(dataSet)
-      elapsedTime = time.time() - startTime
-      if debug: addMsgAndPrint('      '+str(nrows)+' rows '+ "%.1f" % elapsedTime +' sec')
-      gdbDescription.append(space4+dataSet+', '+str(nrows)+' records')
+        nrows = arcpy.GetCount_management(dataSet)
+        elapsedTime = time.time() - startTime
+        if debug: addMsgAndPrint('      '+str(nrows)+' rows '+ "%.1f" % elapsedTime +' sec')
+        gdbDescription.append('<h4><span class="tables">'+dataSet+'</span>, '+str(nrows)+' records</h4>\n<ul>\n')
     except:
-      addMsgAndPrint('Could not get number of rows for '+dataSet)
-      gdbDescription.append(space4+dataSet+', unknown # of records')
+        addMsgAndPrint('Could not get number of rows for '+dataSet)
+        gdbDescription.append('<h4><span class="tables">'+dataSet+'</span>, unknown # of records</h4>')
     startTime = time.time()
     try:
-      fields = arcpy.ListFields(dataSet)
-      if debug: addMsgAndPrint('      '+str(len(fields))+' fields '+ "%.1f" % elapsedTime +' sec')
-      for field in fields:
-         if not (field.name in standardFields):
-            gdbDescription.append(space6+field.name+' '+field.type+':'+str(field.length)+'  '+str(field.required))
+        fields = arcpy.ListFields(dataSet)
+        if debug: addMsgAndPrint('      '+str(len(fields))+' fields '+ "%.1f" % elapsedTime +' sec')
+        for field in fields:
+            if not (field.name in standardFields):
+                gdbDescription.append('<li><span class="fields">'+field.name+'</span> - '+field.type+':'+str(field.length)+' - Required: '+str(field.required) + '</li>\n')
+        gdbDescription.append('</ul>')
     except:
-      addMsgAndPrint('Could not inventory fields in '+dataSet)
-      gdbDescription.append(space6+'no field inventory for '+dataSet)
-    elapsedTime = time.time() - startTime
+        addMsgAndPrint('Could not inventory fields in '+dataSet)
+        gdbDescription.append(space6+'no field inventory for '+dataSet)
+        elapsedTime = time.time() - startTime
+            
 
 def checkMapFeatureClasses(fds,prefix,fcs):
 	addMsgAndPrint('  Checking for required feature classes...')
@@ -130,7 +218,7 @@ def checkMapFeatureClasses(fds,prefix,fcs):
 		reqFeatureClasses.append(prefix+fc)
 	for fc in reqFeatureClasses:
 		if not (fc in fcs): 
-			schemaErrors.append('Feature data set '+fds+', feature class '+fc+' is missing')
+			schemaErrors.append('Feature data set <span class="tables">'+fds+'</span>, feature class <span class="tables">'+fc+'</span> is missing')
 
 def checkTableFields(dBTable,defTable):
   dBtable = str(dBTable)
@@ -148,15 +236,15 @@ def checkTableFields(dBTable,defTable):
     # now check to see what is excess / missing
     for field in requiredFields.keys():
       if field not in existingFields:
-        schemaErrors.append(dBTable+', field '+field+' is missing')
+        schemaErrors.append('<span class="tables">'+dBTable+'</span>, field <span class="fields">'+field+'</span> is missing')
     for field in existingFields.keys():
       if not (field in standardFields) and not (field in requiredFields):
-        schemaExtensions.append(dBTable+', field '+field+' is not required')
+        schemaExtensions.append('<span class="tables">'+dBTable+'</span>, field <span class="fields">'+field+'</span>')
       # check field definition
       if field in requiredFields.keys():
         # field type
         if existingFields[field].type <> requiredFields[field][1]:
-          schemaErrors.append(dBTable+', field '+field+', type should be '+requiredFields[field][1])
+          schemaErrors.append('<span class="tables">'+dBTable+'</span>, field <span class="fields">'+field+'</span>, type should be '+requiredFields[field][1])
         # Using Arc field properties to enforce non-nullability is a bad idea
         ### need to use part of code below to check for illicit null values in nullable fields
         ###    and null or empty values in fields that are non-nullable
@@ -267,20 +355,20 @@ def inventoryValues(thisDatabase,table):
             except:
                 addMsgAndPrint('Failed to append to allDataSourcesRefs:')
                 addMsgAndPrint('  table '+table+', field = '+str(field))
-        tableRow = space4+table+', OBJECTID='+str(row.getValue('OBJECTID'))
+        tableRow = space4+'<span class="tables">'+table+'</span>, OBJECTID='+str(row.getValue('OBJECTID'))
         # check for impermissible Null values        
         for field in fields:
             tableField = tableName+' '+field
             if fieldNullsOKDict.has_key(tableField):
                 if not fieldNullsOKDict[tableField]:
                     if isNullValue(row.getValue(field)):
-                        missingRequiredValues.append(tableRow+', '+field)
+                        missingRequiredValues.append(tableRow+', <span class="fields">'+field+'</span>')
         # check for zero-length strings
         for field in tableFields:
             if field.type == 'String':
                 stringVal = row.getValue(field.name)
                 if stringVal <> None and ( stringVal == '' or stringVal.isspace() ):
-                    zeroLengthStrings.append(tableRow+', '+field.name)
+                    zeroLengthStrings.append(tableRow+', <span class="fields">'+field.name+'</span>')
          
         row = rows.next()
     addMsgAndPrint('    Finished '+table)
@@ -288,11 +376,11 @@ def inventoryValues(thisDatabase,table):
 def inventoryWorkspace(tables,fdsfc):
     addMsgAndPrint('  Inventorying geodatabase...')
     featureDataSets = arcpy.ListDatasets()
-    gdbDescription.append('Tables: ')
+    gdbDescription.append('<h3>Tables: </h3>')
     for table in tables:
         listDataSet(table)
     for featureDataSet in featureDataSets:
-        gdbDescription.append('Feature data set: '+featureDataSet)
+        gdbDescription.append('<h3>Feature data set: '+featureDataSet+'</h3>')
         arcpy.env.workspace = thisDatabase
         arcpy.env.workspace = featureDataSet
         featureClasses = arcpy.ListFeatureClasses()
@@ -311,20 +399,20 @@ def checkFieldsAndFieldDefinitions():
         if debug: addMsgAndPrint('    Table = '+table)
         arcpy.env.workspace = thisDatabase
         if not ( tableDict.has_key(table) or table == 'GeoMaterialDict'): 
-            schemaExtensions.append('Table '+table+' is not required')
+            schemaExtensions.append('Table <span class="tables">'+table+'</span>')
         else:
           if table <> 'GeoMaterialDict':
             checkTableFields(table,table)
         inventoryValues(thisDatabase,table)
     for fds in fdsfc:
         if not fds[0] in ('GeologicMap','CorrelationOfMapUnits') and fds[0:12] <> 'CrossSection':
-            schemaExtensions.append('Feature dataset '+fds[0]+' is not required')
+            schemaExtensions.append('Feature dataset <span class="tables">'+fds[0]+'</span>')
         arcpy.env.workspace = thisDatabase
         arcpy.env.workspace = fds[0]
         for featureClass in fds[1]:
             if debug: addMsgAndPrint('    Feature class = '+featureClass)
             if not tableDict.has_key(featureClass): 
-                schemaExtensions.append('Feature class '+featureClass+' is not required')
+                schemaExtensions.append('Feature class <span class="tables">'+featureClass+'</span>')
             else: 
               try:
                 checkTableFields(featureClass,featureClass)
@@ -343,14 +431,14 @@ def checkRequiredElements():
             if tb1 == tb2:
                 isPresent = True
         if not isPresent:
-            schemaErrors.append('Table '+tb1+' is missing')
+            schemaErrors.append('Table <span class="tables">'+tb1+'</span> is missing')
     for fds1 in requiredFeatureDataSets:
         isPresent = False
         for fds2 in fdsfc:
             if fds2[0] == fds1: 
                 isPresent = True
         if not isPresent:
-            schemaErrors.append('Feature data set '+fds1+' is missing')
+            schemaErrors.append('Feature dataset <span class="tables">'+fds1+'</span> is missing')
     for xx in fdsfc:
         fds = xx[0]
         fcs = xx[1]
@@ -360,11 +448,11 @@ def checkRequiredElements():
             checkMapFeatureClasses(fds,'',fcs)
         if fds == 'CorrelationOfMapUnits':
             if not ('CMULines' in fcs):
-                schemaErrors.append('Feature data set '+fds+', feature class CMULines is missing')
+                schemaErrors.append('Feature data set <span class="tables">'+fds+'</span>, feature class <span class="tables">CMULines</span> is missing')
             if not ('CMUMapUnitPolys' in fcs):
-                schemaErrors.append('Feature data set '+fds+', feature class CMUMapUnitPolys is missing')
+                schemaErrors.append('Feature data set <span class="tables">'+fds+'</span>, feature class <span class="tables">CMUMapUnitPolys</span> is missing')
             if not ('CMUText' in fcs):
-                schemaErrors.append('Feature data set '+fds+', feature class CMUText is missing')
+                schemaErrors.append('Feature data set <span class="tables">'+fds+'</span>, feature class <span class="tables">CMUText</span> is missing')
 
 def checkContent():
     addMsgAndPrint( '  Checking content...')
@@ -374,7 +462,8 @@ def checkContent():
     all_IDs.sort()
     for n in range(1,len(all_IDs)):
         if all_IDs[n-1][0] == all_IDs[n][0]:
-            duplicateIDs.append(space4+str(all_IDs[n][0])+', tables '+str(all_IDs[n-1][1])+' '+str(all_IDs[n][1]))
+            duplicateIDs.append(space4+'<span class="values">'+str(all_IDs[n][0])+'</span>, tables <span class="tables">'+str(all_IDs[n-1][1])+' '+str(all_IDs[n][1])+'</span>')
+    
     # Check for OwnerIDs and ValueLinkIDs in ExtendedAttributes that don't match an existing _ID
     if not loadTableValues('ExtendedAttributes','OwnerID',extendedAttribIDs):
         unreferencedIds.append(space4+'Error: did not find field OwnerID in table ExtendedAttributes')
@@ -388,6 +477,7 @@ def checkContent():
     for anID in extendedAttribIDs:
         if anID <> None and not anID in all_IDs0:
             unreferencedIds.append('    '+ anID)
+    
     # Check allDataSourcesRefs against DataSources
     addMsgAndPrint('    Comparing DataSources_IDs with DataSources')    
     if loadTableValues('DataSources','DataSources_ID',dataSourcesIDs):
@@ -398,25 +488,28 @@ def checkContent():
             if anID[0] <> None and anID[0] <> lastID:
                 lastID = anID[0]
                 if anID[0] not in dataSourcesIDs:
-                    missingSourceIDs.append(space4 + str(anID[0])+', cited in field '+str(anID[1])+' table '+str(anID[2]))
+                    missingSourceIDs.append(space4 + '<span class="values">'+ str(anID[0])+'</span>, cited in field <span class="fields">'+str(anID[1])+'</span> of table <span class="tables">'+str(anID[2])+'</span>')
+        
         # compare other way
         allSourceRefIDs = []
         for ref in allDataSourcesRefs:
             allSourceRefIDs.append(ref[0])
         for anID in dataSourcesIDs:
             if anID <> None and not anID in allSourceRefIDs:
-                unusedDataSources.append(space4 + anID)
+                unusedDataSources.append(space4 + '<span class="values">' + anID + '</span>')
     else:
-        missingSourceIDs.append(space4 + 'Error: did not find field DataSources_ID in table DataSources')
-        unusedDataSources.append(space4 + 'Error: did not find field DataSources_ID in table DataSources')
+        missingSourceIDs.append(space4 + 'Error: did not find field <span class="fields">DataSources_ID</span> in table <span class="tables">DataSources</span>')
+        unusedDataSources.append(space4 + 'Error: did not find field <span class="fields">DataSources_ID</span> in table <span class="tables">DataSources</span>')
+    
     # Check MapUnits against DescriptionOfMapUnits and StandardLithology
     addMsgAndPrint('    Checking MapUnits against DMU and StandardLithology')
     if not loadTableValues('DescriptionOfMapUnits','MapUnit',dmuMapUnits):
-        missingDmuMapUnits.append(space4 + 'Error: did not find field MapUnit in table DescriptionOfMapUnits')
-        unreferencedDmuMapUnits.append(space4 + 'Error: did not find field MapUnit in table DescriptionOfMapUnits')
+        missingDmuMapUnits.append(space4 + 'Error: did not find field <span class="fields">MapUnit</span> in table <span class="tables">DescriptionOfMapUnits</span>')
+        unreferencedDmuMapUnits.append(space4 + 'Error: did not find field <span class="fields">MapUnit</span> in table <span class="tables">DescriptionOfMapUnits</span>')
     if not loadTableValues('StandardLithology','MapUnit',standardLithMapUnits):
-        missingStandardLithMapUnits.append(space4 + 'Error: did not find field MapUnit in table StandardLithology') 
-        unreferencedStandardLithMapUnits.append(space4 + 'Error: did not find field MapUnit in table StandardLithology')
+        missingStandardLithMapUnits.append(space4 + 'Error: did not find field <span class="fields">MapUnit</span> in table <span class="tables">StandardLithology</span>') 
+        unreferencedStandardLithMapUnits.append(space4 + 'Error: did not find <span class="fields">field MapUnit</span> in table <span class="tables">StandardLithology</span>')
+    
     # compare 
     allMapUnitRefs.sort()
     lastMU = ''
@@ -427,9 +520,9 @@ def checkContent():
                 lastMU = mu[0]
                 allMapUnitRefs2.append(lastMU)
                 if mu[0] not in dmuMapUnits:
-                    missingDmuMapUnits.append(space4 +str(mu[0])+', cited in '+str(mu[1]))
+                    missingDmuMapUnits.append(space4 + '<span class="values">' +str(mu[0])+'</span>, cited in <span class="tables">'+str(mu[1])+'</span>')
                 if mu[0] not in standardLithMapUnits:
-                    missingStandardLithMapUnits.append(space4 +str(mu[0])+', cited in '+str(mu[1]))
+                    missingStandardLithMapUnits.append(space4 + '<span class="values">' + str(mu[0])+'</span>, cited in ' + str(mu[1])+'</span>')
     # compare map, DMU, CMU, and cross-sections
     addMsgAndPrint('    Comparing units present in map, DMU, CMU, and cross sections')
     dmuMapUnits2 = list(set(dmuMapUnits))
@@ -448,14 +541,13 @@ def checkContent():
     #                         1234567890123456789012345678901234567890
     #equivalenceErrors.append('    Unit       Map  DMU  CMU  XS')
     for mu in allMapUnits:
-        line = space4 +mu.ljust(10)
-        line = line.replace(' ','&nbsp;')
+        line = '<td>'+mu+'</td>'
         for muSet in muSets:
             if mu in muSet:
-                line = line+'&nbsp; X &nbsp;'
+                line = line+'<td> X </td>'
             else:
-                line = line+' --- '
-        equivalenceErrors.append(line)                
+                line = line+'<td> --- </td>'
+        equivalenceErrors.append('<tr>'+line+'</tr>')                
         
     # look for excess map units in StandardLithology
     addMsgAndPrint('    Checking for excess map units in StandardLithology')
@@ -484,14 +576,14 @@ def checkContent():
                         thisTerm = term[0]
                     else:
                         thisTerm = term[0][0:37]+'...'
-                    missingGlossaryTerms.append(space4 +thisTerm+', cited in field '+term[1]+', table '+term[2])
+                    missingGlossaryTerms.append(space4 + '<span class="values">'+thisTerm+'</span>, cited in field <span class="fields">'+term[1]+'</span> of table <span class="tables"> '+term[2] + '</span>')
         # compare other direction
         glossaryRefs = []
         for ref in allGlossaryRefs:
             glossaryRefs.append(str(ref[0]))
         for term in glossaryTerms:
             if term not in glossaryRefs:
-                unusedGlossaryTerms.append(space4 +term)
+                unusedGlossaryTerms.append(space4 + '<span class="values">'+ term + '</span>')
     else:
         missingGlossaryTerms.append(space4+'Error: did not find field Term in table Glossary')
         unusedGlossaryTerms.append(space4+'Error: did not find field Term in table Glossary')
@@ -537,11 +629,11 @@ def dmuRequiredValues():
             with arcpy.da.SearchCursor(dmu,fields) as cursor:
                 for row in cursor:
                     if isNullValue(row[2]):
-                        missingRequiredValues.append('DescriptionOfMapUnits, OBJECTID='+str(row[0])+' Name')
+                        missingRequiredValues.append('<span class="tables">DescriptionOfMapUnits</span>, OBJECTID='+str(row[0])+' Name')
                     if not isNullValue(row[1]):   # if MapUnit is set
                         for i in range(3,len(fields)):
                             if isNullValue(row[i]):
-                                missingRequiredValues.append('DescriptionOfMapUnits, OBJECTID='+str(row[0])+', '+fields[i])
+                                missingRequiredValues.append('<span class="tables">DescriptionOfMapUnits</span>, OBJECTID='+str(row[0])+', <span class="fields"'+fields[i]+'</span>')
         except:
             addMsgAndPrint('    Cannot examine DMU table for required values. Perhaps some fields are missing?')
             missingRequiredValues.append('DescriptionOfMapUnits not checked for required values')
@@ -553,17 +645,18 @@ def tableToHtml(html,table):
     for field in fields:
         print field.name
     # start table
-    html.write('<table cellpadding="2" cellspacing="2" border="1" >\n')
+    html.write('<div class="tablediv">\n')
+    html.write('<table class="ess-tables">\n')
     # write header row
     html.write('<tr>\n')
     fieldNames = []
     for field in fields:
-        if not field.name in ('OBJECTID','Shape_Length'):
+        if not field.name in ('OBJECTID','Shape_Length','created_user','created_date','last_edited_user','last_edited_date'):
             if field.name.find('_ID') > 1:
                 token = '_ID'
             else:
                 token = field.name
-            html.write('<td><b>'+token+'</b></td>\n')
+            html.write('<th>'+token+'</th>\n')
             fieldNames.append(field.name)
     html.write('</tr>\n')
     # write rows
@@ -585,12 +678,12 @@ def tableToHtml(html,table):
                         addMsgAndPrint(row[i])
             html.write('</tr>\n')    
     # finish table
-    html.write('</table>\n')
+    html.write('</table>\n'+divend)
 
 def writeContentErrors(outfl,errors,noErrorString,outFile,htmlFileCount):
     if debug: addMsgAndPrint(errors[len(errors)-1])
     if len(errors) == 1:
-        outfl.write('&nbsp; '+noErrorString+'<br>\n')
+        outfl.write(noErrorString+'<br><br>\n')
         return htmlFileCount
     # find duplicates
     errors2 = errors[1:]
@@ -615,15 +708,16 @@ def writeContentErrors(outfl,errors,noErrorString,outFile,htmlFileCount):
         fName = outFile.replace('.html',str(htmlFileCount)+'.html')
         htmlFileCount += 1                                
         writefl = open(fName,'w')
-        writefl.write(startMonospace)
+        writefl.write(style)
+        writefl.write(rdiv)
         # write link to outfl
-        outfl.write(space2+'<a href ="'+'file://'+fName+'">'+errors[0]+' ('+str(len(errors)-1)+')</a><br><br>\n') 
-    writefl.write(space2+errors[0]+'<br>\n')
+        outfl.write(errors[0]+'<a href ="'+'file://'+fName+'"><br>'+space4+'View ('+str(len(errors)-1)+') Errors. (Link to New File)</a><br><br>\n') 
+    writefl.write(errors[0]+'<br>\n')
     for aline in errors3:
         try:
-          writefl.write(aline[0])
+            writefl.write(aline[0])
         except:
-          addMsgAndPrint(unicode(aline[0]))
+            addMsgAndPrint(unicode(aline[0]))
         if aline[1] > 1:
             writefl.write('--'+str(aline[1]+1)+' duplicates<br>\n')
         else:
@@ -636,32 +730,43 @@ def writeContentErrors(outfl,errors,noErrorString,outFile,htmlFileCount):
 def writeOutput(outFile,tables,thisDatabase):
     addMsgAndPrint( '  Writing output...')
     outfl = open(outFile,'w')
-    outfl.write('<h1>Geodatabase '+thisDatabase+'</h1>\n')
-    outfl.write('&nbsp; Testing for compliance with GeMS database schema<br>\n')
-    outfl.write('&nbsp; This file written by '+versionString+'<br>\n')
-    outfl.write('&nbsp; '+time.asctime(time.localtime(time.time()))+'<br>\n')
+    #write the style and overview html
+    outfl.write(style+"""
+    <h2 id="overview">Geodatabase</h2>
+    <div class="report">
+    """)
+    outfl.write('Testing for compliance with GeMS database schema<br>\n')
+    outfl.write('Geodatabase path: '+thisDatabase+'<br>\n')
+    outfl.write('This file written by '+versionString+'<br>\n')
+    outfl.write(time.asctime(time.localtime(time.time()))+'<br></div>\n')
+    
+    #write the html
+    outfl.write(overviewhtml)
+    
     #  Schema errors
-    outfl.write('<h2>SCHEMA ERRORS</h2>\n')
-    outfl.write(startMonospace)
+    outfl.write('<h2 id="schema-errors">Schema Errors</h2>\n'+rdiv)
     if len(schemaErrors) == 0:
-        outfl.write('&nbsp; None<br>\n')
+        outfl.write('None<br>\n')
     else: 
         for aline in schemaErrors:
-            outfl.write('&nbsp; '+aline+'<br>\n')
-    outfl.write(endMonospace)
+            outfl.write(aline+'<br>\n')
+    outfl.write(divend)        
+            
     # Extensions to schema
-    outfl.write('<h2>EXTENSIONS TO SCHEMA</h2>\n')
-    outfl.write(startMonospace)
+    outfl.write('<h2 id="extensions">Extensions to Schema</h2>\n'+rdiv)
+    outfl.write('<h4> The items below have been found in the geodatabase, but are not required for a valid GeMS Database.</h4>')
     if len(schemaExtensions) == 0:
-        outfl.write('&nbsp; None<br>\n')
+        outfl.write('None<br>\n')
     else: 
         for aline in schemaExtensions:
-            outfl.write('&nbsp; '+aline+'<br>\n')
-    outfl.write(endMonospace)
-    # Content errors
+            outfl.write(aline+'<br>\n')
+    outfl.write(divend)
+    
+    
+    # CONTENT ERRORS
     hFC = 1  # counter for external HTML files
-    outfl.write('<h2>CONTENT ERRORS</h2>\n')
-    outfl.write(startMonospace)
+    outfl.write('<h2 id="content-errors">Content Errors</h2>\n')
+    outfl.write(rdiv)
     hFC = writeContentErrors(outfl,duplicateIDs,'No duplicate _IDs',outFile,hFC)
     hFC = writeContentErrors(outfl,missingSourceIDs,'No missing entries in DataSources',outFile,hFC)
     hFC = writeContentErrors(outfl,unusedDataSources,'No unreferenced entries in DataSources',outFile,hFC)
@@ -680,36 +785,44 @@ def writeOutput(outFile,tables,thisDatabase):
     #writeContentErrors(outfl,allBadNulls,'No pseudonulls or trailing spaces')
     hFC = writeContentErrors(outfl,missingRequiredValues,'No fields without required values',outFile,hFC)
     hFC = writeContentErrors(outfl,zeroLengthStrings,'No zero-length strings',outFile,hFC)
-    outfl.write(endMonospace)
+    outfl.write(divend)
+    
+    
     # units match in map, DMU, CMU, and cross sections
-    outfl.write('<h3>MapUnits match across map, DMU, CMU, and cross-sections</h3>\n')
-    outfl.write(startMonospace)
-    outfl.write(space6+space4+space6+space2+' '+equivalenceErrors[0]+'<br>\n')
+    outfl.write('<h2 id="match">MapUnits match across map, DMU, CMU, and cross-sections</h2>\n')
+    outfl.write(rdiv)
+    outfl.write(equivalenceErrors[0])
     for i in range(1,len(equivalenceErrors)):
-        outfl.write(space4+equivalenceErrors[i]+'<br>\n')
+        outfl.write(equivalenceErrors[i])
+    outfl.write('</table>'+divend)    
+    
+    
     # listing of essential tables
     ## make tempGdb
     tempGdb = os.path.dirname(thisDatabase)+'/xxxTemp.gdb'
     testAndDelete(tempGdb)
     arcpy.CreateFileGDB_management(os.path.dirname(thisDatabase),'xxxTemp.gdb')  
-    outfl.write('<h2>ESSENTIAL TABLES</h2>\n')
+    outfl.write('<h2 id="essential">Essential Tables</h2>\n')
     for eTable in 'DataSources','Glossary','DescriptionOfMapUnits','MiscellaneousMapInformation','StandardLithology':
         if arcpy.Exists(thisDatabase+'/'+eTable):
-            outfl.write('<h3>'+eTable+'</h3>\n')
+            outfl.write('<h3 class="table-header">'+eTable+'</h3>\n')
             if eTable == 'DescriptionOfMapUnits':
                 sortField = 'HierarchyKey'
             else:
                 sortField = eTable+'_ID'
             arcpy.Sort_management(thisDatabase+'/'+eTable,tempGdb+'/xxx'+eTable,sortField)
             tableToHtml(outfl,tempGdb+'/xxx'+eTable)
+    outfl.write(divend)
+    
     ## delete tempGdb
     testAndDelete(tempGdb)
+    
     # Database description
-    outfl.write('<h2>GEODATABASE DESCRIPTION</h2>\n')
-    outfl.write(startMonospace)
+    outfl.write('<h2 id="gdb-desc" class="table-header">Geodatabase Description</h2>\n<div class="tablediv">')
     for aline in gdbDescription:
-        outfl.write(aline+'<br>\n')
-    outfl.write(endMonospace)
+        outfl.write(aline+'\n')
+    outfl.write(divend)
+
     outfl.close()
 
 def validInputs(thisDatabase,outFile):
@@ -796,4 +909,3 @@ if validInputs(thisDatabase,outFile):
 #     Do units in DMU and CMU match?
 #     are all units shown in map and sections listed in CMU and DMU?
 #     are all units in DMU present in map and (or) at least one section?
-   
