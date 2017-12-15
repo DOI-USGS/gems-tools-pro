@@ -215,6 +215,44 @@ def makeOutputDir(gdb,outWS,isOpen):
     logfile = open(logPath,'w')
     logfile.write('file written by '+versionString+'\n\n')
     return outputDir, logfile
+    
+def removeJoins(fc):
+    addMsgAndPrint('    Testing '+fc+' for joined tables')
+    #addMsgAndPrint('Current workspace is '+arcpy.env.workspace)
+    joinedTables = []
+    # list fields
+    fields = arcpy.ListFields(fc)
+    for field in fields:
+        # look for fieldName that indicates joined table, and remove jo
+        fieldName = field.name
+        i = fieldName.find('.')
+        if i > -1:
+            joinedTableName = fieldName[0:i]
+            if not (joinedTableName in joinedTables) and (joinedTableName) <> fc:
+                try:
+                    joinedTables.append(joinedTableName)
+                    arcpy.removeJoin(fc,joinedTableName)
+                except:
+                    pass
+    if len(joinedTables) > 0:
+        jts = ''
+        for jt in joinedTables:
+            jts = jts+' '+jt
+        addMsgAndPrint('      removed joined tables '+jts)
+        
+def remove_rc(gdb):
+    """ET - added this function to check for and remove all relationship 
+    classes from the copy of the geodatabase. You can't delete fields that 
+    are involved in relationship classes. Consider moving this to utility
+    functions"""
+    origWS = arcpy.env.workspace
+    relclass_list = arcpy.da.Walk(gdb, datatype = "RelationshipClass",
+                    followlinks = True)
+    for wkspc, path, relclasses in relclass_list:
+        arcpy.env.workspace = wkspc
+        for relclass in relclasses:
+            arcpy.Delete_management(relclass)  
+    arcpy.env.workspace = origWS 
 
 def dummyVal(pTerm,pVal):
     if pVal == None:
@@ -258,7 +296,7 @@ def makeStdLithDict():
         row = rows.next()
     del row, rows
     stdLithDict[unit] = description(unitDesc)
-    return stdLithDict
+    return stdLithDict       
 
 def mup2shp(gdbCopy,stdLithDict,outputDir,logfile):
     addMsgAndPrint('  Translating GeologicMap\MapUnitPolys...')
@@ -287,52 +325,15 @@ def mup2shp(gdbCopy,stdLithDict,outputDir,logfile):
                       DS+'OBJECTID',DS+DS+'ID',DS+'Notes',DS+'URL'):
             arcpy.DeleteField_management('MUP2',field)
         dumpTable('MUP2','MapUnitPolys.shp',True,outputDir,logfile,False,'MapUnitPolys')
-        #arcpy.Delete_management('MUP2')
+        arcpy.Delete_management('MUP2')
         
     except:
         addMsgAndPrint(arcpy.GetMessages())
         addMsgAndPrint('  Failed to translate MapUnitPolys')
-
-def removeJoins(fc):
-    addMsgAndPrint('    Testing '+fc+' for joined tables')
-    #addMsgAndPrint('Current workspace is '+arcpy.env.workspace)
-    joinedTables = []
-    # list fields
-    fields = arcpy.ListFields(fc)
-    for field in fields:
-        # look for fieldName that indicates joined table, and remove jo
-        fieldName = field.name
-        i = fieldName.find('.')
-        if i > -1:
-            joinedTableName = fieldName[0:i]
-            if not (joinedTableName in joinedTables) and (joinedTableName) <> fc:
-                try:
-                    joinedTables.append(joinedTableName)
-                    arcpy.removeJoin(fc,joinedTableName)
-                except:
-                    pass
-    if len(joinedTables) > 0:
-        jts = ''
-        for jt in joinedTables:
-            jts = jts+' '+jt
-        addMsgAndPrint('      removed joined tables '+jts) 
-        
-def remove_rc(gdb):
-    """ET - added this function to check for and remove all relationship 
-    classes from the copy of the geodatabase. You can't delete fields that 
-    are involved in relationship classes. Consider moving this to utility
-    functions"""
-    origWS = arcpy.env.workspace
-    relclass_list = arcpy.da.Walk(gdb, datatype = "RelationshipClass",
-                    followlinks = True)
-    for wkspc, path, relclasses in relclass_list:
-        arcpy.env.workspace = wkspc
-        for relclass in relclasses:
-            arcpy.Delete_management(relclass)  
-    arcpy.env.workspace = origWS        
-
-def linesAndPoints(gdbCopy, fc, outputDir, logfile):
-    """Are we only going to export lines and points inside GeologicMap?"""
+    
+def fc2shp(gdbCopy, fc, outputDir, logfile):
+    """Extended this, through fcList built in main() to export all feature
+    classes throughout the gdb including polygons"""
     """ET -Don't understand why this function was being passed 
     'GeologicMap/<featureclass>'. I removed that from input variable
     and built it up the path with os.path.join for proper 
@@ -386,7 +387,7 @@ def main(gdbCopy,outWS,gdbSrc):
     addMsgAndPrint('')
     outputDir, logfile = makeOutputDir(gdbSrc,outWS,isOpen)
     
-    #ET- first dump MapUnitPolys
+    #ET- first dump MapUnitPolys beacause it requires an extra join
     #arcpy.env.workspace = gdbCopy
     if 'StandardLithology' in arcpy.ListTables():
         stdLithDict = makeStdLithDict()
@@ -394,23 +395,25 @@ def main(gdbCopy,outWS,gdbSrc):
         stdLithDict = 'None'
     mup2shp(gdbCopy, stdLithDict, outputDir, logfile)
     
-    #ET - now dump points and lines
+    #ET - now dump everything else
     #ET - arcpy.env.workspace = 'GeologicMap' is not a robust way to set the workspace
     arcpy.env.workspace = gdbCopy
-    #ET- get points and lines not in any feature dataset
-    pointfcs = arcpy.ListFeatureClasses('','POINT')
-    linefcs = arcpy.ListFeatureClasses('','LINE')
-    fcList = pointfcs + linefcs
-    #ET- append fcs in any feature dataset
+    #ET- get feature classes of <ftype> not in feature datasets
+    fcList = []
+    ftypes = ['POINT', 'LINE', 'POLYGON']
+    for ftype in ftypes:
+        fcList.extend(arcpy.ListFeatureClasses('', ftype))
+        
+    #ET- append feature classes in any feature dataset
     for fd in arcpy.ListDatasets('', 'Feature'):
         arcpy.env.workspace = fd
-        for pointfc in arcpy.ListFeatureClasses('','POINT'):
-            fcList.append(pointfc)
-        for linefc in arcpy.ListFeatureClasses('','LINE'):
-            fcList.append(linefc)
-
+        for ftype in ftypes:
+            fcList.extend(arcpy.ListFeatureClasses('', ftype))
+            
+    #ET- translate to shapefiles any feature classes not named MapUnitPolys
     for fc in fcList:
-        linesAndPoints(gdbCopy, fc, outputDir, logfile)
+        if fc <> 'MapUnitPolys':
+            fc2shp(gdbCopy, fc, outputDir, logfile)
     logfile.close()
     #
     # Open version
@@ -423,10 +426,9 @@ def main(gdbCopy,outWS,gdbSrc):
     fds = arcpy.ListDatasets('', 'Feature')
     # for each featuredataset
     for fd in fds:
-        fdPath = arcpy.Describe(fd).catalogPath
-        #addMsgAndPrint('feature dataset {}'.format(arcpy.Describe(fd).catalogPath))
-        #arcpy.workspace = gdbCopy
-        addMsgAndPrint( '  Processing feature data set {}...'.format(fdPath))
+        arcpy.env.workspace = fd
+        #fdPath = arcpy.Describe(fd).catalogPath
+        addMsgAndPrint( '  Processing feature data set {}...'.format(arcpy.env.workspace))
         logfile.write('Feature data set {} \n'.format(fd))
         try:
             spatialRef = arcpy.Describe(fd).SpatialReference
@@ -442,9 +444,7 @@ def main(gdbCopy,outWS,gdbSrc):
         for i in range(0,len(fd)-1):
             if fd[i] == fd[i].upper():
                 pfx = pfx + fd[i]
-        # for each featureclass in dataset
-        arcpy.env.workspace = fd
-        #addMsgAndPrint('workspace = {}'.format(arcpy.env.workspace))
+        
         fcList = arcpy.ListFeatureClasses()
         if fcList <> None:
             for fc in fcList:
@@ -482,7 +482,7 @@ else:
     arcpy.Copy_management(gdbSrc,gdbCopy)
     
     #ET - if relationships exist in the source gdb, remove them in the copy
-    #ET - DeleteField_management in def linesAndPoints cannot run if the field is involved in a relationship
+    #ET - DeleteField_management in def fc2shp cannot run if the field is involved in a relationship
     addMsgAndPrint('  Looking for and removing relationships from {}'.format(gdbCopy))
     remove_rc(gdbCopy) 
     
