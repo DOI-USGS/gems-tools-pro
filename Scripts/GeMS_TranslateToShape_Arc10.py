@@ -66,7 +66,25 @@ shortFieldNameDict = {
         'PlotAtScale':'PlotAtSca'
         }
         
+def dataPathDict(gdb, d_type, f_type):
+    """dictionary of objects in a gdb with their names as keys and their paths
+    as values using da.Walk which is apparently more robust and predictable than 
+    using List<whatever> after setting the workspace"""
+    dictionary = {}
+    walk = arcpy.da.Walk(gdb, datatype=d_type, type=f_type)
+    
+    for dirpath, dirnames, filenames in walk:
+        if d_type == 'FeatureDataset':
+            for dirname in dirnames:
+                object_path = os.path.join(dirpath, dirname)
+                dictionary[dirname] = object_path
+        else:
+            for filename in filenames:
+                object_path = os.path.join(dirpath, filename)
+                dictionary[filename] = object_path
 
+    return dictionary
+      
 def remapFieldName(name):
     if shortFieldNameDict.has_key(name):
         return shortFieldNameDict[name]
@@ -113,33 +131,31 @@ def printFieldNames(fc):
         print f
     print
 
-def dumpTable(fc,outName,isSpatial,outputDir,logfile,isOpen,fcName):
+def dumpTable(objPath,outName,isSpatial,outputDir,logfile,isOpen,srcName):
+    objName = os.path.basename(objPath)
     dumpString = '  Dumping {}...'.format(outName)
     if isSpatial: dumpString = '  {}'.format(dumpString)
     addMsgAndPrint(dumpString)
     if isSpatial:
-        logfile.write('  feature class {} dumped to shapefile {}\n'.format(fc, outName))
+        logfile.write('  feature class {} dumped to shapefile {}\n'.format(objName, outName))
     else:
-        logfile.write('  table {} dumped to table {}\n'.format(fc, outName))
+        logfile.write('  table {} dumped to table {}\n'.format(objName, outName))
     logfile.write('    field name remapping: \n')
     # describe
 
     if debug:
-        printFieldNames(fc)
+        printFieldNames(objPath)
         print
-    
-    desc = arcpy.Describe(fc)
-    #addMsgAndPrint('{}, {}'.format(desc.baseName, desc.catalogPath))
    
-    fields = arcpy.ListFields(fc)
+    fields = arcpy.ListFields(objPath)
     longFields = []
     shortFieldName = {}
     for field in fields:
         # translate field names
         #  NEED TO FIX TO DEAL WITH DescriptionOfMapUnits_ and DataSources_
         fName = field.name
-        for prefix in ('DescriptionOfMapUnits','DataSources','Glossary',fcName):
-            if fc <> prefix and fName.find(prefix) == 0 and fName <> fcName+'_ID':
+        for prefix in ('DescriptionOfMapUnits','DataSources','Glossary',srcName):
+            if objName<> prefix and fName.find(prefix) == 0 and fName <> srcName+'_ID':
                 fName = fName[len(prefix)+1:]
         if len(fName) > 10:
             shortFieldName[field.name] = remapFieldName(fName)
@@ -149,29 +165,29 @@ def dumpTable(fc,outName,isSpatial,outputDir,logfile,isOpen,fcName):
             shortFieldName[field.name] = fName
         if field.name not in ('OBJECTID','Shape','SHAPE','Shape_Length','Shape_Area'):
             #addMsgAndPrint(field.name)
-            arcpy.AlterField_management(fc,field.name,shortFieldName[field.name])
+            arcpy.AlterField_management(objPath,field.name,shortFieldName[field.name])
         if field.length > 254:
             longFields.append(shortFieldName[field.name])
         if debug:
             print fName, shortFieldName[field.name]   
     # export to shapefile (named prefix+name)
     if isSpatial:
-        if debug:  print 'dumping ',fc,outputDir,outName
+        if debug:  print 'dumping ',objPath,outputDir,outName
         try:
-            arcpy.FeatureClassToFeatureClass_conversion(fc,outputDir,outName)
+            arcpy.FeatureClassToFeatureClass_conversion(objPath,outputDir,outName)
         except:
             #addMsgAndPrint(arcpy.GetMessages())
-            addMsgAndPrint('failed to translate table '+fc)
+            addMsgAndPrint('failed to translate table '+objPath)
     else:
-        arcpy.TableToTable_conversion(fc,outputDir,outName)
+        arcpy.TableToTable_conversion(objPath,outputDir,outName)
     if isOpen:
         # if any field lengths > 254, write .txt file
         if len(longFields) > 0:
             outText = outName[0:-4]+'.txt'
             logPath = os.path.join(outputDir, outText)
-            logfile.write('    table '+fc+' has long fields, thus dumped to file '+outText+'\n')
+            logfile.write('    table '+srcName+' has long fields, thus dumped to file '+outText+'\n')
             csvFile = open(logPath,'w')
-            fields = fieldNameList(fc)
+            fields = fieldNameList(objPath)
             if isSpatial:
                 try:
                     fields.remove('Shape')
@@ -180,7 +196,7 @@ def dumpTable(fc,outName,isSpatial,outputDir,logfile,isOpen,fcName):
                         fields.remove('SHAPE')
                     except:
                         addMsgAndPrint('No Shape field present.')
-            with arcpy.da.SearchCursor(fc,fields) as cursor:
+            with arcpy.da.SearchCursor(objPath,fields) as cursor:
                 for row in cursor:
                     rowString = str(row[0])
                     for i in range(1,len(row)):
@@ -199,7 +215,6 @@ def dumpTable(fc,outName,isSpatial,outputDir,logfile,isOpen,fcName):
     
 def makeOutputDir(gdb,outWS,isOpen):
     outputDir = os.path.join(outWS, os.path.basename(gdb)[0:-4])
-    #outputDir = outWS+'/'+os.path.basename(gdb)[0:-4]
     if isOpen:
         outputDir = outputDir+'-open'
     else:
@@ -273,36 +288,42 @@ def description(unitDesc):
         desc = desc+uD[2]+'; '
     return desc[:-2]
 
-def makeStdLithDict():
+def makeStdLithDict(slPath):
+    """Updated this to use the explicit path to StandardLithology table and 
+        da.SearchCursor"""
     addMsgAndPrint('  Making StdLith dictionary...')
     stdLithDict = {}
-    rows = arcpy.searchcursor('StandardLithology',"","","","MapUnit")
+    rows = arcpy.da.SearchCursor(slPath,["MapUnit","ProportionTerm","ProportionValue"
+                                         "PartType","Lithology"])
     row = rows.next()
-    unit = row.getValue('MapUnit')
+    unit = row[0]
     unitDesc = []
-    pTerm = row.getValue('ProportionTerm'); pVal = row.getValue('ProportionValue')
+    pTerm = row[1]; pVal = row[2]
     val = dummyVal(pTerm,pVal)
-    unitDesc.append([val,row.getValue('PartType'),row.getValue('Lithology'),pTerm,pVal])
+    unitDesc.append([val,row[3],row[4],pTerm,pVal])
     while row:
         #print row.getValue('MapUnit')+'  '+row.getValue('Lithology')
-        newUnit = row.getValue('MapUnit')
+        newUnit = row[0]
         if newUnit <> unit:
             stdLithDict[unit] = description(unitDesc)
             unitDesc = []
             unit = newUnit
-        pTerm = row.getValue('ProportionTerm'); pVal = row.getValue('ProportionValue')
+        pTerm = row[1]; pVal = row[2]
         val = dummyVal(pTerm,pVal)
-        unitDesc.append([val,row.getValue('PartType'),row.getValue('Lithology'),pTerm,pVal])
+        unitDesc.append([val,row[3],row[4],pTerm,pVal])
         row = rows.next()
     del row, rows
     stdLithDict[unit] = description(unitDesc)
     return stdLithDict       
 
-def mup2shp(gdbCopy,stdLithDict,outputDir,logfile):
+def mup2shp(fcMUP,tbDMU,stdLithDict,dsPath,outputDir,logfile):
+    """Updated to work with the explicit path to the copies of MapUnitPolys and 
+    DescriptionOfMapUnits instead of setting workspace and calling the objects 
+    by name only"""
     addMsgAndPrint('  Translating GeologicMap\MapUnitPolys...')
-    arcpy.env.workspace = gdbCopy
+    
     try:
-        arcpy.MakeTableView_management('DescriptionOfMapUnits','DMU')
+        arcpy.MakeTableView_management(tbDMU,'DMU')
         if stdLithDict <> 'None':
                 arcpy.AddField_management('DMU',"StdLith","TEXT",'','','255')
                 rows = arcpy.UpdateCursor('DMU'  )
@@ -313,9 +334,9 @@ def mup2shp(gdbCopy,stdLithDict,outputDir,logfile):
                         rows.updateRow(row)
                     row = rows.next()
                 del row, rows
-        arcpy.MakeFeatureLayer_management("GeologicMap\MapUnitPolys","MUP")
+        arcpy.MakeFeatureLayer_management(fcMUP,'MUP')
         arcpy.AddJoin_management('MUP','MapUnit','DMU','MapUnit')
-        arcpy.AddJoin_management('MUP','DataSourceID','DataSources','DataSources_ID')
+        arcpy.AddJoin_management('MUP','DataSourceID',dsPath,'DataSources_ID')
         arcpy.CopyFeatures_management('MUP','MUP2')
         DM = 'DescriptionOfMapUnits_'
         DS = 'DataSources_'
@@ -324,40 +345,33 @@ def mup2shp(gdbCopy,stdLithDict,outputDir,logfile):
                       DM+'MapUnit',DM+'OBJECTID',DM+DM+'ID',DM+'Label',DM+'Symbol',DM+'DescriptionSourceID',
                       DS+'OBJECTID',DS+DS+'ID',DS+'Notes',DS+'URL'):
             arcpy.DeleteField_management('MUP2',field)
-        dumpTable('MUP2','MapUnitPolys.shp',True,outputDir,logfile,False,'MapUnitPolys')
+        mup2Path = arcpy.Describe('MUP2').catalogPath
+        dumpTable(mup2Path,'MapUnitPolys.shp',True,outputDir,logfile,False,'MapUnitPolys')
         arcpy.Delete_management('MUP2')
         
     except:
         addMsgAndPrint(arcpy.GetMessages())
         addMsgAndPrint('  Failed to translate MapUnitPolys')
     
-def fc2shp(gdbCopy, fc, outputDir, logfile):
-    """Extended this, through fcList built in main() to export all feature
+def fc2shp(fcName, fcPath, glosPath, dsPath, outputDir, logfile):
+    """Extended this, through feature_classes built in main(), to export all feature
     classes throughout the gdb including polygons"""
-    """ET -Don't understand why this function was being passed 
-    'GeologicMap/<featureclass>'. I removed that from input variable
-    and built it up the path with os.path.join for proper 
-    delimiter only for the message"""
-    fcInFD = os.path.join('GeologicMap', fc)
+    fcInFD = os.path.join('GeologicMap', fcName)
     addMsgAndPrint('  Translating {}...'.format(fcInFD))
     
-    desc = arcpy.Describe(fc)
-    glosPath = os.path.join(gdbCopy, 'Glossary')
-    dsPath = os.path.join(gdbCopy, 'DataSources')  
-    #ET-set workspace to GeologicMap inside this funcion instead of in main()
-    #geomapFD = os.path.join(gdbCopy, 'GeologicMap')
-    #arcpy.env.workspace = geomapFD
+    # glosPath = os.path.join(gdbCopy, 'Glossary')
+    # dsPath = os.path.join(gdbCopy, 'DataSources')  
     if debug:
         print 1
-        printFieldNames(fc)
+        printFieldNames(fcPath)
     
-    fcShp = fc + '.shp'
-    LIN = 'xx' + fc
-    LIN2 = fc + '2'
-    removeJoins(fc)
+    fcShp = fcName + '.shp'
+    LIN = 'xx' + fcName
+    LIN2 = fcName + '2'
+    removeJoins(fcPath)
     
     addMsgAndPrint('    Making layer {} from {}'.format(LIN, fcInFD))
-    arcpy.MakeFeatureLayer_management(desc.catalogPath, LIN)
+    arcpy.MakeFeatureLayer_management(fcPath, LIN)
     fieldNames = fieldNameList(LIN)
     if 'Type' in fieldNames:
         arcpy.AddField_management(LIN, 'Definition', 'TEXT', '#', '#', '254')
@@ -365,7 +379,7 @@ def fc2shp(gdbCopy, fc, outputDir, logfile):
         arcpy.CalculateField_management(LIN, 'Definition', '!Glossary.Definition![0:254]', 'PYTHON')
         arcpy.RemoveJoin_management(LIN, 'Glossary')
     # command below are 9.3+ specific
-    sourceFields = arcpy.ListFields(fc, '*SourceID')
+    sourceFields = arcpy.ListFields(fcPath, '*SourceID')
     for sField in sourceFields:
         nFieldName = sField.name[:-2]
         arcpy.AddField_management(LIN, nFieldName, 'TEXT', '#', '#', '254')
@@ -374,12 +388,24 @@ def fc2shp(gdbCopy, fc, outputDir, logfile):
         arcpy.RemoveJoin_management(LIN, 'DataSources')
         arcpy.DeleteField_management(LIN, sField.name)
     arcpy.CopyFeatures_management(LIN, LIN2)
-    dumpTable(LIN2, fcShp, True, outputDir, logfile, False, fc)
+    lin2Path = arcpy.Describe(LIN2).catalogPath
+    dumpTable(lin2Path, fcShp, True, outputDir, logfile, False, fcName)
     arcpy.Delete_management(LIN)
     arcpy.Delete_management(LIN2)
     
 def main(gdbCopy,outWS,gdbSrc):
-    arcpy.env.workspace = gdbCopy
+    """Collects dictionaries of objects in the gdb and their paths to avoid
+    problems with env.workspace. Iterating through the
+    dictionaries, the objects are sent off to be exported"""
+    #make a dictionary of table names and their catalog paths in gdbCopy
+    tables = dataPathDict(gdbCopy, 'Table', None)
+    
+    #get a list of feature classes and their catalog paths in gdbCopy
+    feature_classes = dataPathDict(gdbCopy, 'FeatureClass', ['Point', 'Polyline', 'Polygon'])
+    
+    #get a list of feature datasets and their catalog paths in gdbCopy
+    feature_datasets = dataPathDict(gdbCopy, 'FeatureDataset', None)
+        
     #
     # Simple version
     #
@@ -388,32 +414,19 @@ def main(gdbCopy,outWS,gdbSrc):
     outputDir, logfile = makeOutputDir(gdbSrc,outWS,isOpen)
     
     #ET- first dump MapUnitPolys beacause it requires an extra join
-    #arcpy.env.workspace = gdbCopy
-    if 'StandardLithology' in arcpy.ListTables():
-        stdLithDict = makeStdLithDict()
+    if 'StandardLithology' in tables:
+        stdLithDict = makeStdLithDict(tables['StandardLithology'])
     else:
         stdLithDict = 'None'
-    mup2shp(gdbCopy, stdLithDict, outputDir, logfile)
+    mup2shp(feature_classes['MapUnitPolys'], tables['DescriptionOfMapUnits'],
+            stdLithDict, tables['DataSources'], outputDir, logfile)
     
     #ET - now dump everything else
-    #ET - arcpy.env.workspace = 'GeologicMap' is not a robust way to set the workspace
-    arcpy.env.workspace = gdbCopy
-    #ET- get feature classes of <ftype> not in feature datasets
-    fcList = []
-    ftypes = ['POINT', 'LINE', 'POLYGON']
-    for ftype in ftypes:
-        fcList.extend(arcpy.ListFeatureClasses('', ftype))
-        
-    #ET- append feature classes in any feature dataset
-    for fd in arcpy.ListDatasets('', 'Feature'):
-        arcpy.env.workspace = fd
-        for ftype in ftypes:
-            fcList.extend(arcpy.ListFeatureClasses('', ftype))
-            
     #ET- translate to shapefiles any feature classes not named MapUnitPolys
-    for fc in fcList:
+    for fc in feature_classes:
         if fc <> 'MapUnitPolys':
-            fc2shp(gdbCopy, fc, outputDir, logfile)
+            fc2shp(fc, feature_classes[fc], tables['Glossary'], 
+                   tables['DataSources'], outputDir, logfile)
     logfile.close()
     #
     # Open version
@@ -421,17 +434,13 @@ def main(gdbCopy,outWS,gdbSrc):
     isOpen = True
     addMsgAndPrint('')
     outputDir, logfile = makeOutputDir(gdbSrc,outWS,isOpen)
-    # list featuredatasets
-    arcpy.env.workspace = gdbCopy
-    fds = arcpy.ListDatasets('', 'Feature')
-    # for each featuredataset
-    for fd in fds:
-        arcpy.env.workspace = fd
-        #fdPath = arcpy.Describe(fd).catalogPath
-        addMsgAndPrint( '  Processing feature data set {}...'.format(arcpy.env.workspace))
+
+    for fd in feature_datasets:
+        fdPath = feature_datasets[fd]
+        addMsgAndPrint( '  Processing feature data set {}...'.format(fdPath))
         logfile.write('Feature data set {} \n'.format(fd))
         try:
-            spatialRef = arcpy.Describe(fd).SpatialReference
+            spatialRef = arcpy.Describe(fdPath).SpatialReference
             logfile.write('  spatial reference framework\n')
             logfile.write('    name = {}\n'.format(spatialRef.Name))
             logfile.write('    spheroid = {}\n'.format(spatialRef.SpheroidName))
@@ -445,24 +454,23 @@ def main(gdbCopy,outWS,gdbSrc):
             if fd[i] == fd[i].upper():
                 pfx = pfx + fd[i]
         
-        fcList = arcpy.ListFeatureClasses()
-        if fcList <> None:
-            for fc in fcList:
-                #addMsgAndPrint('catalogPath: {}'.format(arcpy.Describe(fc).catalogPath))
-                # don't dump Anno classes
-                if arcpy.Describe(fc).featureType <> 'Annotation':
+        if feature_classes <> None:
+            for fc in feature_classes:
+                #ET- if the feature class is in the current feature dataset:
+                if fdPath in feature_classes[fc]:
+                    #ET- don't need to check for annotation feature classes
+                    #because these are excluded during the creation of the 
+                    #feature_classes dictionary
                     outName = pfx+'_'+fc+'.shp'
-                    dumpTable(fc,outName,True,outputDir,logfile,isOpen,fc)
-                else:
-                    addMsgAndPrint('    Skipping annotation feature class '+fc+'\n')
+                    dumpTable(feature_classes[fc],outName,True,outputDir,logfile,isOpen,fc)
         else:
             addMsgAndPrint('   No feature classes in this dataset!')
         logfile.write('\n')
-    # list tables
-    arcpy.env.workspace = gdbCopy
-    for tbl in arcpy.ListTables():
-        outName = tbl+'.csv'
-        dumpTable(tbl,outName,False,outputDir,logfile,isOpen,tbl)
+        
+    #process the tables
+    for table in tables:
+        outName = table+'.csv'
+        dumpTable(tables[table],outName,False,outputDir,logfile,isOpen,table)
     logfile.close()
 
 ### START HERE ###
@@ -478,7 +486,7 @@ else:
     gdbCopy = os.path.join(ows, 'xx' + os.path.basename(gdbSrc))
     if arcpy.Exists(gdbCopy):
         arcpy.Delete_management(gdbCopy)
-    addMsgAndPrint('  Copying {} to temporary geodatabase...'.format(os.path.basename(gdbSrc)))
+    addMsgAndPrint('  Copying {} to temporary geodatabase...'.format(os.path.basename(gdbSrc)))   
     arcpy.Copy_management(gdbSrc,gdbCopy)
     
     #ET - if relationships exist in the source gdb, remove them in the copy
