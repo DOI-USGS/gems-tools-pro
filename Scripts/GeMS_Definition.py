@@ -247,7 +247,8 @@ enumeratedValueDomainFieldList = [
     'Type','LocationMethod','PartType','ProportionTerm','TimeScale',
     'ExistenceConfidence','IdentityConfidence',
     'ScientificConfidence','ParagraphStyle','AgeUnits', 'MapUnit',
-    'DataSourceID','DefinitionSourceID','LocationSourceID','OrientationSourceID','AnalysisSourceID',
+    'DataSourceID','DescriptionSourceID','DefinitionSourceID','LocationSourceID',
+    'OrientationSourceID','AnalysisSourceID',
     'GeoMaterial','GeoMaterialConfidence'
     ]                                  
 rangeDomainDict = {
@@ -269,7 +270,7 @@ unrepresentableDomainDict = {
      'MapPropertyValue':'Unrepresentable domain. Free text.'
      }
 attribDict = {
-    '_ID':'Primary key',
+    '_ID':'Primary key.',
     'Age':'May be interpreted (preferred) age calculated from geochronological analysis, not necessarily the date calculated from a single set of measurements.',
     'AgeMinusError':'Negative (younger) age error, measured in AgeUnits. Type of error (RMSE, 1 sigma, 2 sigma, 95% confidence limit) should be stated in Notes field.',
     'AgePlusError':'Positive (older) age error, measured in AgeUnits. Type of error (RMSE, 1 sigma, 2 sigma, 95% confidence limit) should be stated in Notes field.',
