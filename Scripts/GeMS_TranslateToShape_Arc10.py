@@ -520,12 +520,12 @@ else:
     #addMsgAndPrint('  Looking for and removing relationships from {}'.format(gdbCopy))
     remove_rc(gdbCopy) 
     
-    #gdbCopy is deletable after removing relationship classes..
-    
     main(gdbCopy,ows,gdbSrc)
     addMsgAndPrint('\n  Deleting temporary geodatabase...')
     #arcpy.env.workspace = ows
     #time.sleep(5)
+    #gdbCopy should be deletable after in-memory feature and table layers
+    #have been deleted.
     try:
         testAndDelete(gdbCopy)
     except:
