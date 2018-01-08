@@ -2,7 +2,7 @@
 #
 #  Converts an GeMS-style ArcGIS geodatabase to 
 #    open file format
-#      shape files, .csv files, and pipe-delimited .txt files,
+#      shape files, .dbf files, and .csv files
 #      without loss of information.  Field renaming is documented in 
 #      output file logfile.txt
 #    simple shapefile format
@@ -524,10 +524,9 @@ else:
     
     main(gdbCopy,ows,gdbSrc)
     addMsgAndPrint('\n  Deleting temporary geodatabase...')
-    arcpy.env.workspace = ows
-    time.sleep(5)
+    #arcpy.env.workspace = ows
+    #time.sleep(5)
     try:
-        #shutil.rmtree(gdbCopy)
         testAndDelete(gdbCopy)
     except:
         addMsgAndPrint('    As usual, failed to delete temporary geodatabase')
