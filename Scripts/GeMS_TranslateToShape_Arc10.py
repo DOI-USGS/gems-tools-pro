@@ -65,11 +65,21 @@ shortFieldNameDict = {
         'ContactsAndFaults_ID':'CAFs_ID',
         'PlotAtScale':'PlotAtSca'
         }
+
+hide_fields = ['MapUnitPolys.DataSourceID',
+               'DescriptionOfMapUnits.OBJECTID',
+               'DescriptionOfMapUnits.MapUnit',
+               'DescriptionOfMapUnits.Label',
+               'DescriptionOfMapUnits.Symbol',
+               'DescriptionOfMapUnits.DescriptionOfMapUnits_ID',               
+               'DataSources.OBJECTID',
+               'DataSources.DataSourcesID',
+               'DataSources.Notes']        
+
         
 def dataPathDict(gdb, d_type, f_type):
     """dictionary of objects in a gdb with their names as keys and their paths
-    as values using da.Walk which is apparently more robust and predictable than 
-    using List<whatever> after setting the workspace"""
+    as values using da.Walk"""
     dictionary = {}
     walk = arcpy.da.Walk(gdb, datatype=d_type, type=f_type)
     
@@ -130,89 +140,107 @@ def printFieldNames(fc):
     for f in fieldNameList(fc):
         print f
     print
-
-def dumpTable(objPath,outName,isSpatial,outputDir,logfile,isOpen,srcName):
-    objName = os.path.basename(objPath)
+    
+def dumpTable(lyr, outName, isSpatial, outputDir, logfile, isOpen, srcName):
+    """Takes in-memory feature or table layers, shortens field names if necessary, 
+    writes feature classes to shapefiles, writes tables to dbf. If any field in
+    the layer is longer than 255 characters, the entire table is also written
+    out to csv. Note that the CopyRows tool used to write to csv results in
+    OBJECTID being exported, even when being set to hidden in a field info object
+    and all values get written to -1."""
+    out_path = os.path.join(outputDir, outName)
     dumpString = '  Dumping {}...'.format(outName)
     if isSpatial: dumpString = '  {}'.format(dumpString)
     addMsgAndPrint(dumpString)
     if isSpatial:
-        logfile.write('  feature class {} dumped to shapefile {}\n'.format(objName, outName))
+        logfile.write('  feature class {} dumped to shapefile {}\n'.format(srcName, outName))
     else:
-        logfile.write('  table {} dumped to table {}\n'.format(objName, outName))
+        logfile.write('  table {} dumped to table {}\n'.format(srcName, outName))
     logfile.write('    field name remapping: \n')
-    # describe
 
     if debug:
-        printFieldNames(objPath)
+        printFieldNames(lyr)
         print
    
-    fields = arcpy.ListFields(objPath)
+    #build a field info object for resetting field names and visibility property
+    desc = arcpy.Describe(lyr)
+    field_info = desc.fieldInfo
+    
+    #go through the fields one at a time
     longFields = []
     shortFieldName = {}
+    fields = arcpy.ListFields(lyr)
     for field in fields:
-        # translate field names
-        #  NEED TO FIX TO DEAL WITH DescriptionOfMapUnits_ and DataSources_
-        fName = field.name
-        for prefix in ('DescriptionOfMapUnits','DataSources','Glossary',srcName):
-            if objName<> prefix and fName.find(prefix) == 0 and fName <> srcName+'_ID':
-                fName = fName[len(prefix)+1:]
-        if len(fName) > 10:
-            shortFieldName[field.name] = remapFieldName(fName)
-            # write field name translation to logfile
-            logfile.write('      '+field.name+' > '+shortFieldName[field.name]+'\n')
+        #translate field names
+        #first, parse the qualified name in case there is a join
+        #we are no longer working with joined tables that have been written to disk
+        #so we don't have to catch <table>_<field> strings, ie. with '_' in name
+        parsed_name = arcpy.ParseFieldName(field.name)
+        field_name = parsed_name.split(", ")[3]
+        index = field_info.findFieldByName (field.name)
+        
+        #hide fields we don't want exported at all
+        #hide_fields is a list defined at the top
+        if field.name in hide_fields:
+            field_info.setVisible(index, "HIDDEN")
         else:
-            shortFieldName[field.name] = fName
-        if field.name not in ('OBJECTID','Shape','SHAPE','Shape_Length','Shape_Area'):
-            #addMsgAndPrint(field.name)
-            arcpy.AlterField_management(objPath,field.name,shortFieldName[field.name])
-        if field.length > 254:
-            longFields.append(shortFieldName[field.name])
-        if debug:
-            print fName, shortFieldName[field.name]   
-    # export to shapefile (named prefix+name)
+            #deal with long field names. If they are long, shorten them
+            if len(field_name) > 10:
+                short_name = remapFieldName(field_name)
+                # write field name translation to logfile
+                logfile.write('      '+field_name+' > '+short_name+'\n')
+            #otherwise, they are ok.
+            else:
+                short_name = field_name
+            field_info.setNewName(index, short_name)
+            field_info.setVisible(index, 'VISIBLE')
+            
+            #if this is a long field, keep track of it. It will be written to a 
+            #text file if we are processing the open version
+            if field.length > 254:
+                longFields.append(field.name)
+
+    if debug:
+        print field_name, short_name
+    
+    #export to shapefile or dbf (named prefix+name)
     if isSpatial:
         if debug:  print 'dumping ',objPath,outputDir,outName
         try:
-            arcpy.FeatureClassToFeatureClass_conversion(objPath,outputDir,outName)
+            arcpy.MakeFeatureLayer_management(lyr, "lyr2", "", "", field_info)
+            arcpy.CopyFeatures_management("lyr2", out_path)
         except:
-            #addMsgAndPrint(arcpy.GetMessages())
-            addMsgAndPrint('failed to translate table '+objPath)
+            addMsgAndPrint('failed to translate feature class {}'.format(srcName))
     else:
-        arcpy.TableToTable_conversion(objPath,outputDir,outName)
-    if isOpen:
-        # if any field lengths > 254, write .txt file
-        if len(longFields) > 0:
-            outText = outName[0:-4]+'.txt'
-            logPath = os.path.join(outputDir, outText)
-            logfile.write('    table '+srcName+' has long fields, thus dumped to file '+outText+'\n')
-            csvFile = open(logPath,'w')
-            fields = fieldNameList(objPath)
-            if isSpatial:
-                try:
-                    fields.remove('Shape')
-                except:
-                    try:
-                        fields.remove('SHAPE')
-                    except:
-                        addMsgAndPrint('No Shape field present.')
-            with arcpy.da.SearchCursor(objPath,fields) as cursor:
-                for row in cursor:
-                    rowString = str(row[0])
-                    for i in range(1,len(row)):
-                        if row[i] <> None:
-                            if isinstance(row[i],Number):
-                                xString = str(row[i])
-                            else:
-                                xString = row[i].encode('ascii','xmlcharrefreplace')
-                            rowString = rowString+'|'+xString
-                        else:
-                            rowString = rowString+'|'
-                    csvFile.write(rowString+'\n')
-            csvFile.close()
+        try:
+            arcpy.MakeTableView_management(lyr, "lyr2", "", "", field_info)
+            arcpy.CopyRows_management ("lyr2", out_path)
+        except:
+            addMsgAndPrint('failed to translate table {}'.format(srcName))
+         
+    #if any field lengths > 254, write .txt file
+    if isOpen and len(longFields) > 0:
+        logfile.write('    table {} has long fields, thus dumped to file {}\n'
+                       .format(srcName, srcName+".csv"))
+        txt_hide_fields = ['OBJECTID', 'Shape', 'SHAPE']
+        out_path = os.path.join(outputDir, srcName+".csv")
+        
+        for index in range(0, field_info.count):
+            field_name = field_info.getfieldname(index)
+            if field_name in txt_hide_fields:
+                field_info.setVisible(index, 'HIDDEN')
+            else:
+                field_info.setNewName(index, field_name)
+                field_info.setVisible(index, 'VISIBLE')
+                
+        arcpy.MakeTableView_management(lyr, "layerastable", "", "", field_info)
+        arcpy.CopyRows_management("layerastable", out_path)
     addMsgAndPrint('    Finished dump\n')
-              
     
+    testAndDelete(lyr)
+    testAndDelete('lyr2')
+    testAndDelete('layerastable')
+        
 def makeOutputDir(gdb,outWS,isOpen):
     outputDir = os.path.join(outWS, os.path.basename(gdb)[0:-4])
     if isOpen:
@@ -221,8 +249,6 @@ def makeOutputDir(gdb,outWS,isOpen):
         outputDir = outputDir+'-simple'
     addMsgAndPrint('  Making {}\...'.format(outputDir))
     if os.path.exists(outputDir):
-        """ET - easier way to remove directory and 
-        subdirectories, empty or not is with shutil"""
         shutil.rmtree(outputDir) 
 
     os.mkdir(outputDir)
@@ -232,8 +258,7 @@ def makeOutputDir(gdb,outWS,isOpen):
     return outputDir, logfile
     
 def removeJoins(fc):
-    addMsgAndPrint('    Testing '+fc+' for joined tables')
-    #addMsgAndPrint('Current workspace is '+arcpy.env.workspace)
+    addMsgAndPrint('    Testing {} for joined tables'.format(fc))
     joinedTables = []
     # list fields
     fields = arcpy.ListFields(fc)
@@ -253,13 +278,12 @@ def removeJoins(fc):
         jts = ''
         for jt in joinedTables:
             jts = jts+' '+jt
-        addMsgAndPrint('      removed joined tables '+jts)
+        addMsgAndPrint('      removed joined tables {}'.format(jts))
         
 def remove_rc(gdb):
     """ET - added this function to check for and remove all relationship 
-    classes from the copy of the geodatabase. You can't delete fields that 
-    are involved in relationship classes. Consider moving this to utility
-    functions"""
+    classes from the copy of the geodatabase. You can't delete or change the 
+    names of fields that are involved in relationship classes"""
     origWS = arcpy.env.workspace
     relclass_list = arcpy.da.Walk(gdb, datatype = "RelationshipClass",
                     followlinks = True)
@@ -314,53 +338,49 @@ def makeStdLithDict(slPath):
         row = rows.next()
     del row, rows
     stdLithDict[unit] = description(unitDesc)
+    
     return stdLithDict       
 
-def mup2shp(fcMUP,tbDMU,stdLithDict,dsPath,outputDir,logfile):
+def mup2shp(fcMUP, tbDMU, stdLithDict, dsPath, outputDir, logfile):
     """Updated to work with the explicit path to the copies of MapUnitPolys and 
     DescriptionOfMapUnits instead of setting workspace and calling the objects 
     by name only"""
     addMsgAndPrint('  Translating GeologicMap\MapUnitPolys...')
     
     try:
-        arcpy.MakeTableView_management(tbDMU,'DMU')
+        arcpy.MakeTableView_management(tbDMU, 'DMU')
+        #copy StandardLithology information to table
         if stdLithDict <> 'None':
-                arcpy.AddField_management('DMU',"StdLith","TEXT",'','','255')
-                rows = arcpy.UpdateCursor('DMU'  )
+            arcpy.AddField_management('DMU',"StdLith","TEXT",'','','255')
+            rows = arcpy.UpdateCursor('DMU'  )
+            row = rows.next()
+            while row:
+                if row.MapUnit in stdLithDict:
+                    row.StdLith = stdLithDict[row.MapUnit]
+                    rows.updateRow(row)
                 row = rows.next()
-                while row:
-                    if row.MapUnit in stdLithDict:
-                        row.StdLith = stdLithDict[row.MapUnit]
-                        rows.updateRow(row)
-                    row = rows.next()
-                del row, rows
-        arcpy.MakeFeatureLayer_management(fcMUP,'MUP')
-        arcpy.AddJoin_management('MUP','MapUnit','DMU','MapUnit')
-        arcpy.AddJoin_management('MUP','DataSourceID',dsPath,'DataSources_ID')
-        arcpy.CopyFeatures_management('MUP','MUP2')
-        DM = 'DescriptionOfMapUnits_'
-        DS = 'DataSources_'
-        MU = 'MapUnitPolys_'
-        for field in (MU+'DataSourceID',
-                      DM+'MapUnit',DM+'OBJECTID',DM+DM+'ID',DM+'Label',DM+'Symbol',DM+'DescriptionSourceID',
-                      DS+'OBJECTID',DS+DS+'ID',DS+'Notes',DS+'URL'):
-            arcpy.DeleteField_management('MUP2',field)
-        mup2Path = arcpy.Describe('MUP2').catalogPath
-        dumpTable(mup2Path,'MapUnitPolys.shp',True,outputDir,logfile,False,'MapUnitPolys')
-        arcpy.Delete_management('MUP2')
+            del row, rows
         
+        #join DMU and DataSources
+        arcpy.MakeFeatureLayer_management(fcMUP, 'MUP')
+        arcpy.AddJoin_management('MUP', 'MapUnit', 'DMU', 'MapUnit')
+        arcpy.AddJoin_management('MUP', 'DataSourceID', dsPath, 'DataSources_ID')
+        dumpTable('MUP', 'MapUnitPolys.shp', True, outputDir, logfile, False, 'MapUnitPolys')
+
+        testAndDelete('DMU')
+        testAndDelete('MUP')
+  
     except:
         addMsgAndPrint(arcpy.GetMessages())
         addMsgAndPrint('  Failed to translate MapUnitPolys')
     
 def fc2shp(fcName, fcPath, glosPath, dsPath, outputDir, logfile):
-    """Extended this, through feature_classes built in main(), to export all feature
-    classes throughout the gdb including polygons"""
+    """Joins feature class with the Glossary and DataSources tables and
+    calculates values to new fields. The joins are removed before the layer
+    is sent off to dumpTable"""
     fcInFD = os.path.join('GeologicMap', fcName)
     addMsgAndPrint('  Translating {}...'.format(fcInFD))
-    
-    # glosPath = os.path.join(gdbCopy, 'Glossary')
-    # dsPath = os.path.join(gdbCopy, 'DataSources')  
+     
     if debug:
         print 1
         printFieldNames(fcPath)
@@ -387,11 +407,9 @@ def fc2shp(fcName, fcPath, glosPath, dsPath, outputDir, logfile):
         arcpy.CalculateField_management(LIN, nFieldName, '!DataSources.Source![0:254]', 'PYTHON')
         arcpy.RemoveJoin_management(LIN, 'DataSources')
         arcpy.DeleteField_management(LIN, sField.name)
-    arcpy.CopyFeatures_management(LIN, LIN2)
-    lin2Path = arcpy.Describe(LIN2).catalogPath
-    dumpTable(lin2Path, fcShp, True, outputDir, logfile, False, fcName)
+    arcpy.MakeFeatureLayer_management(LIN, "feature_layer")
+    dumpTable("feature_layer", fcShp, True, outputDir, logfile, False, fcName)
     arcpy.Delete_management(LIN)
-    arcpy.Delete_management(LIN2)
     
 def main(gdbCopy,outWS,gdbSrc):
     """Collects dictionaries of objects in the gdb and their paths to avoid
@@ -400,12 +418,11 @@ def main(gdbCopy,outWS,gdbSrc):
     #make a dictionary of table names and their catalog paths in gdbCopy
     tables = dataPathDict(gdbCopy, 'Table', None)
     
-    #get a list of feature classes and their catalog paths in gdbCopy
+    #make a dictionaty of feature classes and their catalog paths in gdbCopy
     feature_classes = dataPathDict(gdbCopy, 'FeatureClass', ['Point', 'Polyline', 'Polygon'])
     
-    #get a list of feature datasets and their catalog paths in gdbCopy
-    feature_datasets = dataPathDict(gdbCopy, 'FeatureDataset', None)
-        
+    #make a list of dictionary feature datasets and their catalog paths in gdbCopy
+    feature_datasets = dataPathDict(gdbCopy, 'FeatureDataset', None)  
     #
     # Simple version
     #
@@ -413,7 +430,7 @@ def main(gdbCopy,outWS,gdbSrc):
     addMsgAndPrint('')
     outputDir, logfile = makeOutputDir(gdbSrc,outWS,isOpen)
     
-    #ET- first dump MapUnitPolys beacause it requires an extra join
+    #first dump MapUnitPolys beacause it requires special joins
     if 'StandardLithology' in tables:
         stdLithDict = makeStdLithDict(tables['StandardLithology'])
     else:
@@ -421,8 +438,8 @@ def main(gdbCopy,outWS,gdbSrc):
     mup2shp(feature_classes['MapUnitPolys'], tables['DescriptionOfMapUnits'],
             stdLithDict, tables['DataSources'], outputDir, logfile)
     
-    #ET - now dump everything else
-    #ET- translate to shapefiles any feature classes not named MapUnitPolys
+    #now dump everything else
+    #translate to shapefiles any feature classes not named MapUnitPolys
     for fc in feature_classes:
         if fc <> 'MapUnitPolys':
             fc2shp(fc, feature_classes[fc], tables['Glossary'], 
@@ -448,6 +465,7 @@ def main(gdbCopy,outWS,gdbSrc):
             logfile.write('    units = {}\n'.format(spatialRef.LinearUnitName))
         except:
             logfile.write('  spatial reference framework appears to be undefined\n')
+            
         # generate featuredataset prefix
         pfx = ''
         for i in range(0,len(fd)-1):
@@ -456,21 +474,29 @@ def main(gdbCopy,outWS,gdbSrc):
         
         if feature_classes <> None:
             for fc in feature_classes:
-                #ET- if the feature class is in the current feature dataset:
+                #if the feature class is in the current feature dataset:
                 if fdPath in feature_classes[fc]:
-                    #ET- don't need to check for annotation feature classes
+                    #don't need to check for annotation feature classes
                     #because these are excluded during the creation of the 
                     #feature_classes dictionary
                     outName = pfx+'_'+fc+'.shp'
-                    dumpTable(feature_classes[fc],outName,True,outputDir,logfile,isOpen,fc)
+                    arcpy.MakeFeatureLayer_management(feature_classes[fc], "feature_layer")
+                    dumpTable("feature_layer", outName, True, outputDir, logfile, isOpen, fc)
+                    testAndDelete("feature_layer")
+
         else:
             addMsgAndPrint('   No feature classes in this dataset!')
         logfile.write('\n')
         
     #process the tables
     for table in tables:
-        outName = table+'.csv'
-        dumpTable(tables[table],outName,False,outputDir,logfile,isOpen,table)
+        #GeMS doc says open version will consist of shapefiles and dbf files
+        #with tables with long names converted to txt.
+        #why don't we just export all tables to text?
+        outName = table+'.dbf'
+        arcpy.MakeTableView_management(tables[table], "table_view")
+        dumpTable("table_view", outName, False, outputDir, logfile, isOpen, table)
+        testAndDelete("table_view")
     logfile.close()
 
 ### START HERE ###
@@ -482,24 +508,27 @@ else:
     ows = os.path.abspath(sys.argv[2])
     arcpy.env.QualifiedFieldNames = False
     arcpy.env.overwriteoutput = True
-    ## fix the new workspace name so it is guaranteed to be novel, no overwrite
+    
+    # fix the new workspace name so it is guaranteed to be novel, no overwrite
     gdbCopy = os.path.join(ows, 'xx' + os.path.basename(gdbSrc))
-    if arcpy.Exists(gdbCopy):
-        arcpy.Delete_management(gdbCopy)
-    addMsgAndPrint('  Copying {} to temporary geodatabase...'.format(os.path.basename(gdbSrc)))   
+    testAndDelete(gdbCopy)
+    addMsgAndPrint('  Copying {} to temporary geodatabase...'.format(os.path.basename(gdbSrc))) 
     arcpy.Copy_management(gdbSrc,gdbCopy)
     
-    #ET - if relationships exist in the source gdb, remove them in the copy
-    #ET - DeleteField_management in def fc2shp cannot run if the field is involved in a relationship
-    addMsgAndPrint('  Looking for and removing relationships from {}'.format(gdbCopy))
+    #if relationships exist in the source gdb, remove them in the copy
+    #Cannot make changes to fields (delete or rename) if they are involved in a relationship
+    #addMsgAndPrint('  Looking for and removing relationships from {}'.format(gdbCopy))
     remove_rc(gdbCopy) 
+    
+    #gdbCopy is deletable after removing relationship classes..
     
     main(gdbCopy,ows,gdbSrc)
     addMsgAndPrint('\n  Deleting temporary geodatabase...')
     arcpy.env.workspace = ows
     time.sleep(5)
     try:
-        arcpy.Delete_management(gdbCopy)
+        #shutil.rmtree(gdbCopy)
+        testAndDelete(gdbCopy)
     except:
         addMsgAndPrint('    As usual, failed to delete temporary geodatabase')
         addMsgAndPrint('    Please delete {}\n'.format(gdbCopy))
