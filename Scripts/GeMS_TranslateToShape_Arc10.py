@@ -524,8 +524,8 @@ else:
     
     main(gdbCopy,ows,gdbSrc)
     addMsgAndPrint('\n  Deleting temporary geodatabase...')
-    arcpy.env.workspace = ows
-    time.sleep(5)
+    #arcpy.env.workspace = ows
+    #time.sleep(5)
     try:
         testAndDelete(gdbCopy)
     except:
