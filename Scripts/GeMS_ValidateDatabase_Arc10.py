@@ -18,7 +18,7 @@
 #   Zip up the database, the conformance report (if one is written), 
 #   a brief discussion of what's wrong, and email zip file to me at
 #   	rhaugerud@usgs.gov
-#   Please include "NCGMP09" in the subject line.
+#   Please include "GeMS" in the subject line.
 #   Thanks!
 
 print '  importing arcpy...'
