@@ -2,16 +2,17 @@
   GeMS_TranslateToShape_Arc10.5.py
 
  Converts a GeMS-style ArcGIS geodatabase to
-   open file format
-     "trunkless" shape files and .csv files, which, in the case of feature class
-     attributes, can be joined to the appropriate shapefile via the OBJECTID field
-     or the '_ID' field without loss of information.
-   simple shapefile format
+   simple shapefile format - 
      basic map information in flat shapefiles, with much repetition of attribute 
      information, long fields truncated, and much information lost. Field 
-     renaming is documented in output file
-     logfile.txt
-
+     renaming is documented in output file logfile.txt
+   open/complete file format - 
+     to avoid the limitations of dbf files, feature classes attributes are exported
+     as csv files while feature geometries are exported as shapefiles where the
+     attribute table contains only the FID, SHAPE, and '_ID' fields. Within 
+     a GIS, the shapefiles can be joined to the csv files via the '_ID' field 
+     to reconstruct the complete geodatabase with no loss of information. 
+     Check the logfile for possible renaming of the key '_ID' field.
  Ralph Haugerud, USGS, Seattle
    rhaugerud@usgs.gov
  Evan Thoms, USGS, Anchorage
@@ -31,7 +32,7 @@ import arcpy
 # custom class
 import GeMS_utilityFunctions as gems
 
-versionString = 'GeMS_TranslateToShape_Arc10.5.py, version of 11 January 2018'
+versionString = 'GeMS_TranslateToShape_Arc10.5.py, version of 29 January 2018'
 
 debug = False
 
@@ -256,7 +257,7 @@ def mup_joins(fc_mup, tb_dmu, std_lith_dict, ds_path):
         
         #join DMU and DataSources
         arcpy.MakeFeatureLayer_management(fc_mup, 'MUP')
-        gems.addMsgAndPrint('      Joining DescriptionOfMapUnits and DataSources')
+        gems.addMsgAndPrint('      Joining DescriptionOfMapUnits and DataSources...')
         arcpy.AddJoin_management('MUP', 'MapUnit', 'DMU', 'MapUnit')
         arcpy.AddJoin_management('MUP', 'DataSourceID', ds_path, 'DataSources_ID')
 
@@ -573,16 +574,18 @@ def main(gdbCopy,out_ws,gdbSrc):
             simple_fc(fc_lyr, feature_classes[fc], output_dir, logfile)
             gems.testAndDelete(fc_lyr)
     logfile.close()
+    gems.addMsgAndPrint('  Check {} for field name remapping.'.
+      format(logfile.name))
 
     # OPEN VERSION
     gems.addMsgAndPrint(' ')
-    gems.addMsgAndPrint('Making complete version with trunkless shapefiles ' +
+    gems.addMsgAndPrint('Making complete version with decoupled shapefiles ' +
       'and csv files')
     output_dir, logfile = make_output_dir(gdbSrc, out_ws, '-open')
 
     for fd in feature_datasets:
         fdPath = feature_datasets[fd]
-        gems.addMsgAndPrint( '  Processing feature data set {}...'.format(fdPath))
+        gems.addMsgAndPrint( '  Processing feature dataset {}...'.format(fd))
         logfile.write('Feature data set {} \n'.format(fd))
         try:
             spatialRef = arcpy.Describe(fdPath).SpatialReference
@@ -615,35 +618,39 @@ def main(gdbCopy,out_ws,gdbSrc):
                     field_info = open_fc_fieldinfo(feature_classes[fc], pfx, logfile)
                     
                     # make a feature layer, apply the fieldInfo, and write the
-                    # "trunkless" shapefile
+                    # "decoupled" shapefile
                     arcpy.MakeFeatureLayer_management(feature_classes[fc], 
                       'feature_layer', '', '', field_info)
 
                     gems.addMsgAndPrint('    Writing features from {} to {}'.
-                      format(fdPath + '\\' + fc, out_name + '.shp'))
+                      format(fc_in_fds, out_name + '.shp'))
                     arcpy.CopyFeatures_management('feature_layer', shp_path)
                     gems.testAndDelete('feature_layer')
                     
                     # write the accompanying csv attribute table 
-                    gems.addMsgAndPrint('    Writing attributes from {} to {}'.
-                      format(fdPath + '\\' + fc, out_name + '.csv'))
-                    gems.addMsgAndPrint(' ')                      
+                    gems.addMsgAndPrint('      Writing attributes from {} to {}'.
+                      format(fc_in_fds, out_name + '.csv'))                    
                     write_csv_file(feature_classes[fc], output_dir, out_name, 
                       logfile)
 
         else:
-            gems.addMsgAndPrint('   No feature classes in this dataset!')
-        logfile.write('\n')
+            gems.addMsgAndPrint('    No feature classes in this dataset!')
+    
+    logfile.write('\n')
         
-    # process the tables
+    # process the tabless
+    gems.addMsgAndPrint('  Converting non-spatial tables...')
     for table in tables:
         # export tables to csv
         gems.addMsgAndPrint('    Writing records from {} to {}'.
           format(table, table + '.csv'))
-        gems.addMsgAndPrint(' ')
+
         logfile.write('Non-spatial tables\n')
         write_csv_file(tables[table], output_dir, table, logfile)
     logfile.close()
+ 
+    gems.addMsgAndPrint('  Check {} for key field names in the converted shapefiles'.
+      format(logfile.name))
 
 ### START HERE ###
 if len(sys.argv) <> 3 or not os.path.exists(sys.argv[1]) \
@@ -659,9 +666,9 @@ else:
     # fix the new workspace name so it is guaranteed to be novel, no overwrite
     gdbCopy = os.path.join(ows, 'xx' + os.path.basename(gdbSrc))
     gems.testAndDelete(gdbCopy)
-    gems.addMsgAndPrint('  Copying {} to temporary geodatabase...'.format
-      (os.path.basename(gdbSrc))) 
-    arcpy.Copy_management(gdbSrc,gdbCopy)
+    gems.addMsgAndPrint('  Copying {} to temporary geodatabase {}'.format
+      (os.path.basename(gdbSrc), gdbCopy)) 
+    arcpy.Copy_management(gdbSrc, gdbCopy)
     
     # if relationships exist in the source gdb, remove them in the copy
     # Cannot make changes to fields (delete or rename) if they are involved in 
@@ -670,7 +677,6 @@ else:
 
     main(gdbCopy,ows,gdbSrc)
     
-    gems.addMsgAndPrint(' ')
     gems.addMsgAndPrint('Deleting temporary geodatabase...')
     
     #gdbCopy should be deletable after in-memory feature and table layers
