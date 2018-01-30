@@ -370,10 +370,12 @@ def simple_fc(lyr, src_path, output_dir, logfile):
             if len(field_name) > 10:
                 short_name = remap_field_name(field_name)
                 # write field name translation to logfile
-                logfile.write('      '+field_name+' > '+short_name+'\n')
+                logfile.write('      {} shortened to {}\n'.
+                  format(field_name, short_name))
             # otherwise, they are ok.
             else:
                 short_name = field_name
+                logfile.write('      {} not shortened\n'.format(field_name))
             field_info.setNewName(index, short_name)
             field_info.setVisible(index, 'VISIBLE')
    
