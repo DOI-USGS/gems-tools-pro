@@ -32,7 +32,7 @@ See the help that is part of the individual tool interfaces for documentation. A
 
 -----------------------------------------------------------------
 
-Collaboration: Suggestions for improvements and edited files submitted by email will be considered, but you are strongly encouraged to use git and GitHub to fork the project, create a branch (e.g., "MyFixToProblemXXX"), make changes to this branch, and submit a pull request to have your changes merged with the master branch. Excellent guides for various aspects of the git workflow can be found here:
+Collaboration: Suggestions for improvements and edited files submitted by email will be considered, but you are strongly encouraged to use GitHub to fork the project, create a new branch (e.g., "MyFixToProblemXXX"), make changes to this branch, and submit a pull request to have your changes merged with the master branch. Excellent guides for various aspects of the git workflow can be found here:
 
 [https://guides.github.com/](https://guides.github.com/)
 
