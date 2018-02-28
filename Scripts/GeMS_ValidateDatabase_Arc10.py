@@ -633,7 +633,7 @@ def dmuRequiredValues():
                     if not isNullValue(row[1]):   # if MapUnit is set
                         for i in range(3,len(fields)):
                             if isNullValue(row[i]):
-                                missingRequiredValues.append('<span class="tables">DescriptionOfMapUnits</span>, OBJECTID='+str(row[0])+', <span class="fields"'+fields[i]+'</span>')
+                                missingRequiredValues.append('<span class="tables">DescriptionOfMapUnits</span>, OBJECTID='+str(row[0])+', <span class="fields">'+fields[i]+'</span>')
         except:
             addMsgAndPrint('    Cannot examine DMU table for required values. Perhaps some fields are missing?')
             missingRequiredValues.append('DescriptionOfMapUnits not checked for required values')
