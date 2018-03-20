@@ -22,12 +22,12 @@
 #   Thanks!
 
 print '  importing arcpy...'
-import arcpy, sys, time, os.path
+import arcpy, sys, time, os.path, glob
 from GeMS_Definition import tableDict, fieldNullsOKDict
 from GeMS_utilityFunctions import *
 
 
-versionString = 'GeMS_ValidateDatabase_Arc10.py, version of 6 December 2017'
+versionString = 'GeMS_ValidateDatabase_Arc10.py, version of 4 march 2018'
 # modified to have output folder default to folder hosting input database
 # modified for HTML output
 # 15 Sept 2016  tableToHtml modified to better handle special characters
@@ -40,6 +40,7 @@ versionString = 'GeMS_ValidateDatabase_Arc10.py, version of 6 December 2017'
 # 17 Mar 2017   Added MiscellaneousMapInformation and StandardLithology to tables listed to output HTML
 # 13 August 2017  Cleaned up required table and feature class definition; added GeoMaterialDict to required elements
 # 6 December 2017   Did a re-vamp on html, added style, tables, etc. - Tanner Arrington
+# 4 March 2018  Added check for .txt files in gdb
 
 ## need to check for and flag zero-length strings: should be '#', '#null' or None
 
@@ -422,6 +423,10 @@ def checkFieldsAndFieldDefinitions():
               inventoryValues(thisDatabase,featureClass)
             except:
               addMsgAndPrint('Failed to inventory values in '+featureClass)
+    # check for .txt files that maybe should be deleted before the gdb is released
+    txtfiles = glob.glob(thisDatabase+'/*.txt')
+    for f in txtfiles:
+        schemaExtensions.append('File '+os.path.basename(f))
 
 def checkRequiredElements():
     addMsgAndPrint( '  Checking for required elements...')
@@ -803,7 +808,7 @@ def writeOutput(outFile,tables,thisDatabase):
     testAndDelete(tempGdb)
     arcpy.CreateFileGDB_management(os.path.dirname(thisDatabase),'xxxTemp.gdb')  
     outfl.write('<h2 id="essential">Essential Tables</h2>\n')
-    for eTable in 'DataSources','Glossary','DescriptionOfMapUnits','MiscellaneousMapInformation','StandardLithology':
+    for eTable in 'DataSources','DescriptionOfMapUnits','Glossary','MiscellaneousMapInformation','StandardLithology':
         if arcpy.Exists(thisDatabase+'/'+eTable):
             outfl.write('<h3 class="table-header">'+eTable+'</h3>\n')
             if eTable == 'DescriptionOfMapUnits':

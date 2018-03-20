@@ -4,9 +4,6 @@
 #
 #   Ralph Haugerud, USGS
 #
-#   Requires that ncgmp09_definition.py be present in the local directory 
-#     or in the appropriate Python library directory.
-#
 # RUN AS TOOLBOX SCRIPT FROM ArcCatalog OR ArcMap
 
 # 9 Sept 2016: Made all fields NULLABLE
@@ -14,12 +11,13 @@
 # 8 March 2017: Added  ExistenceConfidence, IdentityConfidence, ScientificConfidence domains, definitions, and definitionsource
 # 17 March 2017  Added optional table MiscellaneousMapInformation
 # 30 Oct 2017  Moved CartoRepsAZGS and GeMS_lib.gdb to ../Resources
+# 4 March 2018  changed to use writeLogfile()
 
 import arcpy, sys, os, os.path
 from GeMS_Definition import tableDict, GeoMaterialConfidenceValues, DefaultExIDConfidenceValues
 from GeMS_utilityFunctions import *
 
-versionString = 'GeMS_CreateDatabase_Arc10.py, version of 2 September 2017'
+versionString = 'GeMS_CreateDatabase_Arc10.py, version of 4 March 2018'
 
 debug = True
 
@@ -417,12 +415,9 @@ if len(sys.argv) >= 6:
     # try to write a readme within the .gdb
     if thisDB[-4:] == '.gdb':
         try:
-            arcpy.env.workspace = ''
-            versionFile = open(thisDB+'/00readme.txt','w')
-            versionFile.write('Geodatabase created by '+versionString+'\n')
-            versionFile.close()
+            writeLogfile(thisDB,'Geodatabase created by '+versionString)
         except:
-            addMsgAndPrint('Failed to write '+thisDB+'/00readme.txt')
+            addMsgAndPrint('Failed to write to'+thisDB+'/00log.txt')
 
 else:
     addMsgAndPrint(usage)
