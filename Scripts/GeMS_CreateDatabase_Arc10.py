@@ -12,12 +12,13 @@
 # 17 March 2017  Added optional table MiscellaneousMapInformation
 # 30 Oct 2017  Moved CartoRepsAZGS and GeMS_lib.gdb to ../Resources
 # 4 March 2018  changed to use writeLogfile()
+# 4 April 2018  CorrelationOfMapUnits coordinate system was undefined, now same as GeologicMap
 
 import arcpy, sys, os, os.path
 from GeMS_Definition import tableDict, GeoMaterialConfidenceValues, DefaultExIDConfidenceValues
 from GeMS_utilityFunctions import *
 
-versionString = 'GeMS_CreateDatabase_Arc10.py, version of 4 March 2018'
+versionString = 'GeMS_CreateDatabase_Arc10.py, version of 4 April 2018'
 
 debug = True
 
@@ -175,7 +176,7 @@ def main(thisDB,coordSystem,nCrossSections):
     # create feature dataset CorrelationOfMapUnits
     if 'CorrelationOfMapUnits' in OptionalElements:
         addMsgAndPrint('  Creating feature dataset CorrelationOfMapUnits...')
-        arcpy.CreateFeatureDataset_management(thisDB,'CorrelationOfMapUnits')
+        arcpy.CreateFeatureDataset_management(thisDB,'CorrelationOfMapUnits',coordSystem)
         fieldDefs = tableDict['CMUMapUnitPolys']
         createFeatureClass(thisDB,'CorrelationOfMapUnits','CMUMapUnitPolys','POLYGON',fieldDefs)
         fieldDefs = tableDict['CMULines']
