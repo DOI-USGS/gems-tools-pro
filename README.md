@@ -12,7 +12,7 @@ Any use of trade, firm, or product names is for descriptive purposes only and do
 
 -----------------------------------------------------------------
 
-To install GeMS Tools, download this repository. On GitHub, at the mid-upper left of this repository page, tap gray "Branch:master" button, tap "Tags" in the window that opens, and select the appropriate (probably the most recent) entry.  Then tap the "Clone or download button" (green box with down caret at upper right of screen) and select "Download ZIP". 
+To install GeMS Tools, download this repository as follows: On GitHub, at the mid-upper left of this repository page, tap gray "Branch:master" button, tap "Tags" in the window that opens, and select the appropriate (probably the most recent) entry.  Then tap the "Clone or download button" (green box with down caret at upper right of screen) and select "Download ZIP". 
 
 After the download completes, go to your download directory and unzip the just-downloaded file. Inside the unzipped file there will be a single folder named something like "GeMS_Tools-14Dec2017". Either 
 
