@@ -1,6 +1,6 @@
 GeMS Tools
 
-This repository contains an ArcGIS toolbox and associated Python scripts and resources for creating, manipulating, and validating GeMS-style geologic map databases, as well as documentation.  See the Wiki (tab above) for more information. 
+This repository contains an ArcGIS toolbox and associated Python scripts and resources for creating, manipulating, and validating GeMS-style geologic map databases, as well as documentation.  See below for download and installation instructions. See the Wiki (tab above) for more information. 
 
 For information on NCGMP09, the precursor to the GeMS database schema, see the Archive section at http://ngmdb.usgs.gov/Info/standards/GeMS/.
 
