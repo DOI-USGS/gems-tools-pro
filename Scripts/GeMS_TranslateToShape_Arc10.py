@@ -6,7 +6,7 @@
      basic map information in flat shapefiles, with much repetition of attribute 
      information, long fields truncated, and much information lost. Field 
      renaming is documented in output file logfile.txt
-   open/complete file format - 
+   complete file format - 
      to avoid the limitations of dbf files, feature classes attributes are exported
      as csv files while feature geometries are exported as shapefiles where the
      attribute table contains only the FID, SHAPE, and '_ID' fields. Within 
@@ -44,7 +44,7 @@ USAGE: GeMS_TranslateToShp_Arc10.5.py  <geodatabase> <outputWorkspace>
   <geodatabase> may be a personal or file geodatabase, and the 
   .gdb or .mdb extension must be included.
   Output is written to directories <geodatabase (no extension)>-simple
-  and <geodatabase (no extension)>-open in <outputWorkspace>. Output 
+  and <geodatabase (no extension)>-complete in <outputWorkspace>. Output 
   directories, if they already exist, will be overwritten.
 """)
 
@@ -375,7 +375,10 @@ def simple_fc(lyr, src_path, output_dir, logfile):
             # otherwise, they are ok.
             else:
                 short_name = field_name
-                logfile.write('      {} not shortened\n'.format(field_name))
+                if short_name == 'OBJECTID':
+                    logfile.write('OBJECTID renamed by ArcGIS to FID\n')
+                else:
+                    logfile.write('      {} not shortened\n'.format(field_name))
             field_info.setNewName(index, short_name)
             field_info.setVisible(index, 'VISIBLE')
    
@@ -579,11 +582,11 @@ def main(gdbCopy,out_ws,gdbSrc):
     gems.addMsgAndPrint('  Check {} for field name remapping.'.
       format(logfile.name))
 
-    # OPEN VERSION
+    # COMPLETE VERSION
     gems.addMsgAndPrint(' ')
     gems.addMsgAndPrint('Making complete version with decoupled shapefiles ' +
       'and csv files')
-    output_dir, logfile = make_output_dir(gdbSrc, out_ws, '-open')
+    output_dir, logfile = make_output_dir(gdbSrc, out_ws, '-complete')
 
     for fd in feature_datasets:
         fdPath = feature_datasets[fd]
@@ -640,14 +643,13 @@ def main(gdbCopy,out_ws,gdbSrc):
     
     logfile.write('\n')
         
-    # process the tabless
+    # process the tables
     gems.addMsgAndPrint('  Converting non-spatial tables...')
+	logfile.write('Non-spatial tables\n')
     for table in tables:
         # export tables to csv
         gems.addMsgAndPrint('    Writing records from {} to {}'.
           format(table, table + '.csv'))
-
-        logfile.write('Non-spatial tables\n')
         write_csv_file(tables[table], output_dir, table, logfile)
     logfile.close()
  
