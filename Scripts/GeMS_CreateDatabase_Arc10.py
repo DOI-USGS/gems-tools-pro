@@ -12,13 +12,12 @@
 # 17 March 2017  Added optional table MiscellaneousMapInformation
 # 30 Oct 2017  Moved CartoRepsAZGS and GeMS_lib.gdb to ../Resources
 # 4 March 2018  changed to use writeLogfile()
-# 4 April 2018  CorrelationOfMapUnits coordinate system was undefined, now same as GeologicMap
 
 import arcpy, sys, os, os.path
 from GeMS_Definition import tableDict, GeoMaterialConfidenceValues, DefaultExIDConfidenceValues
 from GeMS_utilityFunctions import *
 
-versionString = 'GeMS_CreateDatabase_Arc10.py, version of 4 April 2018'
+versionString = 'GeMS_CreateDatabase_Arc10.py, version of 4 March 2018'
 
 debug = True
 
@@ -141,6 +140,8 @@ def main(thisDB,coordSystem,nCrossSections):
             featureClasses.append(fc)
     for featureClass in featureClasses:
         fieldDefs = tableDict[featureClass]
+        if addLTYPE and fc <> 'DataSourcePolys':
+            fieldDefs.append(['PTYPE','String','NullsOK',50])
         createFeatureClass(thisDB,'GeologicMap',featureClass,'POLYGON',fieldDefs)
             
     # line feature classes
@@ -163,20 +164,15 @@ def main(thisDB,coordSystem,nCrossSections):
         if fc in OptionalElements:
             featureClasses.append(fc)
     for featureClass in featureClasses:
-        if featureClass == 'MapUnitPoints': 
-            fieldDefs = tableDict['MapUnitPolys']
-            if addLTYPE:
-                fieldDefs.append(['PTYPE','String','NullsOK',50])
-        else:	
-            fieldDefs = tableDict[featureClass]
-            if addLTYPE and featureClass in ['OrientationPoints']:
-                fieldDefs.append(['PTTYPE','String','NullsOK',50])
+        fieldDefs = tableDict[featureClass]
+        if addLTYPE:
+            fieldDefs.append(['PTTYPE','String','NullsOK',50])
         createFeatureClass(thisDB,'GeologicMap',featureClass,'POINT',fieldDefs)
 
     # create feature dataset CorrelationOfMapUnits
     if 'CorrelationOfMapUnits' in OptionalElements:
         addMsgAndPrint('  Creating feature dataset CorrelationOfMapUnits...')
-        arcpy.CreateFeatureDataset_management(thisDB,'CorrelationOfMapUnits',coordSystem)
+        arcpy.CreateFeatureDataset_management(thisDB,'CorrelationOfMapUnits')
         fieldDefs = tableDict['CMUMapUnitPolys']
         createFeatureClass(thisDB,'CorrelationOfMapUnits','CMUMapUnitPolys','POLYGON',fieldDefs)
         fieldDefs = tableDict['CMULines']
@@ -200,16 +196,18 @@ def main(thisDB,coordSystem,nCrossSections):
         addMsgAndPrint('  Creating feature data set CrossSection'+xsLetter+'...')
         arcpy.CreateFeatureDataset_management(thisDB,xsName)
         fieldDefs = tableDict['MapUnitPolys']
+        if addLTYPE:
+            fieldDefs.append(['PTYPE','String','NullsOK',100])
         fieldDefs[0][0] = xsN+'MapUnitPolys_ID'
         createFeatureClass(thisDB,xsName,xsN+'MapUnitPolys','POLYGON',fieldDefs)
         fieldDefs = tableDict['ContactsAndFaults']
         if addLTYPE:
-            fieldDefs.append(['LTYPE','String','NullsOK',50])
+            fieldDefs.append(['LTYPE','String','NullsOK',100])
         fieldDefs[0][0] = xsN+'ContactsAndFaults_ID'
         createFeatureClass(thisDB,xsName,xsN+'ContactsAndFaults','POLYLINE',fieldDefs)
         fieldDefs = tableDict['OrientationPoints']
         if addLTYPE:
-            fieldDefs.append(['PTTYPE','String','NullsOK',50]) 
+            fieldDefs.append(['PTTYPE','String','NullsOK',100]) 
         fieldDefs[0][0] = xsN+'OrientationPoints_ID'
         createFeatureClass(thisDB,xsName,xsN+'OrientationPoints','POINT',fieldDefs)
 
