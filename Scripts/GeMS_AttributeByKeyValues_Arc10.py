@@ -20,7 +20,6 @@ from GeMS_utilityFunctions import *
 
 separator = '|'
 
-
 def makeFieldTypeDict(fds,fc):
     fdict = {}
     fields = arcpy.ListFields(fds+'/'+fc)
@@ -30,12 +29,14 @@ def makeFieldTypeDict(fds,fc):
     return fdict
 
 addMsgAndPrint('  '+versionString)
-if len(sys.argv) <> 3:
+if len(sys.argv) <> 4:
     addMsgAndPrint(usage)
     sys.exit()
 
 gdb = sys.argv[1]
 keylines1 = open(sys.argv[2],'r').readlines()
+forceCalc = sys.argv[3]
+
 arcpy.env.workspace = gdb
 arcpy.env.workspace = 'GeologicMap'
 featureClasses = arcpy.ListFeatureClasses()
@@ -52,7 +53,7 @@ for lin in keylines1:
     lin = lin.strip()
     if len(lin) > 1 and lin[0:1] <> '#':
         keylines.append(lin)
-        
+
 n = 0
 while n < len(keylines):
     terms = keylines[n].split(separator) # remove newline and split on commas
@@ -97,7 +98,14 @@ while n < len(keylines):
                 else:
                     addMsgAndPrint('    selected '+mFields[0]+' = '+vals[0]+', n = '+str(nSel))
             else:  # reselect rows where dependent values are NULL and assign new value
-                if nSel > 0:
+                if forceCalc:
+                    addMsgAndPrint("        forcing the overwriting of existing fields")
+                    if mFieldTypeDict[mFields[i]] == 'String':
+                        arcpy.CalculateField_management('tempT', mFields[i], '"' + str(vals[i]) + '"')
+                    elif mFieldTypeDict[mFields[i]] in ['Double', 'Single', 'Integer', 'SmallInteger']:
+                        arcpy.CalculateField_management('tempT', mFields[i], vals[i])
+                    addMsgAndPrint('        calculated ' + mFields[i] + ' = ' + str(vals[i]))
+                elif nSel > 0:
                     whereClause = selField+' IS NULL' # OR '+selField+" = ''"
                     if mFieldTypeDict[mFields[i]] == 'String':
                         whereClause = whereClause+' OR '+selField+" = ''"+' OR '+selField+" = ' '"
