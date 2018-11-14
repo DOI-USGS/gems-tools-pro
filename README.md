@@ -1,4 +1,4 @@
-GeMS Tools
+# GeMS Tools
 
 This repository contains an ArcGIS toolbox and associated Python scripts and resources for creating, manipulating, and validating GeMS-style geologic map databases, as well as documentation.  
 
