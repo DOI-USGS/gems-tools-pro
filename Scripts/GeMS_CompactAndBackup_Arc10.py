@@ -6,11 +6,12 @@
 # in the output directory, an a, or b, or ...
 # is appended until a unique name is obtained.
 #
+# 4 March 2018  added optional message to log file
 
 import arcpy, sys, os.path
 from GeMS_utilityFunctions import *
 
-versionString = 'GeMS_CompactAndBackup_Arc10.py, version of 2 September 2017'
+versionString = 'GeMS_CompactAndBackup_Arc10.py, version of 4 March 2018'
 
 def backupName(inDb):
     # returns name for a backup copy of a geodatabase where
@@ -33,6 +34,9 @@ def backupName(inDb):
     return newName
 
 inDb = sys.argv[1]
+
+if len(sys.argv[2]) > 1:
+    writeLogfile(inDb,sys.argv[2])
 
 addMsgAndPrint( '  Compacting '+os.path.basename(inDb) )
 arcpy.Compact_management(inDb)
