@@ -1,6 +1,6 @@
 # utility functions for scripts that work with GeMS geodatabase schema
 
-import arcpy, os.path
+import arcpy, os.path, time
 editPrefixes = ('xxx','edit_','errors_','ed_')
 debug = False
 
@@ -48,6 +48,17 @@ def fieldNameList(aTable):
     for fn in fns:
         fns2.append(fn.name)
     return fns2
+
+def writeLogfile(gdb,msg):
+    timeUser = '['+time.asctime()+']['+os.environ['USERNAME']+'] '
+    logfileName = os.path.join(gdb,'00log.txt')
+    try:
+        logfile = open(os.path.join(gdb,logfileName),'a')
+        logfile.write(timeUser+msg+'\n')
+        logfile.close()
+    except:
+        addMsgAndPrint('Failed to write to '+logfileName)
+        addMsgAndPrint('  maybe file is already open?')
 
 def getSaveName(fc):
     # fc is entire pathname
