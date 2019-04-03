@@ -1,6 +1,7 @@
 """
   GeMS_TranslateToShape_Arc10.5.py
 
+
  Converts a GeMS-style ArcGIS geodatabase to
    simple shapefile format - 
      basic map information in flat shapefiles, with much repetition of attribute 
@@ -27,11 +28,15 @@ import time
 import shutil
 
 # 3rd party
+=======
+# 10 Dec 2017. Fixed bug that prevented dumping of not-GeologicMap feature datasets to OPEN version
+
 import arcpy
 
 # custom class
 import GeMS_utilityFunctions as gems
-
+=======
+versionString = 'GeMS_TranslateToShape_Arc10.5.py, version of 10 December 2017'
 versionString = 'GeMS_TranslateToShape_Arc10.5.py, version of 29 January 2018'
 
 debug = False
@@ -592,6 +597,100 @@ def main(gdbCopy,out_ws,gdbSrc):
         fdPath = feature_datasets[fd]
         gems.addMsgAndPrint( '  Processing feature dataset {}...'.format(fd))
         logfile.write('Feature data set {} \n'.format(fd))
+=======
+def removeJoins(fc):
+    addMsgAndPrint('    Testing '+fc+' for joined tables')
+    #addMsgAndPrint('Current workspace is '+arcpy.env.workspace)
+    joinedTables = []
+    # list fields
+    fields = arcpy.ListFields(fc)
+    for field in fields:
+        # look for fieldName that indicates joined table, and remove jo
+        fieldName = field.name
+        i = fieldName.find('.')
+        if i > -1:
+            joinedTableName = fieldName[0:i]
+            if not (joinedTableName in joinedTables) and (joinedTableName) <> fc:
+                try:
+                    joinedTables.append(joinedTableName)
+                    arcpy.removeJoin(fc,joinedTableName)
+                except:
+                    pass
+    if len(joinedTables) > 0:
+        jts = ''
+        for jt in joinedTables:
+            jts = jts+' '+jt
+        addMsgAndPrint('      removed joined tables '+jts)            
+
+def linesAndPoints(fc,outputDir,logfile):
+    addMsgAndPrint('  Translating '+fc+'...')
+    if debug:
+        print 1
+        printFieldNames(fc)
+    cp = fc.find('/')
+    fcShp = fc[cp+1:]+'.shp'
+    LIN2 = fc[cp+1:]+'2'
+    LIN = 'xx'+fc[cp+1:]
+    removeJoins(fc)
+    addMsgAndPrint('    Making layer '+LIN+' from '+fc)
+    arcpy.MakeFeatureLayer_management(fc,LIN)
+    fieldNames = fieldNameList(LIN)
+    if 'Type' in fieldNames:
+        arcpy.AddField_management(LIN,'Definition','TEXT','#','#','254')
+        arcpy.AddJoin_management(LIN,'Type','Glossary','Term')
+        arcpy.CalculateField_management(LIN,'Definition','!Glossary.Definition![0:254]','PYTHON')
+        arcpy.RemoveJoin_management(LIN,'Glossary')
+    # command below are 9.3+ specific
+    sourceFields = arcpy.ListFields(fc,'*SourceID')
+    for sField in sourceFields:
+        nFieldName = sField.name[:-2]
+        arcpy.AddField_management(LIN,nFieldName,'TEXT','#','#','254')
+        arcpy.AddJoin_management(LIN,sField.name,'DataSources','DataSources_ID')
+        arcpy.CalculateField_management(LIN,nFieldName,'!DataSources.Source![0:254]','PYTHON')
+        arcpy.RemoveJoin_management(LIN,'DataSources')
+        arcpy.DeleteField_management(LIN,sField.name)
+    arcpy.CopyFeatures_management(LIN,LIN2)
+    arcpy.Delete_management(LIN)
+    dumpTable(LIN2,fcShp,True,outputDir,logfile,False,fc[cp+1:])
+
+def main(gdbCopy,outWS,oldgdb):
+    #
+    # Simple version
+    #
+    isOpen = False
+    addMsgAndPrint('')
+    outputDir, logfile = makeOutputDir(oldgdb,outWS,isOpen)
+    # point feature classes
+    arcpy.env.workspace = gdbCopy
+    if 'StandardLithology' in arcpy.ListTables():
+        stdLithDict = makeStdLithDict()
+    else:
+        stdLithDict = 'None'
+    mapUnitPolys(stdLithDict,outputDir,logfile)
+    arcpy.env.workspace = gdbCopy+'/GeologicMap'
+    pointfcs = arcpy.ListFeatureClasses('','POINT')
+    linefcs = arcpy.ListFeatureClasses('','LINE')
+    arcpy.env.workspace = gdbCopy
+    for fc in linefcs:
+        linesAndPoints('GeologicMap/'+fc,outputDir,logfile)
+    for fc in pointfcs:
+        linesAndPoints('GeologicMap/'+fc,outputDir,logfile)	
+    logfile.close()
+    #
+    # Open version
+    #
+    isOpen = True
+    addMsgAndPrint('')
+    outputDir, logfile = makeOutputDir(oldgdb,outWS,isOpen)
+    # list featuredatasets
+    arcpy.env.workspace = gdbCopy
+    fds = arcpy.ListDatasets()
+    addMsgAndPrint('datasets = '+str(fds))
+    # for each featuredataset
+    for fd in fds:
+        arcpy.workspace = gdbCopy
+        addMsgAndPrint( '  Processing feature data set '+fd+'...')
+        logfile.write('Feature data set '+fd+' \n')
         try:
             spatialRef = arcpy.Describe(fdPath).SpatialReference
             logfile.write('  spatial reference framework\n')
@@ -603,6 +702,7 @@ def main(gdbCopy,out_ws,gdbSrc):
             logfile.write('  spatial reference framework appears to be undefined\n')
             
         # generate featuredataset prefix
+
         pfx = fds_prefix(fd)
         
         if feature_classes <> None:
@@ -638,6 +738,22 @@ def main(gdbCopy,out_ws,gdbSrc):
                     write_csv_file(feature_classes[fc], output_dir, out_name, 
                       logfile)
 
+        pfx = ''
+        for i in range(0,len(fd)-1):
+            if fd[i] == fd[i].upper():
+                pfx = pfx + fd[i]
+        # for each featureclass in dataset
+        arcpy.env.workspace = gdbCopy
+        arcpy.env.workspace = fd
+        fcList = arcpy.ListFeatureClasses()
+        if fcList <> None:
+            for fc in arcpy.ListFeatureClasses():
+                # don't dump Anno classes
+                if arcpy.Describe(fc).featureType <> 'Annotation':
+                    outName = pfx+'_'+fc+'.shp'
+                    dumpTable(fc,outName,True,outputDir,logfile,isOpen,fc)
+                else:
+                    addMsgAndPrint('    Skipping annotation feature class '+fc+'\n')
         else:
             gems.addMsgAndPrint('    No feature classes in this dataset!')
     

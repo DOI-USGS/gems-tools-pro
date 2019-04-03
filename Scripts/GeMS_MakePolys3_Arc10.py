@@ -4,7 +4,8 @@ import arcpy, sys, os.path, os
 from GeMS_utilityFunctions import *
 from GeMS_Definition import tableDict
 
-versionString = 'GeMS_MakePolys3_Arc10.py, version of 2 September 2017'
+# 5 January 2018: Modified error message for topology that contains polys
+versionString = 'GeMS_MakePolys3_Arc10.py, version of 5 January 2018'
 debug = False
 
 def checkMultiPts(multiPts,badPointList,badPolyList):
@@ -94,9 +95,10 @@ arcpy.env.workspace = fds
 topologies = arcpy.ListDatasets('*','Topology')
 for topol in topologies:
     if shortMup in arcpy.Describe(topol).featureClassNames:
-        addMsgAndPrint('Cannot delete '+shortMup)
-        addMsgAndPrint('  because it is part of topology class '+topol+'.')
-        addMsgAndPrint('  Delete topology (or remove rules that involve '+shortMup+') before running this script.')
+        addMsgAndPrint('  ***')
+        addMsgAndPrint('Cannot delete '+shortMup+' because it is part of topology class '+topol+'.')
+        addMsgAndPrint('Delete topology (or remove rules that involve '+shortMup+') before running this script.')
+        addMsgAndPrint('  ***')
         forceExit()
 
 badLabels = os.path.join(fds,'errors_'+nameToken+'multilabels')

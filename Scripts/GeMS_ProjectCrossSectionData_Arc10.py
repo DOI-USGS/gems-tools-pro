@@ -341,7 +341,7 @@ for lineFC in lineFCs:
         addMsgAndPrint('      creating feature class '+outFC+' in '+shortName(outFds))
         # make new feature class using old as template
         testAndDelete(outFds+'/'+outFC)
-        arcpy.CreateFeatureclass_management(outFds,outFC,'POLYLINE',inFC,'DISABLED','SAME_AS_TEMPLATE',inFC)
+        arcpy.CreateFeatureclass_management(outFds,outFC,'POLYLINE',inFC,'DISABLED','SAME_AS_TEMPLATE') 
         outFC = outFds+'/'+outFC
         addMsgAndPrint('      moving and calculating attributes')
         ## open search cursor on inFC, open insert cursor on outFC
@@ -503,7 +503,7 @@ for polyFC in polyFCs:
     testAndDelete(outFds+'/'+outFC)
     addMsgAndPrint(outFds+' '+outFC+' '+inFC)
     try:
-        arcpy.CreateFeatureclass_management(outFds,outFC,'POLYLINE',inFC,'DISABLED','SAME_AS_TEMPLATE') #,inFC)
+        arcpy.CreateFeatureclass_management(outFds,outFC,'POLYLINE',inFC,'DISABLED','SAME_AS_TEMPLATE')
     except:
         addMsgAndPrint('Failed to create copy of '+inFC+'. Maybe this feature class has a join?')
         raise arcpy.ExecuteError
