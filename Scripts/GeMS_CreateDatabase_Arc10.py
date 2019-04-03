@@ -4,6 +4,9 @@
 #
 #   Ralph Haugerud, USGS
 #
+#   Requires that ncgmp09_definition.py be present in the local directory 
+#     or in the appropriate Python library directory.
+#
 # RUN AS TOOLBOX SCRIPT FROM ArcCatalog OR ArcMap
 
 # 9 Sept 2016: Made all fields NULLABLE
@@ -12,15 +15,12 @@
 # 17 March 2017  Added optional table MiscellaneousMapInformation
 # 30 Oct 2017  Moved CartoRepsAZGS and GeMS_lib.gdb to ../Resources
 # 4 April 2019: Added checkbox entry for optional element MapUnitPoint in the parameter form and added that value to the list to check for creation in def main. - Evan Thoms
-=======
-# 4 March 2018  changed to use writeLogfile()
-
 
 import arcpy, sys, os, os.path
 from GeMS_Definition import tableDict, GeoMaterialConfidenceValues, DefaultExIDConfidenceValues
 from GeMS_utilityFunctions import *
 
-versionString = 'GeMS_CreateDatabase_Arc10.py, version of 4 March 2018'
+versionString = 'GeMS_CreateDatabase_Arc10.py, version of 2 September 2017'
 
 debug = True
 
@@ -143,8 +143,6 @@ def main(thisDB,coordSystem,nCrossSections):
             featureClasses.append(fc)
     for featureClass in featureClasses:
         fieldDefs = tableDict[featureClass]
-        if addLTYPE and fc <> 'DataSourcePolys':
-            fieldDefs.append(['PTYPE','String','NullsOK',50])
         createFeatureClass(thisDB,'GeologicMap',featureClass,'POLYGON',fieldDefs)
             
     # line feature classes
@@ -167,9 +165,14 @@ def main(thisDB,coordSystem,nCrossSections):
         if fc in OptionalElements:
             featureClasses.append(fc)
     for featureClass in featureClasses:
-        fieldDefs = tableDict[featureClass]
-        if addLTYPE:
-            fieldDefs.append(['PTTYPE','String','NullsOK',50])
+        if featureClass == 'MapUnitPoints': 
+            fieldDefs = tableDict['MapUnitPolys']
+            if addLTYPE:
+                fieldDefs.append(['PTYPE','String','NullsOK',50])
+        else:	
+            fieldDefs = tableDict[featureClass]
+            if addLTYPE and featureClass in ['OrientationPoints']:
+                fieldDefs.append(['PTTYPE','String','NullsOK',50])
         createFeatureClass(thisDB,'GeologicMap',featureClass,'POINT',fieldDefs)
 
     # create feature dataset CorrelationOfMapUnits
@@ -199,18 +202,16 @@ def main(thisDB,coordSystem,nCrossSections):
         addMsgAndPrint('  Creating feature data set CrossSection'+xsLetter+'...')
         arcpy.CreateFeatureDataset_management(thisDB,xsName)
         fieldDefs = tableDict['MapUnitPolys']
-        if addLTYPE:
-            fieldDefs.append(['PTYPE','String','NullsOK',100])
         fieldDefs[0][0] = xsN+'MapUnitPolys_ID'
         createFeatureClass(thisDB,xsName,xsN+'MapUnitPolys','POLYGON',fieldDefs)
         fieldDefs = tableDict['ContactsAndFaults']
         if addLTYPE:
-            fieldDefs.append(['LTYPE','String','NullsOK',100])
+            fieldDefs.append(['LTYPE','String','NullsOK',50])
         fieldDefs[0][0] = xsN+'ContactsAndFaults_ID'
         createFeatureClass(thisDB,xsName,xsN+'ContactsAndFaults','POLYLINE',fieldDefs)
         fieldDefs = tableDict['OrientationPoints']
         if addLTYPE:
-            fieldDefs.append(['PTTYPE','String','NullsOK',100]) 
+            fieldDefs.append(['PTTYPE','String','NullsOK',50]) 
         fieldDefs[0][0] = xsN+'OrientationPoints_ID'
         createFeatureClass(thisDB,xsName,xsN+'OrientationPoints','POINT',fieldDefs)
 
@@ -417,9 +418,12 @@ if len(sys.argv) >= 6:
     # try to write a readme within the .gdb
     if thisDB[-4:] == '.gdb':
         try:
-            writeLogfile(thisDB,'Geodatabase created by '+versionString)
+            arcpy.env.workspace = ''
+            versionFile = open(thisDB+'/00readme.txt','w')
+            versionFile.write('Geodatabase created by '+versionString+'\n')
+            versionFile.close()
         except:
-            addMsgAndPrint('Failed to write to'+thisDB+'/00log.txt')
+            addMsgAndPrint('Failed to write '+thisDB+'/00readme.txt')
 
 else:
     addMsgAndPrint(usage)

@@ -9,14 +9,12 @@ from GeMS_utilityFunctions import *
 versionString = 'GeMS_reID_Arc10.py, version of 2 September 2017'
 # modified to not work on a copy of the input database. Backup first!
 # 15 Sept 2016: modified to, by default, not reset DataSource_ID values
-# 26 April 2018: extended idRootDict to cover all classes defined in GeMS_Definion.py
-#   with thanks to freewheelCarto!
 
 idRootDict = {
         'CartographicLines':'CAL',
         'ContactsAndFaults':'CAF',
         'CMULines':'CMULIN',
-        'CMUMapUnitPolys':'CMUMUP',
+        'CMUPolys':'CMUPLY',
         'CMUPoints':'CMUPNT',
         'CMUText':'CMUTXT',
         'DataSources':'DAS',
@@ -24,23 +22,19 @@ idRootDict = {
         'DescriptionOfMapUnits':'DMU',
         'ExtendedAttributes':'EXA',
         'FossilPoints':'FSP',
-        'GenericPoints':'GNP',
-        'GenericSamples':'GNS',
         'GeochemPoints':'GCM',
         'GeochronPoints':'GCR',
         'GeologicEvents':'GEE',
         'GeologicLines':'GEL',
         'Glossary':'GLO',
-        'IsoValueLines':'IVL',
+        'IsoValueLines':'ISL',
         'MapUnitPoints':'MUP',
-        'MapUnitOverlayPolys':'MUO',
-        'MiscellaneousMapInformation':'MMI',
+        'MapUnitPolys':'MUP',
         'OrientationPoints':'ORP',
         'OtherLines':'OTL',
-        'OverlayPolys':'OVP',
+        'OtherPolys':'OTP',
         'PhotoPoints':'PHP',
         'RepurposedSymbols':'RPS',
-        'Stations':'STA',
         'StandardLithology':'STL',
                }
 
