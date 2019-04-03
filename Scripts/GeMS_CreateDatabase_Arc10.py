@@ -14,7 +14,6 @@
 # 8 March 2017: Added  ExistenceConfidence, IdentityConfidence, ScientificConfidence domains, definitions, and definitionsource
 # 17 March 2017  Added optional table MiscellaneousMapInformation
 # 30 Oct 2017  Moved CartoRepsAZGS and GeMS_lib.gdb to ../Resources
-# 4 April 2019: Added checkbox entry for optional element MapUnitPoint in the parameter form and added that value to the list to check for creation in def main. - Evan Thoms
 
 import arcpy, sys, os, os.path
 from GeMS_Definition import tableDict, GeoMaterialConfidenceValues, DefaultExIDConfidenceValues
@@ -161,7 +160,7 @@ def main(thisDB,coordSystem,nCrossSections):
     # point feature classes
     featureClasses = []
     for fc in ['OrientationPoints','GeochronPoints','FossilPoints','Stations',
-                  'GenericSamples','GenericPoints', 'MapUnitPoints']:
+                  'GenericSamples','GenericPoints']:
         if fc in OptionalElements:
             featureClasses.append(fc)
     for featureClass in featureClasses:
