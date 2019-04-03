@@ -247,7 +247,8 @@ enumeratedValueDomainFieldList = [
     'Type','LocationMethod','PartType','ProportionTerm','TimeScale',
     'ExistenceConfidence','IdentityConfidence',
     'ScientificConfidence','ParagraphStyle','AgeUnits', 'MapUnit',
-    'DataSourceID','DefinitionSourceID','LocationSourceID','OrientationSourceID','AnalysisSourceID',
+    'DataSourceID','DescriptionSourceID','DefinitionSourceID','LocationSourceID',
+    'OrientationSourceID','AnalysisSourceID',
     'GeoMaterial','GeoMaterialConfidence'
     ]                                  
 rangeDomainDict = {
@@ -257,19 +258,19 @@ rangeDomainDict = {
 unrepresentableDomainDict = {
      '_ID':'Arbitrary string. Values should be unique within this database.',
      'PlotAtScale':'Positive real number.',
-     'OrientationConfidenceDegrees':'Positive real number. Negative number indicates value is unknown.',
-     'LocationConfidenceMeters':'Positive real number. Negative number indicates value is unknown.',
+     'OrientationConfidenceDegrees':'Positive real number. Value of -9, -99, or -999 indicates value is unknown.',
+     'LocationConfidenceMeters':'Positive real number. Value of -9, -99, or -999 indicates value is unknown.',
      'Age':'Positive real number. Zero or negative value may indicate non-numeric (e.g., limiting) age.',
-     'AgePlusError':'Positive real number.',
-     'AgeMinusError':'Positive real number.',
-     'Notes':'Unrepresentable domain. Free text.',
+     'AgePlusError':'Positive real number. Value of -9, -99, or -999 indicates value is unknown.',
+     'AgeMinusError':'Positive real number. Value of -9, -99, or -999 indicates value is unknown.',
+     'Notes':'Unrepresentable domain. Free text. Values of <null> or #null indicate no entry.',
      'Value':'Real number.',
      'default':'Unrepresentable domain.',
      'MapProperty':'Unrepresentable domain. Free text.',
      'MapPropertyValue':'Unrepresentable domain. Free text.'
      }
 attribDict = {
-    '_ID':'Primary key',
+    '_ID':'Primary key.',
     'Age':'May be interpreted (preferred) age calculated from geochronological analysis, not necessarily the date calculated from a single set of measurements.',
     'AgeMinusError':'Negative (younger) age error, measured in AgeUnits. Type of error (RMSE, 1 sigma, 2 sigma, 95% confidence limit) should be stated in Notes field.',
     'AgePlusError':'Positive (older) age error, measured in AgeUnits. Type of error (RMSE, 1 sigma, 2 sigma, 95% confidence limit) should be stated in Notes field.',
@@ -330,14 +331,14 @@ entityDict = {
     'CMUMapUnitPolys':'Polygons (representing map units) of the Correlation of Map Units diagram.',
     'CMUText':'Text of the Correlation of Map Units diagram.',
     'ContactsAndFaults':'Contacts between map units, faults that bound map units, and associated dangling faults. Includes concealed faults and contacts, waterlines, snowfield and glacier boundaries, and map boundary.',
-    'CorrelationOfMapUnits':'Feature dataset that encodes the Correlation of Map Units (CMU) diagram found on many geologic maps. Spatial reference frame is arbitrary; units may be page inches.',
+    'CorrelationOfMapUnits':'CorrelationOfMapUnits is a feature dataset that encodes the Correlation of Map Units (CMU) diagram found on many geologic maps. Spatial reference frame is arbitrary; units may be page inches.',
     'CrossSection':'Feature dataset equivalent to a cross section.',
     'DataSourcePolys':'Polygons that delineate data sources for all parts of the map.',
     'DataSources':'Non-spatial table of sources of all spatial features, sources of some attributes of spatial features, and sources of some attributes of non-spatial table entries.',
     'DescriptionOfMapUnits':'Non-spatial table that captures content of the Description of Map Units (or equivalent List of Map Units and associated pamphlet text) included in a traditional paper geologic map. Has an internal hierarchy expressed by attribute HierarchyKey',
     'GeochronPoints':'Point locations of samples and accompanying geochronological measurements. Type field identifies geochronological method.',
     'GeologicEvents':'Non-spatial table for closely specifying ages of geologic features. Such ages may be tied to features via entries in table ExtendedAttributes.',
-    'GeologicLines':'Lines that represent dikes, coal seams, ash beds, fold hinge-surface traces, isograds, and other lines. All have these properties: (A) They do not participate in map-unit topology. (B) They correspond to features that exist within the Earth and may be concealed beneath younger, covering, material. (C) They are located with an accuracy that likely can be estimated.',
+    'GeologicLines':'Lines that represent dikes, coal seams, ash beds, fold hinge-surface traces, isograds, and other linear features. All have these properties: (A) They do not participate in map-unit topology. (B) They correspond to features that exist within the Earth and may be concealed beneath younger, covering, material. (C) They are located with an accuracy that likely can be estimated.',
     'GeologicMap':'GeologicMap is a feature dataset equivalent to the map graphic in a paper report: it contains all the geologic content (but not the base map) within the neatline.',
     'GeoMaterialDict':'Non-spatial table that provides values of GeoMaterial, placed in a hierarchy, and their definitions. For further information, see Appendix A in GeMS documentation, available at http://ngmdb.usgs.gov/Info/standards/GeMS.',
     'Glossary':'Non-spatial table that, for certain fields (including all Type fields, Confidence fields, and GeneralLithology), lists the terms that populate these fields, term definitions, and sources for definitions.',
