@@ -54,7 +54,7 @@ from GeMS_Definition import enumeratedValueDomainFieldList, rangeDomainDict, unr
 from GeMS_utilityFunctions import *
 from xml.dom.minidom import *
 
-versionString = 'GeMS_MetadataCSDGM2_Arc10.py, version of 10 December 2017'
+versionString = 'GeMS_MetadataCSDGM2_Arc10.py, version of 2 September 2017'
 translator = arcpy.GetInstallInfo("desktop")["InstallDir"]+'Metadata/Translator/ARCGIS2FGDC.xml'
 
 debug = False
@@ -62,19 +62,41 @@ debug = False
 ncgmp = 'GeMS'
 ncgmpFullRef = '"GeMS (Geologic Map Schema)--a standard format for digital publication of geologic maps, version 2.0", available at http://ngmdb.usgs.gov/Info/standards/GeMS/'
 
-eaoverviewCitation = 'Detailed descriptions of entities, attributes, and attribute values are given in metadata for constituent elements of this composite dataset. See also '+ncgmpFullRef+'.'
-
 gdbDesc0a = ' is a composite geodataset that conforms to '+ncgmpFullRef+'. '
 gdbDesc0b = ' is part of a composite geodataset that conforms to '+ncgmpFullRef+'. '
 
-gdbDesc2 = 'Metadata records associated with each element within the geodataset contain more detailed descriptions of their purposes, constituent entities, and attributes. '
-
-gdbDesc3 = ('Two shapefile versions of the dataset are also available. The OPEN shapefile version consists '+
+gdbDesc2 = """
+""" + 'Metadata records associated with each of these elements contain more detailed descriptions '
+gdbDesc2 = gdbDesc2+('of their purposes, constituent entities, and attributes. Non-spatial tables DataSources, '+
+'DescriptionOfMapUnits, and Glossary store metadata. Non-spatial table GeoMaterialDict describes '+
+'a simplified classification of earth materials based on general lithologic and genetic character. '+
+'All spatial features and some non-spatial features have related entries in table DataSources. '+
+'Table DescriptionOfMapUnits defines and describes geologic map units that are delimited in feature '+
+'class MapUnitPolys. Most technical terms used as feature attributes (including all TYPE terms and '+
+'all CONFIDENCE terms) are defined in table Glossary. Most features have explicit internal feature-'+
+'level metadata, including LocationConfidenceMeters, one or more Source attributes, and--as '+
+'appropriate--ExistenceConfidence, IdentityConfidence, and OrientationConfidenceDegrees. ')
+gdbDesc2 = gdbDesc2+"""
+"""+('Two shapefile versions of the dataset are also available. The COMPLETE shapefile version consists '+
 'of shapefiles, DBF files, and delimited text files and retains all information in the native '+
-'geodatabase, but some programming will likely be necessary to assemble these components into '+
-'usable formats. The SIMPLE shapefile version consists only of shapefiles and is easily used, but '+
-'lacks some information present in the native geodatabase.')
+'geodatabase, but has limited usability. The SIMPLE shapefile version consists only of shapefiles '+
+'and is easily used, but lacks some information present in the native geodatabase.')
+gdbDesc2 = gdbDesc2+ """
+"""+'These metadata were generated with script ' + versionString + '. '
 
+
+def addMsgAndPrint(msg, severity=0): 
+    try: 
+      for string in msg.split('\n'): 
+        # Add appropriate geoprocessing message 
+        if severity == 0: 
+            arcpy.AddMessage(string) 
+        elif severity == 1: 
+            arcpy.AddWarning(string) 
+        elif severity == 2: 
+            arcpy.AddError(string) 
+    except: 
+        pass
 
 def __appendOrReplace(rootNode,newNode,nodeTag):
     if len(rootNode.getElementsByTagName(nodeTag)) == 0:
@@ -478,7 +500,7 @@ def writeDomToFile(workDir,dom,fileName):
     dom.writexml(outf)
     outf.close()
 
-def writeGdbDesc(gdb):
+def writeGdbDesc1(gdb):
     desc = 'The geodatabase contains the following elements: '
     arcpy.env.workspace = gdb
     for aTable in arcpy.ListTables():
@@ -487,32 +509,15 @@ def writeGdbDesc(gdb):
         desc = desc + 'feature dataset '+anFds+' which contains '
         fcs = arcpy.ListFeatureClasses('','All',anFds)
         if len(fcs) == 1:
-            desc = desc + 'feature class '+fcs[0]+' ('+str(numberOfRows(fcs[0]))+' features);  '
+            desc = desc + 'feature class '+fcs[0]+' ('+str(numberOfRows(fcs[0]))+' features); '
         else:
-            for n in range(0,len(fcs)-1):
+            for n in range(0,len(fcs)-2):
                 desc = desc+'feature class '+fcs[n]+' ('+str(numberOfRows(fcs[n]))+' features), '
             lastn = len(fcs)-1
-            desc = desc+'and feature class '+fcs[lastn]+' ('+str(numberOfRows(fcs[lastn]))+' features); '
+            desc = desc+'and feature class '+fcs[lastn]+' ('+str(numberOfRows(fcs[lastn]))+' features). '
     desc = desc[:-2]+'. '
     return desc
 
-def writeFdsDesc(gdb,fdsName):
-    if entityDict.has_key(fdsName):
-        desc = entityDict[fdsName] +' It contains the following elements: '
-    else:
-        desc = 'Feature dataset '+fdsName+' contains the following elements: '
-    arcpy.env.workspace = gdb+'/'+fdsName
-
-    fcs = arcpy.ListFeatureClasses('','All')
-    if len(fcs) == 1:
-        desc = desc + 'feature class '+fcs[0]+' ('+str(numberOfRows(fcs[0]))+' features); '
-    else:
-        for n in range(0,len(fcs)-2):
-            desc = desc+'feature class '+fcs[n]+' ('+str(numberOfRows(fcs[n]))+' features), '
-        lastn = len(fcs)-1
-        desc = desc+'and feature class '+fcs[lastn]+' ('+str(numberOfRows(fcs[lastn]))+' features). '
-    desc = desc[:-2]+'. '
-    return desc
     
 ##############################################################################
 inGdb = sys.argv[1]
@@ -581,7 +586,8 @@ except:
     rtNode = domMR.getElementsByTagName('metadata')[0]
     eanode = domMR.createElement('eainfo')
     rtNode.appendChild(eanode)
-    
+
+gdbDesc1 = writeGdbDesc1(inGdb)
 writeDomToFile(workDir,domMR,xmlFileMR)
 addMsgAndPrint('  Running mp on master metadata record '+xmlFileMR+':')
 if os.path.exists(logFileName):
@@ -591,17 +597,13 @@ for aline in open(logFileName,'r').readlines():
     addMsgAndPrint(aline[:-1])
 addMsgAndPrint(' ')
 
+
 logFile = open(logFileName,'a')
 
 # import to geodatabase as whole
 arcpy.env.workspace = workDir
-supplementaryInfo = gdb+gdbDesc0a+gdbDesc2+gdbDesc3
-dom = addSupplinf(domMR,supplementaryInfo)
-
-eainfo = dom.getElementsByTagName('eainfo')[0]
-gdbDesc = writeGdbDesc(inGdb)  # listing of all tables, feature datasets, feature classes
-dom = eaoverviewDom(dom,eainfo,gdbDesc,eaoverviewCitation)
-
+supplementaryInfo = gdb+gdbDesc0a+gdbDesc1+gdbDesc2
+dom = addSupplinf(domMR,supplementaryInfo)    
 addMsgAndPrint('  Importing XML to metadata for GDB as a whole')
 writeDomToFile(workDir,dom,xmlFileGdb)
 try:
@@ -617,9 +619,9 @@ for aTable in tables:
     addMsgAndPrint('  Creating XML for '+aTable)
     dom = xml.dom.minidom.parse(os.path.join(workDir,xmlFileMR))
     dom = titleSuffix(dom,': table '+aTable)
-    supplementaryInfo = 'Table '+aTable+gdbDesc0b+gdbDesc2
+    supplementaryInfo = 'Table '+aTable+gdbDesc0b+gdbDesc1+gdbDesc2
     dom = addSupplinf(dom,supplementaryInfo)    
-    dom = updateTableDom(dom,aTable,logFile)
+    dom = updateTableDom(dom,aTable,logFile)    
     addMsgAndPrint('  Importing XML to metadata for table '+aTable)
     writeDomToFile(workDir,dom,revisedMetadata)
     try:
@@ -635,14 +637,14 @@ for anFds in fds:
     addMsgAndPrint('  Creating XML for '+anFds)
     dom = xml.dom.minidom.parse(os.path.join(workDir,xmlFileMR))
     dom = titleSuffix(dom,': feature dataset '+anFds)
-    supplementaryInfo = 'Feature dataset '+anFds+gdbDesc0b+gdbDesc2
+    supplementaryInfo = 'Feature dataset '+anFds+gdbDesc0b+gdbDesc1+gdbDesc2
     dom = addSupplinf(dom,supplementaryInfo)
     if entityDict.has_key(anFds):
         overText = entityDict[anFds]
-        overSrc = ncgmpFullRef
+        overSrc = ncgmp
     elif anFds.find('CrossSection') == 0:
         overText = entityDict['CrossSection']
-        overSrc = ncgmpFullRef
+        overSrc = ncgmp
     else:
         overText = '**Need Description of '+anFds+'**'
         overSrc = '**Need Description Source**'
@@ -660,7 +662,7 @@ for anFds in fds:
         addMsgAndPrint('    Creating XML for '+anFc)
         dom = xml.dom.minidom.parse(os.path.join(workDir,xmlFileMR))
         dom = titleSuffix(dom,': feature class '+anFds+'/'+anFc)
-        supplementaryInfo = 'Feature class '+anFc+gdbDesc0b+gdbDesc2
+        supplementaryInfo = 'Feature class '+anFc+gdbDesc0b+gdbDesc1+gdbDesc2
         dom = addSupplinf(dom,supplementaryInfo)
         dom = updateTableDom(dom,anFc,logFile)
         addMsgAndPrint('    Importing XML to metadata for '+anFc)
