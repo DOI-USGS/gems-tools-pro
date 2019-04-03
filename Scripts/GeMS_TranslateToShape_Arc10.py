@@ -28,12 +28,14 @@ import time
 import shutil
 
 # 3rd party
+=======
 # 10 Dec 2017. Fixed bug that prevented dumping of not-GeologicMap feature datasets to OPEN version
 
 import arcpy
 
 # custom class
 import GeMS_utilityFunctions as gems
+=======
 versionString = 'GeMS_TranslateToShape_Arc10.5.py, version of 10 December 2017'
 versionString = 'GeMS_TranslateToShape_Arc10.5.py, version of 29 January 2018'
 
@@ -595,7 +597,7 @@ def main(gdbCopy,out_ws,gdbSrc):
         fdPath = feature_datasets[fd]
         gems.addMsgAndPrint( '  Processing feature dataset {}...'.format(fd))
         logfile.write('Feature data set {} \n'.format(fd))
-
+=======
 def removeJoins(fc):
     addMsgAndPrint('    Testing '+fc+' for joined tables')
     #addMsgAndPrint('Current workspace is '+arcpy.env.workspace)
