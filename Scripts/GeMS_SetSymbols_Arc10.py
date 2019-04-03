@@ -15,7 +15,7 @@ unrecognizedTypes = []
 
 dictionaryFile = os.path.dirname(sys.argv[0])+'/../Resources/Type-FgdcSymbol.txt'
 
-debug1 = False
+debug1 = True
 
 def buildSymbolDicts(dFile):
     df = open(dictionaryFile,'r')

@@ -1,7 +1,6 @@
 """
   GeMS_TranslateToShape_Arc10.5.py
 
-
  Converts a GeMS-style ArcGIS geodatabase to
    simple shapefile format - 
      basic map information in flat shapefiles, with much repetition of attribute 
@@ -28,15 +27,20 @@ import time
 import shutil
 
 # 3rd party
-=======
+<<<<<<< HEAD
 # 10 Dec 2017. Fixed bug that prevented dumping of not-GeologicMap feature datasets to OPEN version
 
+=======
+>>>>>>> parent of b920f66... Resolved some merge conflicts
 import arcpy
 
 # custom class
 import GeMS_utilityFunctions as gems
-=======
+<<<<<<< HEAD
 versionString = 'GeMS_TranslateToShape_Arc10.5.py, version of 10 December 2017'
+=======
+
+>>>>>>> parent of b920f66... Resolved some merge conflicts
 versionString = 'GeMS_TranslateToShape_Arc10.5.py, version of 29 January 2018'
 
 debug = False
@@ -597,7 +601,8 @@ def main(gdbCopy,out_ws,gdbSrc):
         fdPath = feature_datasets[fd]
         gems.addMsgAndPrint( '  Processing feature dataset {}...'.format(fd))
         logfile.write('Feature data set {} \n'.format(fd))
-=======
+<<<<<<< HEAD
+
 def removeJoins(fc):
     addMsgAndPrint('    Testing '+fc+' for joined tables')
     #addMsgAndPrint('Current workspace is '+arcpy.env.workspace)
@@ -691,6 +696,8 @@ def main(gdbCopy,outWS,oldgdb):
         arcpy.workspace = gdbCopy
         addMsgAndPrint( '  Processing feature data set '+fd+'...')
         logfile.write('Feature data set '+fd+' \n')
+=======
+>>>>>>> parent of b920f66... Resolved some merge conflicts
         try:
             spatialRef = arcpy.Describe(fdPath).SpatialReference
             logfile.write('  spatial reference framework\n')
@@ -702,7 +709,6 @@ def main(gdbCopy,outWS,oldgdb):
             logfile.write('  spatial reference framework appears to be undefined\n')
             
         # generate featuredataset prefix
-
         pfx = fds_prefix(fd)
         
         if feature_classes <> None:
@@ -738,22 +744,6 @@ def main(gdbCopy,outWS,oldgdb):
                     write_csv_file(feature_classes[fc], output_dir, out_name, 
                       logfile)
 
-        pfx = ''
-        for i in range(0,len(fd)-1):
-            if fd[i] == fd[i].upper():
-                pfx = pfx + fd[i]
-        # for each featureclass in dataset
-        arcpy.env.workspace = gdbCopy
-        arcpy.env.workspace = fd
-        fcList = arcpy.ListFeatureClasses()
-        if fcList <> None:
-            for fc in arcpy.ListFeatureClasses():
-                # don't dump Anno classes
-                if arcpy.Describe(fc).featureType <> 'Annotation':
-                    outName = pfx+'_'+fc+'.shp'
-                    dumpTable(fc,outName,True,outputDir,logfile,isOpen,fc)
-                else:
-                    addMsgAndPrint('    Skipping annotation feature class '+fc+'\n')
         else:
             gems.addMsgAndPrint('    No feature classes in this dataset!')
     
