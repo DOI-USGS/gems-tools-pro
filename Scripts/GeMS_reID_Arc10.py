@@ -42,30 +42,33 @@ idRootDict = {
         'RepurposedSymbols':'RPS',
         'Stations':'STA',
         'StandardLithology':'STL',
+        'MapUnitPointAnno24k':'ANO'
                }
 
 idDict = {}
 fctbs = []  # feature class and table inventory
 exemptedPrefixes = ('errors_','ed_')  # prefixes that flag a feature class as not permanent data
 
+
 def usage():
-	print """
-  Usage:  prompt> ncgmp09_reID.py <inGeodatabaseName> <outGeodatabaseName>
+    print """
+    Usage:  prompt> ncgmp09_reID.py <inGeodatabaseName> <outGeodatabaseName>
                   <UseGUID>
   
-	<inGeodatabaseName> can be either a personal geodatabase or a file 
-	geodatabase, .mdb or .gdb. The filename extension must be included.
-	<outGeodatabaseName> must be of the same type and must not exist.
+    <inGeodatabaseName> can be either a personal geodatabase or a file 
+    geodatabase, .mdb or .gdb. The filename extension must be included.
+    <outGeodatabaseName> must be of the same type and must not exist.
 
-	ncgmp09_reID.py re-casts all ID values into form XXXnnnn. ID values 
-	that are not primary keys within the database are left unaltered and 
-	a record is written to file <outputGeodatabaseName>.txt.
+    ncgmp09_reID.py re-casts all ID values into form XXXnnnn. ID values 
+    that are not primary keys within the database are left unaltered and 
+    a record is written to file <outputGeodatabaseName>.txt.
 
-	If <useGUID> (boolean) is True, GUIDs are created for ID values.
-	Otherwise ID values are short character strings that identify tables
+    If <useGUID> (boolean) is True, GUIDs are created for ID values.
+    Otherwise ID values are short character strings that identify tables
         (e.g., MUP for MapUnitPolys) followed by consecutive zero-padded
         integers.
 """
+
 
 def doReID(fc):
     doReID = True
@@ -74,21 +77,21 @@ def doReID(fc):
             doReID = False
     return doReID
 
-def elapsedTime(lastTime):
-	thisTime = time.time()
-	addMsgAndPrint('    %.1f sec' %(thisTime - lastTime))
-	return thisTime
 
+def elapsedTime(lastTime):
+    thisTime = time.time()
+    addMsgAndPrint('    %.1f sec' %(thisTime - lastTime))
+    return thisTime
 
 def idRoot(tb,rootCounter):
-	if tb in idRootDict:
-		return idRootDict[tb],rootCounter
-	else:
-		rootCounter = rootCounter + 1
-		return 'X'+str(rootCounter)+'X',rootCounter
+    if tb in idRootDict:
+        return idRootDict[tb],rootCounter
+    else:
+        rootCounter = rootCounter + 1
+        return 'X'+str(rootCounter)+'X',rootCounter
 
 def getPFKeys(table):
-    addMsgAndPrint(table)
+    #addMsgAndPrint(table)
     fields2 = arcpy.ListFields(table)
     fKeys = []
     pKey = ''
@@ -96,28 +99,32 @@ def getPFKeys(table):
         ### this assumes only 1 _ID field!
         if field.name == table+'_ID':
             pKey = field.name
-        else: 
+        else:
             if field.name.find('ID') > 0 and field.type == 'String':
                 fKeys.append(field.name)
+    addMsgAndPrint("  pKey: "+pKey)
+    addMsgAndPrint("  fKeys: "+str(fKeys))
     return pKey,fKeys
 
 def inventoryDatabase(dbf,noSources):
     arcpy.env.workspace = dbf
     tables = arcpy.ListTables()
-    if noSources:  # then don't touch DataSource_ID values 
+    if noSources:  # then don't touch DataSource_ID values
         for tb in tables:
-            if tb == 'DataSources':     
+            if tb == 'DataSources':
                 tables.remove(tb)
                 addMsgAndPrint('    skipping DataSources')
     for table in tables:
+        addMsgAndPrint(" Table: "+table)
         pKey,fKeys = getPFKeys(table)
-        fctbs.append([dbf,'',table,pKey,fKeys])		
+        fctbs.append([dbf,'',table,pKey,fKeys])
     fdsets = arcpy.ListDatasets()
     for fdset in fdsets:
         arcpy.env.workspace = dbf+'/'+fdset
         fcs = arcpy.ListFeatureClasses()
         for fc in fcs:
-            if doReID(fc):
+            addMsgAndPrint(" FC: " +fc)
+            if doReID(fc): #Does a check for exempted prefixes
                 pKey,fKeys = getPFKeys(fc)
                 fctbs.append([dbf,fdset,fc,pKey,fKeys])
 
@@ -126,14 +133,18 @@ def buildIdDict(table,sortKey,keyRoot,pKey,lastTime,useGUIDs):
     result = arcpy.GetCount_management(table)
     nrows = int(result.getOutput(0))
     width = int(math.ceil(math.log10(nrows+1)))
+    arcpy.env.workspace = dbf
+    edit = arcpy.da.Editor(arcpy.env.workspace)
+    edit.startEditing(False, True)
+    edit.startOperation()
     rows = arcpy.UpdateCursor(table,"","","",sortKey)
     n = 1
     for row in rows:
         oldID = row.getValue(pKey)
         # calculate newID
-        if useGUIDs: 
+        if useGUIDs:
             newID = str(uuid.uuid4())
-        else: 
+        else:
             newID = keyRoot+str(n).zfill(width)
         try:
             row.setValue(pKey,newID)
@@ -146,47 +157,64 @@ def buildIdDict(table,sortKey,keyRoot,pKey,lastTime,useGUIDs):
         #add oldID,newID to idDict
         if oldID <> '' and oldID <> None:
             idDict[oldID] = newID
+    edit.stopOperation()
+    edit.stopEditing(True)
     return elapsedTime(lastTime)
-	
 
 def reID(table,keyFields,lastTime,outfile):
-	addMsgAndPrint('  resetting IDs for '+table)
-	rows = arcpy.UpdateCursor(table)
-	n = 1
-	row = rows.next()
-	while row:
-		for field in keyFields:
-			oldValue = row.getValue(field)
-			if oldValue in idDict:
-				row.setValue(field,idDict[oldValue])
-			else:
-				#print table, field, oldValue
-				outfile.write(table+' '+field+' '+str(oldValue)+'\n')
-		# update row
-		rows.updateRow(row)
-		n = n+1
-		row = rows.next()
-	return elapsedTime(lastTime)
-
-
+    addMsgAndPrint('  resetting IDs for '+table)
+    arcpy.env.workspace = dbf
+    edit = arcpy.da.Editor(arcpy.env.workspace)
+    edit.startEditing(False, True)
+    edit.startOperation()
+    rows = arcpy.UpdateCursor(table)
+    n = 1
+    row = rows.next()
+    while row:
+        for field in keyFields:
+            oldValue = row.getValue(field)
+            if oldValue in idDict:
+                row.setValue(field,idDict[oldValue])
+            else:
+                outfile.write(table+' '+field+' '+str(oldValue)+'\n')
+        rows.updateRow(row)
+        n = n+1
+        row = rows.next()
+    edit.stopOperation()
+    edit.stopEditing(True)
+    return elapsedTime(lastTime)
 
 def main(lastTime, dbf, useGUIDs, noSources):
     rootCounter = 0
     addMsgAndPrint('Inventorying database')
     inventoryDatabase(dbf, noSources)
-    lastTime = elapsedTime(lastTime)
+    addMsgAndPrint("Inventory done...")
+    addMsgAndPrint("--------------------------")
+    #lastTime = elapsedTime(lastTime)
     arcpy.env.workspace = dbf
+    addMsgAndPrint('Cycling through inventory')
+    addMsgAndPrint(str(fctbs))
     for fctb in fctbs:
-            #addMsgAndPrint(fctb)
+            addMsgAndPrint(fctb)
             arcpy.env.workspace = fctb[0]+fctb[1]
             tabName = tableName = fctb[2]
-            pKey,fKeys = getPFKeys(tableName)
-            if tableName == 'MapUnitPoints':
-                pKey = 'MapUnitPolys_ID'
+            pKey,fKeys = getPFKeys(tableName) #Why does this have to be called again (already in inventorDatadase)
+            #TODO figure out the intention behind the next two line more - creates an error for me
+            # if tableName == 'MapUnitPoints':
+            #     pKey = 'MapUnitPolys_ID'
+            fields = arcpy.ListFields(tableName)
+            fieldNames = [x.name for x in fields]
+            if "OBJECTID" in fieldNames:
+                case = "UPPER"
+            elif "objectid" in fieldNames:
+                case = "LOWER"
             if tableName == 'Glossary': sortKey = 'Term A'
             elif tableName == 'DescriptionOfMapUnits': sortKey = 'HierarchyKey A'
             elif tableName == 'StandardLithology': sortKey = 'MapUnit A'
-            else: sortKey = 'OBJECTID A'
+            elif case == "UPPER": sortKey = 'OBJECTID A'
+            elif case == "LOWER": sortKey = 'objectid A'
+            else:
+                addMsgAndPrint("Warning: OBJECTID field not present")
             # deal with naming of CrossSection tables as CSxxTableName
             if fctb[1].find('CrossSection') == 0:
                     csSuffix = fctb[1][12:]
@@ -201,7 +229,6 @@ def main(lastTime, dbf, useGUIDs, noSources):
                     lastTime = buildIdDict(tableName,sortKey,prefix,pKey,lastTime,useGUIDs)
                 else:
                     addMsgAndPrint('Skipping '+tableName+', no field '+sortKey[:-2])
-                
 
     # purge IdDict of quasi-null keys
     addMsgAndPrint('Purging idDict of quasi-null keys')
@@ -210,7 +237,7 @@ def main(lastTime, dbf, useGUIDs, noSources):
             if len(key.split()) == 0:
                     print 'NullKey', len(key)
                     del idDict[key]
-                          
+
     outfile = open(dbf+'.txt','w')
     outfile.write('Database '+dbf+'. \nList of ID values that do not correspond to any primary key in the database\n')
     outfile.write('--table---field----field value---\n')
@@ -231,9 +258,9 @@ useGUIDs = False
 addMsgAndPrint(versionString)
 
 if not os.path.exists(sys.argv[1]):
-	usage()
+    usage()
 else:
-        lastTime = elapsedTime(lastTime)
+        #lastTime = elapsedTime(lastTime)
         if len(sys.argv) >= 3:
                 if sys.argv[2].upper() == 'TRUE':
                         useGUIDs = True
@@ -247,7 +274,7 @@ else:
 
         dbf = os.path.abspath(sys.argv[1])
         arcpy.env.workspace = ''
-        lastTime = elapsedTime(lastTime)
+        #lastTime = elapsedTime(lastTime)
         lastTime = main(lastTime, dbf, useGUIDs, noSources)
         lastTime = elapsedTime(startTime)
 
