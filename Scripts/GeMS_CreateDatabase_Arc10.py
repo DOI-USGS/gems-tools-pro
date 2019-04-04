@@ -160,10 +160,24 @@ def main(thisDB,coordSystem,nCrossSections):
     # point feature classes
     featureClasses = []
     for fc in ['OrientationPoints','GeochronPoints','FossilPoints','Stations',
-                  'GenericSamples','GenericPoints']:
+                  'GenericSamples','GenericPoints', 'MapUnitPoints']:
         if fc in OptionalElements:
             featureClasses.append(fc)
     for featureClass in featureClasses:
+    
+        # the following if statement used to be here, but was removed at some point
+        # putting it back to allow for creation of MapUnitPoints after discussion
+        # with Luke Blair - Evan Thoms
+        if featureClass == 'MapUnitPoints': 
+            fieldDefs = tableDict['MapUnitPolys']
+            if addLTYPE:
+                fieldDefs.append(['PTYPE','String','NullsOK',50])
+        else:	
+            fieldDefs = tableDict[featureClass]
+            if addLTYPE and featureClass in ['OrientationPoints']:
+                fieldDefs.append(['PTTYPE','String','NullsOK',50])
+        # end of re-inserted if statement   
+        
         fieldDefs = tableDict[featureClass]
         if addLTYPE:
             fieldDefs.append(['PTTYPE','String','NullsOK',50])
