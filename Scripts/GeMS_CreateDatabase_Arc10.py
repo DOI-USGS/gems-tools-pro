@@ -178,7 +178,6 @@ def main(thisDB,coordSystem,nCrossSections):
                 fieldDefs.append(['PTTYPE','String','NullsOK',50])
         # end of re-inserted if statement   
         
-        #fieldDefs = tableDict[featureClass]
         if addLTYPE:
             fieldDefs.append(['PTTYPE','String','NullsOK',50])
         createFeatureClass(thisDB,'GeologicMap',featureClass,'POINT',fieldDefs)
