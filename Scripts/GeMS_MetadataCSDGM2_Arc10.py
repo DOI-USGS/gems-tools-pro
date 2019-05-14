@@ -143,6 +143,7 @@ def __updateEdom(fld, defs, dom):
             attr = attrlabl.parentNode
             attrdomv = dom.createElement('attrdomv')
             for k in defs.iteritems():
+                attrdomv = dom.createElement('attrdomv')
                 edom = dom.createElement('edom')
                 edomv = __newElement(dom,'edomv',k[0])
                 edomvd = __newElement(dom,'edomvd',k[1][0])
@@ -152,6 +153,7 @@ def __updateEdom(fld, defs, dom):
                     edomvds = __newElement(dom,'edomvds',k[1][1])
                     edom.appendChild(edomvds)                                
                 attrdomv.appendChild(edom)
+                attr.appendChild(attrdomv)
             __appendOrReplace(attr,attrdomv,'attrdomv')
     return dom
 
