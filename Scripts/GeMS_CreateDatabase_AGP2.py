@@ -12,6 +12,7 @@
 # 17 March 2017  Added optional table MiscellaneousMapInformation
 # 30 Oct 2017  Moved CartoRepsAZGS and GeMS_lib.gdb to ../Resources
 # 4 March 2018  changed to use writeLogfile()
+# 16 May 2019 GeMS_CreateDatabase_Arc10.py Python 2.7 ported to Python 3 to work in ArcGIS Pro 2.1, Evan Thoms																											  
 
 import arcpy, sys, os, os.path
 from GeMS_Definition import tableDict, GeoMaterialConfidenceValues, DefaultExIDConfidenceValues
@@ -369,8 +370,9 @@ if len(sys.argv) >= 6:
 
     thisDB = sys.argv[2]
     # test for extension; if not given, default to file geodatabase
-    if not thisDB[-4:].lower() in ('.gdb','.mdb'):
-        thisDB = thisDB+'.gdb'
+	# Arc 10 version checked for option of creating personal geodatabase but mdbs have
+	# been abandoned with AGPro
+    thisDB = thisDB+'.gdb'
 
     coordSystem = sys.argv[3]
 
@@ -418,10 +420,10 @@ if len(sys.argv) >= 6:
     except:
         addConfs = False
         
-    # create personal gdb in output directory and run main routine
+    # create gdb in output directory and run main routine
     if createDatabase(outputDir,thisDB):
         thisDB = outputDir+'/'+thisDB
-        arcpy.RefreshCatalog(thisDB)
+        #Arc 10 version refreshed ArcCatalog here, but there is no equivalent with AGPro
         main(thisDB,coordSystem,nCrossSections)
 
     # try to write a readme within the .gdb
