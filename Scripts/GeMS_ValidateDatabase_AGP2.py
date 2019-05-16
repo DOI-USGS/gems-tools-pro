@@ -1,4 +1,4 @@
-# ncgmp09_ValidateDatabase.py  
+# GeMS_ValidateDatabase_AGP2.py 
 #   Python script to inventory tables, feature datasets
 #   and feature classes in a geodatabase and to check
 #   for conformance with NCGMP09 geodatabase schema.
@@ -17,7 +17,7 @@
 #   If you find problems, or think you see errors, please let me know.
 #   Zip up the database, the conformance report (if one is written), 
 #   a brief discussion of what's wrong, and email zip file to me at
-#   	rhaugerud@usgs.gov
+#       rhaugerud@usgs.gov
 #   Please include "GeMS" in the subject line.
 #   Thanks!
 
@@ -27,7 +27,7 @@ from GeMS_Definition import tableDict, fieldNullsOKDict
 from GeMS_utilityFunctions import *
 
 
-versionString = 'GeMS_ValidateDatabase_Arc10.py, version of 4 march 2018'
+versionString = 'GeMS_ValidateDatabase_AGP2.py, version of 16 May 2019'
 # modified to have output folder default to folder hosting input database
 # modified for HTML output
 # 15 Sept 2016  tableToHtml modified to better handle special characters
@@ -41,6 +41,7 @@ versionString = 'GeMS_ValidateDatabase_Arc10.py, version of 4 march 2018'
 # 13 August 2017  Cleaned up required table and feature class definition; added GeoMaterialDict to required elements
 # 6 December 2017   Did a re-vamp on html, added style, tables, etc. - Tanner Arrington
 # 4 March 2018  Added check for .txt files in gdb
+# May 16 2019 GeMS_ValidateDatabase_Arc10.py for Python 2.7 ported to Python 3 - Evan Thoms       
 
 ## need to check for and flag zero-length strings: should be '#', '#null' or None
 
@@ -141,7 +142,8 @@ standardFields = ('OBJECTID','SHAPE','Shape','SHAPE_Length','SHAPE_Area','ZOrder
                   'AnnotationClassID','Status','TextString','FontName','FontSize','Bold',
                   'Italic','Underline','VerticalAlignment','HorizontalAlignment',
                   'XOffset','YOffset','Angle','FontLeading','WordSpacing','CharacterWidth',
-			'CharacterSpacing','FlipAngle','Override','Shape_Length','Shape_Area','last_edited_date','last_edited_user','created_date','created_user') 
+                  'CharacterSpacing','FlipAngle','Override','Shape_Length','Shape_Area',
+                  'last_edited_date','last_edited_user','created_date','created_user') 
 
 # fields whose values must be defined in Glossary
 gFieldDefList = ('Type','TypeModifier','LocationMethod','Lithology','ProportionTerm','TimeScale',
@@ -154,9 +156,9 @@ requiredMapFeatureClasses = ['ContactsAndFaults','MapUnitPolys']
 
 tables = []
 fdsfc = []
-all_IDs = []		# list of should-be unique identifiers
-allMapUnitRefs = []	# list of MapUnit references (from various Poly feature data sets)
-allGlossaryRefs = []	# list of all references to Glossary
+all_IDs = []        # list of should-be unique identifiers
+allMapUnitRefs = []    # list of MapUnit references (from various Poly feature data sets)
+allGlossaryRefs = []    # list of all references to Glossary
 allDataSourcesRefs = [] # list of all references to DataSources
 missingRequiredValues = ['<span class="highlight">Fields that are missing required values</span>']
 
@@ -213,13 +215,13 @@ def listDataSet(dataSet):
             
 
 def checkMapFeatureClasses(fds,prefix,fcs):
-	addMsgAndPrint('  Checking for required feature classes...')
-	reqFeatureClasses = []
-	for fc in requiredMapFeatureClasses:
-		reqFeatureClasses.append(prefix+fc)
-	for fc in reqFeatureClasses:
-		if not (fc in fcs): 
-			schemaErrors.append('Feature data set <span class="tables">'+fds+'</span>, feature class <span class="tables">'+fc+'</span> is missing')
+    addMsgAndPrint('  Checking for required feature classes...')
+    reqFeatureClasses = []
+    for fc in requiredMapFeatureClasses:
+        reqFeatureClasses.append(prefix+fc)
+    for fc in reqFeatureClasses:
+        if not (fc in fcs): 
+            schemaErrors.append('Feature data set <span class="tables">'+fds+'</span>, feature class <span class="tables">'+fc+'</span> is missing')
 
 def checkTableFields(dBTable,defTable):
   dBtable = str(dBTable)
@@ -259,18 +261,18 @@ def checkTableFields(dBTable,defTable):
     schemaErrors.append(dBTable+' could not get field list. Fields not checked.')
     
 def loadTableValues(tableName,fieldName,valueList):
-	try:
-		rows = arcpy.SearchCursor(tableName,'','',fieldName)
-	except:
-		loadValuesFlag = False
-	else: 
-		row = next(rows)
-		while row:
-			if row.getValue(fieldName) != None:
-				valueList.append(row.getValue(fieldName))
-			row = next(rows) 
-		loadValuesFlag = True
-	return loadValuesFlag
+    try:
+        rows = arcpy.SearchCursor(tableName,'','',fieldName)
+    except:
+        loadValuesFlag = False
+    else: 
+        row = next(rows)
+        while row:
+            if row.getValue(fieldName) != None:
+                valueList.append(row.getValue(fieldName))
+            row = next(rows) 
+        loadValuesFlag = True
+    return loadValuesFlag
 
 def isNullValue(val):
     if val == None:
@@ -373,7 +375,7 @@ def inventoryValues(thisDatabase,table):
          
         row = next(rows)
     addMsgAndPrint('    Finished '+table)
-			
+            
 def inventoryWorkspace(tables,fdsfc):
     addMsgAndPrint('  Inventorying geodatabase...')
     featureDataSets = arcpy.ListDatasets()
@@ -670,7 +672,8 @@ def tableToHtml(html,table):
             html.write('<tr>\n')
             for i in range(0,len(fieldNames)):
                 if isinstance(row[i],str):
-                    html.write('<td>'+row[i].encode('ascii','xmlcharrefreplace')+'</td>\n')
+                    html.write('<td>'+row[i]+'</td>\n')
+                    #html.write('<td>'+row[i].encode('ascii','xmlcharrefreplace')+'</td>\n')
                 else:
                     try:
                         if str(row[i]) == 'None':
@@ -734,7 +737,9 @@ def writeContentErrors(outfl,errors,noErrorString,outFile,htmlFileCount):
 
 def writeOutput(outFile,tables,thisDatabase):
     addMsgAndPrint( '  Writing output...')
-    outfl = open(outFile,'w')
+    # Python 3 open builtin takes optional errors parameter 'xmlcharrefreplace' to escape
+    # XML/HTML characters. Don't need to specify this at write(str.encode)
+    outfl = open(outFile,'w', errors='xmlcharrefreplace')
     #write the style and overview html
     outfl.write(style+"""
     <h2 id="overview">Geodatabase</h2>
@@ -882,33 +887,33 @@ if validInputs(thisDatabase,outFile):
 ##raise arcpy.ExecuteError
 
 # Things to be done:
-#	Inventory data set   DONE
-#	Check for required tables, featuredatasets, featureclasses    DONE 
-#	For optional featuredatasets, check for required featureclasses   DONE
-#	For required and optional tables, 
-#		check for required fields   DONE
-#		check field definitions    DONE
-# 	Accumulate list of all must-be-globally-unique (_ID) values  DONE
-#	Accumulate list of all ToBeDefined values (references to Glossary)   DONE
-#	   see gFieldDefList, above
-#	   what about StandardLithology:Lithology?
-#	Accumulate list of all MapUnit references  DONE
-# 	Accumulate list of all DataSources references  DONE
-#	Check that must-be-globally-unique values are unique  DONE
-#	Check that all values of fields name cn 'Source' correspond to values of DataSources_ID  DONE
-#	Check that MapUnits referenced by StandardLithology and any fClass whose name cn 'Poly' 
-#		are present in DMU  DONE
-#	Check for definitions of ToBeDefined values  DONE
+#    Inventory data set   DONE
+#    Check for required tables, featuredatasets, featureclasses    DONE 
+#    For optional featuredatasets, check for required featureclasses   DONE
+#    For required and optional tables, 
+#        check for required fields   DONE
+#        check field definitions    DONE
+#     Accumulate list of all must-be-globally-unique (_ID) values  DONE
+#    Accumulate list of all ToBeDefined values (references to Glossary)   DONE
+#       see gFieldDefList, above
+#       what about StandardLithology:Lithology?
+#    Accumulate list of all MapUnit references  DONE
+#     Accumulate list of all DataSources references  DONE
+#    Check that must-be-globally-unique values are unique  DONE
+#    Check that all values of fields name cn 'Source' correspond to values of DataSources_ID  DONE
+#    Check that MapUnits referenced by StandardLithology and any fClass whose name cn 'Poly' 
+#        are present in DMU  DONE
+#    Check for definitions of ToBeDefined values  DONE
 #        EXCEPT PropertyValue values that are numeric (in part)  STILL TO BE DONE!
-#	In DMU, check HierarchyKey format  DONE
-#	Check for illegal null values: ' ' (null-equivalent) created when loading data into tables  DONE
-#	Check that all MapUnits have StandardLithology entries  DONE
-#	Check for unreferenced entries in DataSources (DONE), Glossary (DONE), StandardLithology (DONE),
-#		DMU (DONE), Geologic Events (DONE),
-# 	DOES NOT CHECK THAT GeologicEvents REFERENCED BY ValueLinkID IN ExtendedAttributes ARE PRESENT
-#	Error trapping:
-#		So it doesn't fail with bad input  DONE, somewhat
-#		So it doesn't fail with bad field names. e.g. _ID field  DONE, I think
+#    In DMU, check HierarchyKey format  DONE
+#    Check for illegal null values: ' ' (null-equivalent) created when loading data into tables  DONE
+#    Check that all MapUnits have StandardLithology entries  DONE
+#    Check for unreferenced entries in DataSources (DONE), Glossary (DONE), StandardLithology (DONE),
+#        DMU (DONE), Geologic Events (DONE),
+#     DOES NOT CHECK THAT GeologicEvents REFERENCED BY ValueLinkID IN ExtendedAttributes ARE PRESENT
+#    Error trapping:
+#        So it doesn't fail with bad input  DONE, somewhat
+#        So it doesn't fail with bad field names. e.g. _ID field  DONE, I think
 
 # check for consistency between CMU, DMU, MapUnitPolys, and any cross-sections:
 #     Do units in DMU and CMU match?
