@@ -68,7 +68,7 @@ DEM = sys.argv[6]
 maxDistance = sys.argv[7]
 outWorkspace = sys.argv[8]
 outFeatureClass = sys.argv[9]
-if sys.argv[10] <> '#':
+if sys.argv[10] != '#':
     tempWorkspace = sys.argv[10]
 else:
     tempWorkspace = outWorkspace
@@ -85,7 +85,7 @@ if debug:
     addMsgAndPrint('maxDistance='+str(maxDistance))
 
 def xyTheta(x,y):
-    if x <> 0.0:
+    if x != 0.0:
         theta = math.degrees(math.atan(y/x))
     elif y > 0:
         theta = 90.0

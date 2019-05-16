@@ -364,7 +364,7 @@ startDict['CSAContactsAndFaults'] = startDict['ContactsAndFaults']
 startDict['CSAOrientationPoints'] = startDict['OrientationPoints']
 
 # set feature_ID definitions
-for table in startDict.keys():
+for table in list(startDict.keys()):
 	oldFields = startDict[table]
 	newfields = []
 	for field in oldFields:
@@ -374,7 +374,7 @@ for table in startDict.keys():
 
 # build fieldNullsOKDict
 fieldNullsOKDict = {}
-for table in tableDict.keys():
+for table in list(tableDict.keys()):
     for field in tableDict[table]:
         tableField = table+' '+field[0]
         if field[2] == 'NullsOK':

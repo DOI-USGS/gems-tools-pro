@@ -23,7 +23,7 @@ debug = False
 debug2 = False
 
 tab = '<tab></tab>'
-emDash = u"\u2014"
+emDash = "\u2014"
 
 startTags = []
 endTags = []
@@ -34,7 +34,7 @@ for tag in tags:
 
 
 def isNotBlank(thing):
-    if thing <> '' and thing <> None:
+    if thing != '' and thing != None:
         return True
     else:
         return False
@@ -53,7 +53,7 @@ def notNullText(txt):
 
 gdb = sys.argv[1]
 outfl = sys.argv[3]
-if outfl.lower()[-5:] <> '.docx':
+if outfl.lower()[-5:] != '.docx':
     outfl = outfl+'.docx'
 outDMUdocx = os.path.join(sys.argv[2],outfl)
 if sys.argv[4] == 'true':
@@ -133,7 +133,7 @@ for row in dmuRows:
         if paraStyle == 'DMUUnit1' and lastParaWasHeading:
             paraStyle = 'DMUUnit11stafterheading'
         if rowText.find('<br>') > 0:
-            print ' got multiple paragraphs!'
+            print(' got multiple paragraphs!')
             while rowText.find('<br>') > 0:
                 paras.append([rowText.partition('<br>')[0],paraStyle])
                 rowText = rowText.partition('<br>')[2]
@@ -198,7 +198,7 @@ for row in dmuRows:
                 for run in runs:
                     #if debug: addMsgAndPrint(str(run))
                     text = run[1]
-                    if text <> '':
+                    if text != '':
                         tags = ''
                         if 'b' in run[0]:
                             tags = tags+'b'
@@ -222,7 +222,7 @@ for row in dmuRows:
             addMsgAndPrint('    finished appending paragraphs')
 
 if sys.argv[4] == 3:
-    print Null
+    print(Null)
     pass
 
 addMsgAndPrint('Setting core properties')

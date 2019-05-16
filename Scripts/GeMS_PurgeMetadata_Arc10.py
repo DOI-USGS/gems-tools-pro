@@ -23,7 +23,7 @@ fds = arcpy.ListDatasets()
 for fd in fds:
     arcpy.env.workspace = fd
     fc1 = arcpy.ListFeatureClasses()
-    if fc1 <> None:
+    if fc1 != None:
       for fc in fc1:
         featureClasses.append(fd+'/'+fc)
 

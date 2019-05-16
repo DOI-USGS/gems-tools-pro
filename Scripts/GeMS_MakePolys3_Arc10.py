@@ -19,7 +19,7 @@ def checkMultiPts(multiPts,badPointList,badPolyList):
         mapUnits = set()
         mapUnits.add(multiPts[0][2]); mapUnits.add(multiPts[0][3])
         for i in range(0,len(multiPts)):
-            if multiPts[i][0] <> polyID:
+            if multiPts[i][0] != polyID:
                 addMsgAndPrint('PROBLEM IN CHECKMULTIPTS!')
                 addMsgAndPrint(str(multiPts))
                 forceExit()
@@ -120,9 +120,9 @@ sLayerN = 1
 for aLyr in [mup,badLabels,badPolys,blankPolys,changedPolys]:
     addMsgAndPrint('    looking for '+aLyr)
     lyr = 1
-    while lyr <> -1:
+    while lyr != -1:
         lyr,df,refLyr,insertPos = findLyr(aLyr)
-        if lyr <> -1:
+        if lyr != -1:
             while lyr.longName.find('\\') > 0:
                 groupLyrName = lyr.longName[:lyr.longName.find('\\')]
                 lyr,df,refLyr,insertPos = findLyr(groupLyrName)
@@ -283,7 +283,7 @@ addMsgAndPrint('    Sorting through label points')
 lastPt = cpList[0]
 multiPts = [lastPt]
 for i in range(1,len(cpList)):
-    if cpList[i][0] <> lastPt[0]:  # different poly than lastPt
+    if cpList[i][0] != lastPt[0]:  # different poly than lastPt
         badPointList, badPolyList = checkMultiPts(multiPts,badPointList,badPolyList)
         lastPt = cpList[i]
         multiPts = [lastPt]

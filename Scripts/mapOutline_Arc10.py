@@ -32,7 +32,7 @@ scratch     # scratch folder, must be writable
 """
 
 c = ','
-degreeSymbol = '°'
+degreeSymbol = 'Â°'
 minuteSymbol = "'"
 secondSymbol = '"'
 
@@ -72,7 +72,7 @@ def ddToDmsString(dd):
         seconds = 0
     dmsString = str(degrees)+degreeSymbol
     dmsString = dmsString+str(minutes)+minuteSymbol
-    if seconds <> 0:
+    if seconds != 0:
         dmsString = dmsString+str(seconds)+secondSymbol
     return dmsString
         
@@ -179,9 +179,9 @@ for y in range(minTicLat,maxTicLat):
 genf.close()
 # convert to dbf
 ticdbf = arcpy.CreateScratchName('xxx','.dbf','',scratch)
-print ticdbf
+print(ticdbf)
 ticdbf = os.path.basename(ticdbf)
-print ticdbf
+print(ticdbf)
 arcpy.TableToTable_conversion(scratch+'/xxxtics.csv',scratch,ticdbf)
 # make XY event layer from table
 arcpy.MakeXYEventLayer_management(scratch+'/'+ticdbf,'LONGITUDE','LATITUDE','ticlayer',xycs)

@@ -26,7 +26,7 @@ def makeDictsOP(inFc):
             OPOCDDict[row[0]] = row[3]
             
 def lessSignificantOP(fid1,fid2):
-    if OPTypeDict[fid1] <> OPTypeDict[fid2]:
+    if OPTypeDict[fid1] != OPTypeDict[fid2]:
         # if one is overturned or upright and other is not
         if ('upright' in OPTypeDict[fid1].lower() or 'overturned' in OPTypeDict[fid1].lower()) and not ('upright' in OPTypeDict[fid2].lower() or 'overturned' in OPTypeDict[fid2].lower()):
             return fid2
@@ -109,7 +109,7 @@ addMsgAndPrint('   '+ str(len(inPoints))+' rows in initial near table')
 addMsgAndPrint('   Sorting through near table and calculating PlotAtScale values' )
 inPoints.sort()
 lastLenInPoints = 0
-while len(inPoints) > 1 and lastLenInPoints <> len(inPoints):
+while len(inPoints) > 1 and lastLenInPoints != len(inPoints):
     lastLenInPoints = len(inPoints)
     pointSep = inPoints[0][0]
     if isOP:  # figure out the most significant point
@@ -137,7 +137,7 @@ with arcpy.da.Editor(gdb) as edit:
     fields = ['OBJECTID','PlotAtScale']
     with arcpy.da.UpdateCursor(inFc,fields) as cursor:
         for row in cursor:
-            if row[0] in outPointDict.keys():
+            if row[0] in list(outPointDict.keys()):
                 row[1] = outPointDict[row[0]]
             else:
                 row[1] = maxPlotAtScale

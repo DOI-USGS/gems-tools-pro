@@ -119,7 +119,7 @@ def writeLRTable(outHtml,linesDict,dmuUnits,tagRoot):
                 if lmu == rmu and tagRoot == 'internalContacts':
                     anchorStart = '<a href="#'+tagRoot+lmu+rmu+'">'
                     anchorEnd = '</a'
-                elif lmu <> rmu and tagRoot == 'badConcealed':
+                elif lmu != rmu and tagRoot == 'badConcealed':
                     anchorStart = '<a href="#'+tagRoot+lmu+rmu+'">'
                     anchorEnd = '</a'
                 else:
@@ -155,13 +155,13 @@ def contactListWrite(conList,outHtml,tagRoot):
     lastARow0 = ''; lastARow1 = ''; anchorString = '-'
     for aRow in conList:
         outHtml.write('  <tr>\n')
-        if aRow[0] <> lastARow0 or aRow[1] <> lastARow1:
+        if aRow[0] != lastARow0 or aRow[1] != lastARow1:
             lastARow0 = translateNone(aRow[0])
             lastARow1 = translateNone(aRow[1])
             #addMsgAndPrint(str(aRow))
             anchorString = '<a name="'+tagRoot+lastARow0+lastARow1+'"></a>'
         for i in range(0,len(aRow)):
-            if i <> 0: anchorString = ''
+            if i != 0: anchorString = ''
             outHtml.write('    <td>'+anchorString+str(aRow[i])+'</td>\n')
         outHtml.write('  </tr>\n')
     outHtml.write('  </body></table>\n')
@@ -350,7 +350,7 @@ def adjacentMapUnits(inFds,outFds,outHtml,validateCafTopology,planCaf):
     dmuUnits = []
     with arcpy.da.SearchCursor(sortedDMU, ['MapUnit']) as cursor:
         for row in cursor:
-            if row[0] <> None and row[0] <> '':
+            if row[0] != None and row[0] != '':
                 dmuUnits.append(row[0])
     if debug3: addMsgAndPrint('dmuUnits = '+str(dmuUnits))
     testAndDelete(sortedDMU)
@@ -374,7 +374,7 @@ def adjacentMapUnits(inFds,outFds,outHtml,validateCafTopology,planCaf):
             if row[1].upper() == 'Y':  # IsConcealed = Y
                 if debug3: addMsgAndPrint('*** is concealed')
                 addRowToDict(lr,row,concealedLinesDict)
-                if row[3] <> row[2]:
+                if row[3] != row[2]:
                     badConcealed.append([row[3],row[2],row[0],row[1],row[5],row[4]])
             elif isContact(row[0]):
                 if debug3: addMsgAndPrint('*** is a contact')
@@ -642,7 +642,7 @@ def validateCafNodes(inFds,outFds,outHtml,planCaf):
                 nodeStatus = 'OK loop'
             elif arcTypes.count('#CON') == 1: # one arc is concealed, other is not
                 nodeStatus = 'BAD  pseudonode with 1 arc concealed, 1 not'
-            elif arcs[0][3] <> arcs[1][3]:   # arc Type values don't match
+            elif arcs[0][3] != arcs[1][3]:   # arc Type values don't match
                 if isFault(arcs[0][3]) and isFault(arcs[1][3]):
                     nodeStatus = 'CHECK  pseudonode with change in fault type'
                 else:
@@ -653,7 +653,7 @@ def validateCafNodes(inFds,outFds,outHtml,planCaf):
             if numberMapBoundaryArcs(arcTypes) == 2: # any arc joining map boundary is OK
                 nodeStatus = 'OK'
             elif arcTypes.count('#CON') in (0,3): # either all arcs are concealed or none are
-                if arcs[0][3] <> arcs[1][3] and arcs[0][3] <> arcs[2][3] and arcs[1][3] <> arcs[2][3]:
+                if arcs[0][3] != arcs[1][3] and arcs[0][3] != arcs[2][3] and arcs[1][3] != arcs[2][3]:
                     nodeStatus = 'BAD  incompatible type values'
                 else:
                     nodeStatus = 'OK'
@@ -679,7 +679,7 @@ def validateCafNodes(inFds,outFds,outHtml,planCaf):
             # must have two "contact", unconcealed, of same type, and
             #  and two other lines of identical type, at least one of which is concealed
             elif arcTypes.count('#CON') == 2:
-                if arcs[0][3] <> arcs[2][3] or arcs[1][3] <> arcs[3][3]:
+                if arcs[0][3] != arcs[2][3] or arcs[1][3] != arcs[3][3]:
                     nodeStatus = 'BAD  4 arcs, incompatible Type values'
                 else:
                     conNumber = concealedArcNumber(arcs)
@@ -689,7 +689,7 @@ def validateCafNodes(inFds,outFds,outHtml,planCaf):
                         nodeStatus = 'BAD  4 arcs, crossing arc(s) must be contact'
                     else: nodeStatus = 'OK'  # 4 arcs, contact crosses concealed concealed contact or fault'
             else:  # one of the 4 joining arcs is concealed
-                if arcs[0][3] <> arcs[2][3] or arcs[1][3] <> arcs[3][3]:
+                if arcs[0][3] != arcs[2][3] or arcs[1][3] != arcs[3][3]:
                     nodeStatus = 'BAD  4 arcs, incompatible Type values'
                 elif not isContact(arcs[0][3]) and not isContact(arcs[1][3]):
                     nodeStatus = 'BAD  4 arcs, neither crossing line is a contact'

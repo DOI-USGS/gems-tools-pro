@@ -11,7 +11,7 @@ debug = False
 def stringIsGeMSNull(val):
     if val == None:
         return True
-    elif isinstance(val,(basestring)) and val in ('#', '#null'):
+    elif isinstance(val,(str)) and val in ('#', '#null'):
         return True
     else:
         return False
@@ -111,7 +111,7 @@ def getCaf(inFds, prefix = ''):
         if fc[-17:] == 'ContactsAndFaults' or (inFds.find('CorrelationOfMapUnits') > -1 and fc[-5:] == 'Lines'):
             cafs2.append(fc)
     #addMsgAndPrint(str(cafs))
-    if len(cafs2) <> 1:
+    if len(cafs2) != 1:
         addMsgAndPrint('  Cannot resolve ContactsAndFaults feature class in feature dataset')
         addMsgAndPrint('    '+inFds)
         addMsgAndPrint('    '+str(cafs2))
@@ -161,8 +161,8 @@ def isContact(lType):
 # evaluates values of ExistenceConfidence and IdentifyConfidence 
 #   to see if a feature should be queried
 def isQuestionable(confidenceValue):
-    if confidenceValue <> None:
-        if confidenceValue.lower() <> 'certain' and confidenceValue.lower() <> 'unspecified':
+    if confidenceValue != None:
+        if confidenceValue.lower() != 'certain' and confidenceValue.lower() != 'unspecified':
             return True
         else:
             return False

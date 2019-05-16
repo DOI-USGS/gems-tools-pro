@@ -29,7 +29,7 @@ def makeFieldTypeDict(fds,fc):
     return fdict
 
 addMsgAndPrint('  '+versionString)
-if len(sys.argv) <> 4:
+if len(sys.argv) != 4:
     addMsgAndPrint(usage)
     sys.exit()
 
@@ -52,7 +52,7 @@ else:
 keylines = []
 for lin in keylines1:
     lin = lin.strip()
-    if len(lin) > 1 and lin[0:1] <> '#':
+    if len(lin) > 1 and lin[0:1] != '#':
         keylines.append(lin)
 #arcpy.AddMessage(len(keylines))
 countPerLines = []
@@ -92,7 +92,7 @@ while n < len(keylines):
 
     else:  # must be a key-value: dependent values line
         vals = keylines[n].split(separator)
-        if len(vals) <> numMFields:
+        if len(vals) != numMFields:
             addMsgAndPrint('\nline:\n  '+keylines[n]+'\nhas wrong number of values. Exiting.')
             sys.exit()
         for i in range(len(vals)):  # strip out quotes

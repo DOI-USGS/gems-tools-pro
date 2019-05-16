@@ -529,12 +529,12 @@ for polyFC in polyFCs:
         while a < oldLine.partCount:
             array = oldLine.getPart(a)
             newArray = arcpy.Array()
-            pnt = array.next()
+            pnt = next(array)
             while pnt:
                 pnt.X = float(pnt.M)
                 pnt.Y = float(pnt.Z) * vertEx
                 newArray.add(pnt)
-                pnt = array.next()
+                pnt = next(array)
             newLine.add(newArray)
             a = a+1
         outRow.Shape = newLine

@@ -70,7 +70,7 @@ shortFieldNameDict = {
         
 
 def remapFieldName(name):
-    if shortFieldNameDict.has_key(name):
+    if name in shortFieldNameDict:
         return shortFieldNameDict[name]
     elif len(name) <= 10:
         return name
@@ -112,8 +112,8 @@ def remapFieldName(name):
 
 def printFieldNames(fc):
     for f in fieldNameList(fc):
-        print f
-    print
+        print(f)
+    print()
 
 def dumpTable(fc,outName,isSpatial,outputDir,logfile,isOpen,fcName):
     dumpString = '  Dumping '+outName+'...'
@@ -128,7 +128,7 @@ def dumpTable(fc,outName,isSpatial,outputDir,logfile,isOpen,fcName):
 
     if debug:
         printFieldNames(fc)
-        print
+        print()
           
     fields = arcpy.ListFields(fc)
     longFields = []
@@ -138,7 +138,7 @@ def dumpTable(fc,outName,isSpatial,outputDir,logfile,isOpen,fcName):
         #  NEED TO FIX TO DEAL WITH DescriptionOfMapUnits_ and DataSources_
         fName = field.name
         for prefix in ('DescriptionOfMapUnits','DataSources','Glossary',fcName):
-            if fc <> prefix and fName.find(prefix) == 0 and fName <> fcName+'_ID':
+            if fc != prefix and fName.find(prefix) == 0 and fName != fcName+'_ID':
                 fName = fName[len(prefix)+1:]
         if len(fName) > 10:
             shortFieldName[field.name] = remapFieldName(fName)
@@ -151,10 +151,10 @@ def dumpTable(fc,outName,isSpatial,outputDir,logfile,isOpen,fcName):
         if field.length > 254:
             longFields.append(shortFieldName[field.name])
         if debug:
-            print fName, shortFieldName[field.name]   
+            print(fName, shortFieldName[field.name])   
     # export to shapefile (named prefix+name)
     if isSpatial:
-        if debug:  print 'dumping ',fc,outputDir,outName
+        if debug:  print('dumping ',fc,outputDir,outName)
         try:
             arcpy.FeatureClassToFeatureClass_conversion(fc,outputDir,outName)
         except:
@@ -181,7 +181,7 @@ def dumpTable(fc,outName,isSpatial,outputDir,logfile,isOpen,fcName):
                 for row in cursor:
                     rowString = str(row[0])
                     for i in range(1,len(row)):
-                        if row[i] <> None:
+                        if row[i] != None:
                             if isinstance(row[i],Number):
                                 xString = str(row[i])
                             else:
@@ -238,7 +238,7 @@ def makeStdLithDict():
     addMsgAndPrint('  Making StdLith dictionary...')
     stdLithDict = {}
     rows = arcpy.searchcursor('StandardLithology',"","","","MapUnit")
-    row = rows.next()
+    row = next(rows)
     unit = row.getValue('MapUnit')
     unitDesc = []
     pTerm = row.getValue('ProportionTerm'); pVal = row.getValue('ProportionValue')
@@ -247,14 +247,14 @@ def makeStdLithDict():
     while row:
         #print row.getValue('MapUnit')+'  '+row.getValue('Lithology')
         newUnit = row.getValue('MapUnit')
-        if newUnit <> unit:
+        if newUnit != unit:
             stdLithDict[unit] = description(unitDesc)
             unitDesc = []
             unit = newUnit
         pTerm = row.getValue('ProportionTerm'); pVal = row.getValue('ProportionValue')
         val = dummyVal(pTerm,pVal)
         unitDesc.append([val,row.getValue('PartType'),row.getValue('Lithology'),pTerm,pVal])
-        row = rows.next()
+        row = next(rows)
     del row, rows
     stdLithDict[unit] = description(unitDesc)
     return stdLithDict
@@ -263,15 +263,15 @@ def mapUnitPolys(stdLithDict,outputDir,logfile):
     addMsgAndPrint('  Translating GeologicMap/MapUnitPolys...')
     try:
         arcpy.MakeTableView_management('DescriptionOfMapUnits','DMU')
-        if stdLithDict <> 'None':
+        if stdLithDict != 'None':
                 arcpy.AddField_management('DMU',"StdLith","TEXT",'','','255')
                 rows = arcpy.UpdateCursor('DMU'  )
-                row = rows.next()
+                row = next(rows)
                 while row:
                     if row.MapUnit in stdLithDict:
                         row.StdLith = stdLithDict[row.MapUnit]
                         rows.updateRow(row)
-                    row = rows.next()
+                    row = next(rows)
                 del row, rows
         arcpy.MakeFeatureLayer_management("GeologicMap/MapUnitPolys","MUP")
         arcpy.AddJoin_management('MUP','MapUnit','DMU','MapUnit')
@@ -301,7 +301,7 @@ def removeJoins(fc):
         i = fieldName.find('.')
         if i > -1:
             joinedTableName = fieldName[0:i]
-            if not (joinedTableName in joinedTables) and (joinedTableName) <> fc:
+            if not (joinedTableName in joinedTables) and (joinedTableName) != fc:
                 try:
                     joinedTables.append(joinedTableName)
                     arcpy.removeJoin(fc,joinedTableName)
@@ -316,7 +316,7 @@ def removeJoins(fc):
 def linesAndPoints(fc,outputDir,logfile):
     addMsgAndPrint('  Translating '+fc+'...')
     if debug:
-        print 1
+        print(1)
         printFieldNames(fc)
     cp = fc.find('/')
     fcShp = fc[cp+1:]+'.shp'
@@ -400,10 +400,10 @@ def main(gdbCopy,outWS,oldgdb):
         arcpy.env.workspace = gdbCopy
         arcpy.env.workspace = fd
         fcList = arcpy.ListFeatureClasses()
-        if fcList <> None:
+        if fcList != None:
             for fc in arcpy.ListFeatureClasses():
                 # don't dump Anno classes
-                if arcpy.Describe(fc).featureType <> 'Annotation':
+                if arcpy.Describe(fc).featureType != 'Annotation':
                     outName = pfx+'_'+fc+'.shp'
                     dumpTable(fc,outName,True,outputDir,logfile,isOpen,fc)
                 else:
@@ -419,7 +419,7 @@ def main(gdbCopy,outWS,oldgdb):
     logfile.close()
 
 ### START HERE ###
-if len(sys.argv) <> 3 or not os.path.exists(sys.argv[1]) or not os.path.exists(sys.argv[2]):
+if len(sys.argv) != 3 or not os.path.exists(sys.argv[1]) or not os.path.exists(sys.argv[2]):
     usage()
 else:
     addMsgAndPrint('  '+versionString)

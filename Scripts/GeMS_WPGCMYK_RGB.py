@@ -9,7 +9,7 @@ fields = ('Symbol','AreaFillRGB')
 
 with arcpy.da.UpdateCursor(dmu, fields) as cursor:
     for row in cursor:
-        if row[0] <> None:
+        if row[0] != None:
             try:
                 rgb = colortrans.wpg2rgb(row[0])
                 r,g,b = rgb.split(',')

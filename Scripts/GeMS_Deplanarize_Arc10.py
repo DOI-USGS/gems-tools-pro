@@ -253,7 +253,7 @@ def threeArcsMeet(nodeName,arcs):
     #       sets mergeArcs = [], oddArcs = arcs
     mergeArcs = []
     oddArcs = []
-    if len(arcs) <> 3:
+    if len(arcs) != 3:
         addMsgAndPrint('  Problem in adjoinYoungestPoly, '+str(len(arcs))+' arcs')
         addMsgAndPrint(str(arcs))
         return [], arcs
@@ -294,16 +294,16 @@ def arcAttribsSame(arcs):
     else:
         arcsSame = True
         for i in range(1,len(arcs)):
-            if arcs[i][1] <> arcs[0][1]:
+            if arcs[i][1] != arcs[0][1]:
                 arcsSame = False
         return arcsSame
 
 def setUniqueMergeNumbers(arcs):
     global mergeNumber
-    if arcs <> [None]:
+    if arcs != [None]:
         try:
           for anArc in arcs:
-            if not anArc[0] in arc2MergeNumberDict.keys():
+            if not anArc[0] in list(arc2MergeNumberDict.keys()):
                 mergeNumber += 1
                 arc2MergeNumberDict[anArc[0]] = mergeNumber
                 mergeNumber2ArcsDict[mergeNumber] = [anArc[0]]
@@ -317,13 +317,13 @@ def setMatchingMergeNumbers(arcs):
     global mergeNumber
     # test that len(arcs) >= 2 else print error message and return
     otherArcs = None
-    if arcs <> None:
+    if arcs != None:
       if len(arcs) >= 2:
         mn = 0
         arcIDs = []
         for anArc in arcs:
             arcIDs.append(anArc[0])
-            if anArc[0] in arc2MergeNumberDict.keys():
+            if anArc[0] in list(arc2MergeNumberDict.keys()):
                 mn = arc2MergeNumberDict[anArc[0]]
                 otherArcs = mergeNumber2ArcsDict[mn]
         if mn == 0:  # no arc yet tagged with mergeNumber
@@ -359,7 +359,7 @@ addMsgAndPrint('Building hKeyDict')
 fields = ['MapUnit','HierarchyKey']
 with arcpy.da.SearchCursor(inDMU, fields) as cursor:
     for row in cursor:
-        if row[0] <> None:
+        if row[0] != None:
             if not row[0].isspace():
                 hKeyDict[row[0]] = row[1]
 # and, for arcs that adjoin nothing (map boundaries!)
@@ -459,10 +459,10 @@ for node in allNodeList:
         if debug1: addMsgAndPrint('  '+str( arcTypes))
 
         
-    if oddArcs <> None:
+    if oddArcs != None:
         if len(oddArcs) > 0:
             setUniqueMergeNumbers(oddArcs)
-    if mergeArcs <> None:
+    if mergeArcs != None:
         if len(mergeArcs) > 0:
             setMatchingMergeNumbers(mergeArcs)
 
@@ -482,7 +482,7 @@ arcpy.AddField_management(tempCaf, 'MergeNumber','LONG')
 # open update cursor
 with arcpy.da.UpdateCursor(tempCaf, ['OBJECTID','MergeNumber']) as cursor:
     for row in cursor:
-        if row[0] in arc2MergeNumberDict.keys():
+        if row[0] in list(arc2MergeNumberDict.keys()):
             row[1] = arc2MergeNumberDict[row[0]]
         else:
             mergeNumber += 1

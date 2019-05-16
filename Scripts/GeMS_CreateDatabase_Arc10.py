@@ -140,7 +140,7 @@ def main(thisDB,coordSystem,nCrossSections):
             featureClasses.append(fc)
     for featureClass in featureClasses:
         fieldDefs = tableDict[featureClass]
-        if addLTYPE and fc <> 'DataSourcePolys':
+        if addLTYPE and fc != 'DataSourcePolys':
             fieldDefs.append(['PTYPE','String','NullsOK',50])
         createFeatureClass(thisDB,'GeologicMap',featureClass,'POLYGON',fieldDefs)
             
@@ -335,7 +335,7 @@ def main(thisDB,coordSystem,nCrossSections):
             addMsgAndPrint('  Tables ')
             arcpy.env.workspace = thisDB
             for aTable in tables:
-                if aTable <> 'GeoMaterialDict':
+                if aTable != 'GeoMaterialDict':
                     addTracking(aTable)
 
 def createDatabase(outputDir,thisDB):

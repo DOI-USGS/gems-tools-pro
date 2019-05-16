@@ -285,7 +285,7 @@ def paragraph(paratext,style='BodyText',breakbefore=False,jc='left'):
             run.append(lastRenderedPageBreak)
             
         # if text string has a leading or trailing space, set xml:space="preserve"
-        if t[0].text <> None:
+        if t[0].text != None:
             if t[0].text[0] == ' ' or t[0].text[-1:] == ' ':
                 setXMLspace(t[0],"preserve")
         run.append(t[0])
@@ -378,14 +378,14 @@ def table(contents, heading=True, colw=None, cwunit='dxa', tblw=0, twunit='auto'
     tableprops.append(tablestyle)
     tablewidth = makeelement('tblW',attributes={'w':str(tblw),'type':str(twunit)})
     tableprops.append(tablewidth)
-    if len(borders.keys()):
+    if len(list(borders.keys())):
         tableborders = makeelement('tblBorders')
         for b in ['top', 'left', 'bottom', 'right', 'insideH', 'insideV']:
-            if b in borders.keys() or 'all' in borders.keys():
-                k = 'all' if 'all' in borders.keys() else b
+            if b in list(borders.keys()) or 'all' in list(borders.keys()):
+                k = 'all' if 'all' in list(borders.keys()) else b
                 attrs = {}
-                for a in borders[k].keys():
-                    attrs[a] = unicode(borders[k][a])
+                for a in list(borders[k].keys()):
+                    attrs[a] = str(borders[k][a])
                 borderelem = makeelement(b,attributes=attrs)
                 tableborders.append(borderelem)
         tableprops.append(tableborders)
@@ -451,7 +451,7 @@ def table(contents, heading=True, colw=None, cwunit='dxa', tblw=0, twunit='auto'
                 if isinstance(c, etree._Element):
                     cell.append(c)
                 else:
-                    if celstyle and 'align' in celstyle[i].keys():
+                    if celstyle and 'align' in list(celstyle[i].keys()):
                         align = celstyle[i]['align']
                     else:
                         align = 'left'
@@ -693,7 +693,7 @@ def advReplace(document,search,replace,bs=3):
                         if found:
                             break
                         if s+l <= len(searchels):
-                            e = range(s,s+l)
+                            e = list(range(s,s+l))
                             #print "elems:", e
                             txtsearch = ''
                             for k in e:
@@ -710,7 +710,7 @@ def advReplace(document,search,replace,bs=3):
                                     log.debug("Search regexp: %s", searchre.pattern)
                                     log.debug("Requested replacement: %s", replace)
                                     log.debug("Matched text: %s", txtsearch)
-                                    log.debug( "Matched text (splitted): %s", map(lambda i:i.text,searchels))
+                                    log.debug( "Matched text (splitted): %s", [i.text for i in searchels])
                                     log.debug("Matched at position: %s", match.start())
                                     log.debug( "matched in elements: %s", e)
                                     if isinstance(replace, etree._Element):
@@ -763,7 +763,7 @@ def getdocumenttext(document):
     # Since a single sentence might be spread over multiple text elements, iterate through each
     # paragraph, appending all text (t) children to that paragraphs text.
     for para in paralist:
-        paratext=u''
+        paratext=''
         # Loop through each paragraph
         for element in para.iter():
             # Find t (text) elements
@@ -789,21 +789,21 @@ def getDMUdocumenttext(document):
             if element[0].tag == '{'+nsprefixes['w']+'}rPr':
                 styles = ''
                 for el in element[0]:
-                    if el.tag[-1:] == 'b' and element[1].text <> None:
+                    if el.tag[-1:] == 'b' and element[1].text != None:
                         element[1].text = '<b>'+element[1].text+'</b>'
-                    if el.tag[-1:] == 'i' and element[1].text <> None:
+                    if el.tag[-1:] == 'i' and element[1].text != None:
                         element[1].text = '<i>'+element[1].text+'</i>'
                     try:
                       if el.tag[-6:] == 'rFonts' and el.attrib['{'+nsprefixes['w']+'}ascii'] == 'FGDCGeoAge':
                         element[1].text = '<g>'+element[1].text+'</g>'
                     except:
                         try:
-                          print 'Problems with FGDCGeoAge font, text = '+str(element[1].text)
+                          print('Problems with FGDCGeoAge font, text = '+str(element[1].text))
                         except:
-                          print 'Problems with FGDCGeoAge font, un-asciiable text'
-                    if el.tag[-6:] == 'rStyle' and el.attrib['{'+nsprefixes['w']+'}val'] == 'DMUUnitLabeltypestyle' and element[1].text <> None:
+                          print('Problems with FGDCGeoAge font, un-asciiable text')
+                    if el.tag[-6:] == 'rStyle' and el.attrib['{'+nsprefixes['w']+'}val'] == 'DMUUnitLabeltypestyle' and element[1].text != None:
                         element[1].text = '<ul>'+element[1].text+'</ul>'
-                    if el.tag[-9:] == 'vertAlign' and element[1].text <> None:
+                    if el.tag[-9:] == 'vertAlign' and element[1].text != None:
                         if el.attrib['{'+nsprefixes['w']+'}val'] == 'subscript':
                             element[1].text = '<sub>'+element[1].text+'</sub>'
                         elif el.attrib['{'+nsprefixes['w']+'}val'] == 'superscript':
@@ -820,7 +820,7 @@ def getDMUdocumenttext(document):
     # Since a single sentence might be spread over multiple text elements, iterate through each
     # paragraph, appending all text (t) children to that paragraphs text.
     for para in paralist:
-        paratext=u''
+        paratext=''
         # Loop through each paragraph
         for element in para.iter():
             # get paragraph style

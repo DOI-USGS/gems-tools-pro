@@ -57,7 +57,7 @@ for r in someRelationshipClasses:
     testAndDelete('RelationshipClasses/'+r[2])
     if arcpy.Exists(r[0]) and arcpy.Exists(r[1]):
         addMsgAndPrint('  adding relationship class '+r[2])
-        print '  adding relationship class '+r[2]
+        print('  adding relationship class '+r[2])
         arcpy.CreateRelationshipClass_management(r[0],r[1],r[2],r[3],r[4],r[5],r[6],r[7],r[8],r[9],r[10])
 
 addMsgAndPrint('Done')

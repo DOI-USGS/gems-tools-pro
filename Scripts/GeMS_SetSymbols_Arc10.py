@@ -20,7 +20,7 @@ debug1 = False
 def buildSymbolDicts(dFile):
     df = open(dictionaryFile,'r')
     for aline in df:
-        if aline[0] <> '#':
+        if aline[0] != '#':
             words = aline.split()
             if len(words) > 0:
                 aline = aline[:-1]
@@ -149,7 +149,7 @@ for fc in caf,gel:
                 exConf = row[3]
                 idConf = row[4]
                 if debug1:  addMsgAndPrint(typ)
-                if typ in EightfoldLineDict.keys():
+                if typ in list(EightfoldLineDict.keys()):
                     if debug1: addMsgAndPrint(typ+' is in EightfoldLineDict')
                     inc = 0                     
                     if isQuestionable(exConf) or isQuestionable(idConf):
@@ -163,7 +163,7 @@ for fc in caf,gel:
                         inc = inc+6
                     row[5] = incrementSymbol(EightfoldLineDict[typ],inc)
                     rowChanged = True
-                elif typ in MySymbolDict.keys():
+                elif typ in list(MySymbolDict.keys()):
                     row[5] = MySymbolDict[typ]
                     rowChanged = True
                 else:
@@ -172,7 +172,7 @@ for fc in caf,gel:
                     if hasRep:
                         # turn GSC label into original FGDC labe: 06.03 to 6.3
                         noZeros = trimLeftZeros(row[5])
-                        if repRuleDict.has_key(noZeros):
+                        if noZeros in repRuleDict:
                             row[6] = repRuleDict[noZeros]
                     cursor.updateRow(row)     
                     
@@ -194,13 +194,13 @@ if arcpy.Exists(fc):
                 typ = row[0]
                 orConf = row[1]
                 rowChanged = False
-                if typ in TwofoldOrientPointDict.keys():
+                if typ in list(TwofoldOrientPointDict.keys()):
                     rowChanged = True
                     if orConf > orientThresholdDegrees and useApproxOrient:
                         row[2] = TwofoldOrientPointDict[typ][1]
                     else:
                         row[2] = TwofoldOrientPointDict[typ][0]
-                elif typ in MySymbolDict.keys():
+                elif typ in list(MySymbolDict.keys()):
                     #addMsgAndPrint('**'+typ+'**')
                     rowChanged = True
                     row[2] = MySymbolDict[typ]
@@ -211,7 +211,7 @@ if arcpy.Exists(fc):
                     if hasRep:
                         # turn GSC label into original FGDC label: 06.03 to 6.3
                         noZeros = trimLeftZeros(row[2])
-                        if repRuleDict.has_key(noZeros):
+                        if noZeros in repRuleDict:
                             row[3] = repRuleDict[noZeros]
                     cursor.updateRow(row)
 
@@ -220,7 +220,7 @@ if len(unrecognizedTypes) == 0:
     addMsgAndPrint('    none')
 else:
     for t in unrecognizedTypes:
-        if t <> None:
+        if t != None:
             addMsgAndPrint('    '+t)
         else:
             addMsgAndPrint('    missing type value')

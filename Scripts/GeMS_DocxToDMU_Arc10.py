@@ -1,7 +1,7 @@
 import os
 xx = os.sys.path
 for x in xx:
-    print x
+    print(x)
     #addMsgAndPrint(x)
 
 import sys, copy, arcpy
@@ -130,7 +130,7 @@ for paragraph in paragraphList:  # each paragraph is a list: [style, text]
     paraStyle = paragraph[0].encode("utf-8")
     if debug: addMsgAndPrint(paraStyle)
     # If this is a DMU paragraph style and not "DESCRIPTION OF MAP UNITS"
-    if paraStyle[0:3] == 'DMU' and paraStyle <> 'DMU-Heading1':
+    if paraStyle[0:3] == 'DMU' and paraStyle != 'DMU-Heading1':
         paraText = paragraph[1].encode("utf-8")
         if debug: addMsgAndPrint('1')
         if styleType(paraStyle) == 'DMUParagraph':
@@ -151,7 +151,7 @@ for paragraph in paragraphList:  # each paragraph is a list: [style, text]
                 addMsgAndPrint(paraStyle)
                 addMsgAndPrint(paraText)
                 sys.exit()
-            if label <> '' and label in labels:
+            if label != '' and label in labels:
                 addMsgAndPrint('NON-UNIQUE VALUE OF LABEL: '+label)
                 addMsgAndPrint('  Fix it and re-run!')
                 sys.exit()
@@ -233,13 +233,13 @@ i = 1
 for row in dmuRows:
     matchRow = -1
     addMsgAndPrint(row.Label)
-    if row.Label <> '' and row.Label in msRowLabelDict:
+    if row.Label != '' and row.Label in msRowLabelDict:
         matchRow = msRowLabelDict[row.Label]
-    elif row.Name <> '' and row.Name in msRowNameDict:
+    elif row.Name != '' and row.Name in msRowNameDict:
         matchRow = msRowNameDict[row.Name]
-    elif row.MapUnit <> '' and row.MapUnit in msRowMapUnitDict:
+    elif row.MapUnit != '' and row.MapUnit in msRowMapUnitDict:
         matchRow = msRowNameDict[row.MapUnit]
-    elif row.Description <> None and row.Description <> '' and row.Description[0:20] in msRowDescDict:
+    elif row.Description != None and row.Description != '' and row.Description[0:20] in msRowDescDict:
         matchRow = msRowDescDict[row.Description[0:20]]
     else:
         addMsgAndPrint('  DMU row '+str(i)+', label = '+str(row.Label)+' has no match')
