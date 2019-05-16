@@ -11,6 +11,8 @@ versionString = 'GeMS_reID_Arc10.py, version of 2 September 2017'
 # 15 Sept 2016: modified to, by default, not reset DataSource_ID values
 # 26 April 2018: extended idRootDict to cover all classes defined in GeMS_Definion.py
 #   with thanks to freewheelCarto!
+# 16 May 2019: updated to Python 3 by using bundled auto conversion script 2to3. No other edits. 
+#   tested against a GeMS gdb and it ran with no errors although I did not check the output - Evan Thoms
 
 idRootDict = {
         'CartographicLines':'CAL',
