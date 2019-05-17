@@ -7,6 +7,8 @@
 # is appended until a unique name is obtained.
 #
 # 4 March 2018  added optional message to log file
+# 16 May 2019: updated for Python 3 with 2to3. No other edits.
+#   Tested against a gdb and it ran with no errors.
 
 import arcpy, sys, os.path
 from GeMS_utilityFunctions import *
