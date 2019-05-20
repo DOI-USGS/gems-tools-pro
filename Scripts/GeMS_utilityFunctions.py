@@ -19,6 +19,7 @@ def stringIsGeMSNull(val):
 def addMsgAndPrint(msg, severity=0): 
     # prints msg to screen and adds msg to the geoprocessor (in case this is run as a tool) 
     #print msg 
+
     try: 
         for string in msg.split('\n'): 
             # Add appropriate geoprocessing message 

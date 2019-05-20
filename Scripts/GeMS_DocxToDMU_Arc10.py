@@ -1,3 +1,15 @@
+# Parses a well-formatted Description of Map Units document from a .docx file into a
+# DescriptionOfMapUnits table in a GeMS geodatabase.
+#
+# Updated May 20 2019 to work with Python 3 in ArcGIS Pro 2: Evan Thoms
+#   First ran the script through 2to3 which catches many syntactical differences between
+#   2.7 and 3 and then manually debugged the few remaining errors having to do with the Python 3
+#   management of strings and built-in UTF encoding.
+#
+#   Tested against a .docx made from the Description of Map Units section in 
+#   USGS Pubs template MapManuscript_v1-0_04-11.dotx which ran with no errors but
+#   different DMU documents may still contain formatting or objects which throw errors. 
+
 import os
 xx = os.sys.path
 for x in xx:
@@ -8,8 +20,8 @@ import sys, copy, arcpy
 from GeMS_utilityFunctions import *
 from docxModified import *
 
-versionString = 'GeMS_DocxToDMU_Arc10.py, version of 2 September 2017'
-debug = False
+versionString = 'GeMS_DocxToDMU_AGP2.py, version of 1 May 2019'
+debug = True
 
 manuscriptFile = sys.argv[1]
 gdb = sys.argv[2]
@@ -102,7 +114,7 @@ def rankParaStylesAreEqual(style1,style2):
             return True
         else:
             return False
-    elif style1 == 'DMUHeadnote' and style2.find('Heading') > -1:
+    elif style1 == 'DMU Headnote' and style2.find('Heading') > -1:
         return True
     
     elif style1 == 'DMUUnit1' and style2.find('Heading') > -1:
@@ -120,6 +132,7 @@ if debug: addMsgAndPrint('0')
 document = opendocx(manuscriptFile)
 if debug: addMsgAndPrint('00')
 paragraphList = getDMUdocumenttext(document)
+if debug: addMsgAndPrint("There are {} paragraphs".format(len(paragraphList)))
 
 msRows = []
 labels = []
@@ -127,12 +140,17 @@ i = 0
 if debug: addMsgAndPrint('000')
 
 for paragraph in paragraphList:  # each paragraph is a list: [style, text]
-    paraStyle = paragraph[0].encode("utf-8")
-    if debug: addMsgAndPrint(paraStyle)
+    #paraStyle = paragraph[0].encode("utf-8")
+    paraStyle = paragraph[0]
+    # addMsgAndPrint fails when sent a variable as opposed to an explicit string
+    # with quotes. Don't understand this behavior. Using AddMessage
+    if debug: arcpy.AddMessage(paraStyle)
     # If this is a DMU paragraph style and not "DESCRIPTION OF MAP UNITS"
     if paraStyle[0:3] == 'DMU' and paraStyle != 'DMU-Heading1':
-        paraText = paragraph[1].encode("utf-8")
-        if debug: addMsgAndPrint('1')
+        #paraText = paragraph[1].encode("utf-8")
+        paraText = paragraph[1]
+        arcpy.AddMessage(type(paraText))
+        if debug: arcpy.AddMessage('1')
         if styleType(paraStyle) == 'DMUParagraph':
             if debug: addMsgAndPrint('2a')
             msRows[i-1][3] = msRows[i-1][3]+' <br>'+paraText
