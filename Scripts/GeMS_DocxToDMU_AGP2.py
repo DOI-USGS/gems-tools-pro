@@ -21,7 +21,7 @@ from GeMS_utilityFunctions import *
 from docxModified import *
 
 versionString = 'GeMS_DocxToDMU_AGP2.py, version of 1 May 2019'
-debug = True
+debug = False
 
 manuscriptFile = sys.argv[1]
 gdb = sys.argv[2]
