@@ -55,10 +55,14 @@ dissolve oldCAF on fields type, isConcealed, ExConf, IdConf, LCM, DataSourceID, 
 drop field mergeNumber and add any unconserved fields (Notes, Label, Symbol, ...)
 """
 
+# updated May 20 2019 to work with Python 3 in ArcGIS Pro: Evan thoms
+# No debugging necessary after running through 2to3.
+# The script ran with no errors.
+
 import arcpy, os.path, sys
 from GeMS_utilityFunctions import *
 
-versionString = 'GeMS_Deplanarize_Arc10.4.py, version of 2 September 2017'
+versionString = 'GeMS_Deplanarize_AGP2.py, version of 20 May 2019'
 
 # globals
 debug1 = False
