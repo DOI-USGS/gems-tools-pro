@@ -157,9 +157,6 @@ fds = os.path.join(gdb, 'GeologicMap')
 scripts = os.path.dirname(sys.argv[0])
 tools = os.path.dirname(scripts)
 lyrx_path = os.path.join(tools, 'Resources', 'OrientationPointsLabels.lyrx')
-# caf = getCaf(inFds)
-# orp = caf.replace('ContactsAndFaults','OrientationPoints')
-# fields = ['Type','IsConcealed','LocationConfidenceMeters','ExistenceConfidence','IdentityConfidence','Symbol']
 
 if os.path.basename(inFds) == 'GeologicMap':
     dipNumbers(gdb ,mapScale)
