@@ -4,7 +4,7 @@ This repository contains an ArcGIS toolbox and associated Python scripts and res
 
 See below for download and installation. See the Wiki (tab above) for documentation of the tools and instructions on the use of the GeMS schema. For information on NCGMP09, the precursor to the GeMS database schema, see the Archive section at http://ngmdb.usgs.gov/Info/standards/GeMS/.
 
-GeMS Tools was written in Python 2.7 by Ralph Haugerud, Evan Thoms, and others. Scripts have been developed and tested on Windows 7, using various versions of ArcGIS (9.1 - 10.5). 
+The current version of GeMS Tools reflects the on-going transition from tools that work in ArcMap 10 with Python 2.7 to those that will only work in ArcGIS Pro 2 with Python 3. The scripts that end in 'AGP2' have been updated. Those that end in 'Arc10' have not. The tools were writen by Ralph Haugerud, Evan Thoms, and others. Scripts have been developed and tested on Windows 7, using ArcGIS Pro 2.1.3
 
 This software is preliminary or provisional and is subject to revision. It is being provided to meet the need for timely best science. The software has not received final approval by the U.S. Geological Survey (USGS). No warranty, expressed or implied, is made by the USGS or the U.S. Government as to the functionality of the software and related material nor shall the fact of release constitute any such warranty. The software is provided on the condition that neither the USGS nor the U.S. Government shall be held liable for any damages resulting from the authorized or unauthorized use of the software.
 
@@ -14,21 +14,11 @@ Any use of trade, firm, or product names is for descriptive purposes only and do
 
 To install GeMS Tools, download this repository as follows: On GitHub, at the mid-upper left of this repository page, tap gray "Branch:master" button, tap "Tags" in the window that opens, and select the appropriate (probably the most recent) entry.  Then tap the "Clone or download button" (green box with down caret at upper right of screen) and select "Download ZIP". 
 
-After the download completes, go to your download directory and unzip the just-downloaded file. Inside the unzipped file there will be a single folder named something like "GeMS_Tools-14Dec2017". Either 
+After the download completes, go to your download directory and unzip the just-downloaded file. Inside the unzipped file there will be a single folder named something like "GeMS_Tools-14Dec2017". Copy this folder to a locale of your choice. Open a project in ArcGIS Pro. In the Catalog window, click on the Project tab. Go to Folders, right-click, choose 'Add Folder Connection' and then browse to the folder that contains the toolbox (or one or more parent folders above that folder).
 
-1. Copy this folder to a locale of your choice. Start ArcCatalog or ArcMap, open the Arc Toolbox window, right click on empty space in the Arc Toolbox window, and select "Add Toolbox".  Then navigate to the GeMS_Tools folder and select file GeMSToolsArc105.tbx (if you are running ArcGIS 10.5) or file GeMSToolsArc10.tbx (if you are running an older version of ArcGIS).
+To download a version of the toolbox that works with ArcMap 10, go to the Releases tab of this page and download the zip file for v1.0.0.
 
-    Right-click again on empty space in the Arc Toolbox window and select "Save settings" and then "Default" to have the GeMS toolbox available next time you open ArcCatalog or ArcMap.
-
-or 
-
-2. Place the CONTENTS of the GeMS_Tools folder (including folders Resources and Scripts, and files GeMS_ToolsArc10.tbx, GeMS_ToolsArc105.tbx, README.md, and LICENSE.md) in
-
-    C:\Documents and Settings\<user>\AppData\Roaming\ESRI\Desktop10.5\ArcToolbox\My Toolboxes
-
-    This is the pathname for ArcGIS 10.5 on Windows 7; it may differ with other operating systems and ArcGIS versions. Delete the .tbx file that is not needed. Then, in ArcCatalog, scroll to the bottom of the left-hand "Catalog Tree" pane, open Toolboxes/My Toolboxes, and the new toolboxes should be present. You may need to refresh the listing. 
-
-See the help that is part of the individual tool interfaces for documentation. Also the Docs subdirectory of this package for documentation in .docx and .pdf format. 
+The documentation for the tools may not be complete, but, for the most part, the Python 3 versions produce the same results as the older Python 2.7 versions. See the help that is part of the individual tool interfaces for documentation. Also the Docs subdirectory of this package for documentation in .docx and .pdf format. 
 
 -----------------------------------------------------------------
 
