@@ -77,7 +77,7 @@ def dipNumbers(gdb,mapScaleDenominator):
     if arcpy.TestSchemaLock(OPL) == False:
         addMsgAndPrint('    TestSchemaLock({}) = False.'.format(OPLName))
         addMsgAndPrint('Cannot get a schema lock!')
-        sys.exit()
+        forceExit()
        
     testAndDelete(OPL) 
     arcpy.CreateFeatureclass_management(fds, 'OrientationPointLabels', 'POINT')
