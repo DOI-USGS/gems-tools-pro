@@ -7,10 +7,15 @@
 # Note that Validate Database script can be used to maintain referential integrity, 
 # thus I don't suggest use of relationship classes to accomplish this.
 #   Ralph Haueerud, USGS
+# GeMS_RelationshipClasses_AGP2.py
+# 6 June 2019: updated to work with Python 3 in ArcGIS Pro. Evan Thoms
+#   ran the script through 2to3. No other edits necessary
+#   renamed from GeMS_RelationshipClasses1_Arc10.py to GeMS_RelationshipClasses_AGP2.py
 
 import arcpy, sys
 from GeMS_utilityFunctions import *
-versionString = 'GeMS_RelationshipClasses1_Arc10.py, version of 21 April 2018'
+
+versionString = 'GeMS_RelationshipClasses1_AGP2.py, version of 6 June 2019'
 
 addMsgAndPrint(versionString)
 
