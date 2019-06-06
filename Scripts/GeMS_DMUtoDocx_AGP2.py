@@ -36,7 +36,7 @@ from pathlib import Path
 from GeMS_utilityFunctions import *
 import docx
 
-versionString = 'GeMS_DMUtoDocx_Arc10.py, version of 5 June 2019'
+versionString = 'GeMS_DMUtoDocx_AGP2.py, version of 5 June 2019'
 addMsgAndPrint( versionString )
 
 debug = False
