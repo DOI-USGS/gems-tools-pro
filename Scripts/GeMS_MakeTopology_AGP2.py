@@ -3,7 +3,10 @@ import arcpy, sys, os.path
 from GeMS_utilityFunctions import *
 
 # 5 January: added switch to optionally add/subtract polygon-based rules
-versionString = 'GeMS_MakeTopology_Arc10.py, version of 5 January 2018'
+# 6 June 2019: updated to work with Python 3 in ArcGIS Pro. Evan Thoms
+#   only ran script through 2to3. No other changes necessary.
+
+versionString = 'GeMS_MakeTopology_AGP2.py, version of 6 June 2019'
 
 debug = False
 
