@@ -56,7 +56,9 @@ arcpy.env.workspace = inGdb
 
 if not arcpy.Exists(inGdb+'/RelationshipClasses'):
     arcpy.CreateFeatureDataset_management(inGdb,'RelationshipClasses')
-
+    
+arcpy.env.workspace = inGdb+'/RelationshipClasses'
+arcpy.AddMessage(arcpy.env.workspace)
 for r in someRelationshipClasses:
     testAndDelete(r[2])
     testAndDelete('RelationshipClasses/'+r[2])
