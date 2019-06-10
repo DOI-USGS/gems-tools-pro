@@ -25,11 +25,17 @@ Evan Thoms, USGS, Anchorage.
 Ralph Haugerud
 rhaugerud@usgs.gov
 '''
+
+# 10 June 2019: Updated to work with Python 3 in ArcGIS Pro. -Evan Thoms
+# Ran script through 2to3 and it worked with no other edits necessary.
+# Consider re-writing some sections to work with new Python modules, but none of the 
+# 'older' code causes any errors.
+
 import arcpy, sys, os.path, math
 from GeMS_Definition import tableDict
 from GeMS_utilityFunctions import *
 
-versionString = 'GeMS_ProjectCrossSectionData_Arc10.py, version of 2 September 2017'
+versionString = 'GeMS_ProjectCrossSectionData_Arc10.py, version of 10 June 2019'
 
 ##inputs
 #  gdb          geodatabase with GeologicMap feature dataset to be projected
@@ -228,7 +234,6 @@ except:
     addMsgAndPrint('\nCannot check out 3D-analyst extension.')
     sys.exit()
 
-
 ## Checking section line
 addMsgAndPrint('  Checking section line')
 idField = getIdField(xsLine)
@@ -246,8 +251,6 @@ elif i == 0:
 if not arcpy.Exists(outFds):
     addMsgAndPrint('  Making feature data set '+shortName(outFds))
     arcpy.CreateFeatureDataset_management(gdb,shortName(outFds),inFds)
-
-
 
 addMsgAndPrint('  Prepping section line')
 ## make copy of section line
@@ -292,8 +295,6 @@ addMsgAndPrint('    buffering '+shortName(tempXsLine)+' to get selection polygon
 tempBuffer = arcpy.CreateScratchName('xx',outFdsTag+"xsBuffer",'FeatureClass',scratch)
 arcpy.Buffer_analysis(ZMline,tempBuffer,bufferDistance,'FULL','FLAT')
 
-
-
 ## get lists of feature classes to be projected
 lineFCs = []
 polyFCs = []
@@ -317,8 +318,7 @@ else:
         if desc.shapeType == 'Polyline': lineFCs.append(fc)
         if desc.shapeType == 'Polygon':  polyFCs.append(fc)
         if desc.shapeType == 'Point':    pointFCs.append(fc)
-
-
+        
 addMsgAndPrint('\n  Projecting line feature classes:')
 for lineFC in lineFCs:
     inFC = shortName(lineFC)
@@ -377,7 +377,6 @@ for lineFC in lineFCs:
             testAndDelete(f)
         del inRows,outRows
         
-
 addMsgAndPrint('\n  Projecting point feature classes:')
 ## for each input point feature class:
 for pointClass in pointFCs:
@@ -550,8 +549,6 @@ for polyFC in polyFCs:
         testAndDelete(f)
     del inRows,outRows
     
-           
-
 arcpy.CheckInExtension('3D')
 if not saveIntermediate:
   addMsgAndPrint('\n  Deleting intermediate data sets')
