@@ -1,8 +1,11 @@
-# sets PlotAtScale values for a feature class
+# sets PlotAtScale values for a point eature class
 
 # September 2017: now invokes edit session before setting values (line 135)
 
-versionString = 'GeMS_SetPlotAtScales_Arc10.py, version of 2 September 2017'
+# June 2019: updated to work with Python 3 in ArcGIS Pro. 
+# Ran script through 2to3. Only incidental debugging required after.
+
+versionString = 'GeMS_SetPlotAtScales_AGP2.py, version of 10 June 2019'
 
 import arcpy, os.path, sys
 from GeMS_utilityFunctions import *
@@ -67,8 +70,8 @@ fieldNames = []
 for field in fields:
     fieldNames.append(field.name)
 if not 'PlotAtScale' in fieldNames:
-    addMsgAndPrint('No field PlotAtScale in '+fc+', aborting.')
-    forceExit()
+    arcpy.AddField_management(inFc, 'PlotAtScale', 'FLOAT')
+    addMsgAndPrint('Adding field PlotAtScale to {}'.format(inFc))
 
 gdb = os.path.dirname(inFc)
 if arcpy.Describe(gdb).dataType == 'FeatureDataset':
