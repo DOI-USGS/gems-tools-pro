@@ -9,8 +9,10 @@ from GeMS_utilityFunctions import *
 # further improved CAF node check
 # fixed Fault Direction
 # 11 December 2017  Improved node-check logic, added pre-clean for layer and table views, add cleanup for layer and table views
+# 17 July 2019: Tool ran in ArcGIS Pro without errors after updating to Python3 with 2to3.
+#   Amazing. No other edits done. Renamed to GeMS_TopologyCheck_AGP2.py
 
-versionString = 'GeMS_TopologyCheck_Arc10.py, version of 11 December 2017'
+versionString = 'GeMS_TopologyCheck_AGP2.py, version of 7 July 2019'
 
 tooSmallAreaMM2 = 12 # minimum mapunit poly area in mm2
 tooSkinnyWidthMM = 2   # minimum mapunit poly "width" in mm
