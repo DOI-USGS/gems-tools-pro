@@ -30,11 +30,11 @@ Collaboration: Suggestions for improvements and edited files submitted by email 
 
 Known issues with these scripts include:
 
-* "Project Map Data to Cross Section"does not always produce the correct apparent dip direction. The dip magnitude is correct, but it may be in the wrong direction.
+* "Project Map Data to Cross Section" does not always produce the correct apparent dip direction. The dip magnitude is correct, but it may be in the wrong direction.
 
 * "MapOutline" stumbles over some choices of datum.
 
-* "Purge Metdata" and "FDGC CSDGM2 Metadata"have been removed from the version 2 toolbox. With the Python 3 version of arcpy, it is no longer possible to automate the export or import of metadata.
+* "Purge Metdata" and "FDGC CSDGM2 Metadata" have been removed from the version 2 toolbox. With the Python 3 version of arcpy, it is no longer possible to automate the export or import of metadata.
 
 * "DMU to .docx" requires the python-docx third party module. Install by opening the ArcGIS Pro Python Command Prompt so that you are starting in the arcgispro-py conda environment and type
 
