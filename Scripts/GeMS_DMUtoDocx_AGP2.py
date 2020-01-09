@@ -36,7 +36,7 @@ from pathlib import Path
 from GeMS_utilityFunctions import *
 import docx
 
-versionString = 'GeMS_DMUtoDocx_AGP2.py, version of 5 June 2019'
+versionString = 'GeMS_DMUtoDocx_AGP2.py, version of 9 January 2020'
 addMsgAndPrint( versionString )
 
 debug = False
@@ -186,7 +186,7 @@ addMsgAndPrint('Getting DMU rows and creating output paragraphs')
 fields = ['mapunit', 'label', 'name', 'age', 'description', 'paragraphstyle', 'hierarchykey']
 #          0          1        2       3      4              5                 6
 sqlclause = (None, "ORDER by HierarchyKey ASC")
-dmuRows = arcpy.da.SearchCursor('DescriptionOfMapUnits', fields, '#', '#', sqlclause)
+dmuRows = arcpy.da.SearchCursor('DescriptionOfMapUnits', fields, sql_clause=sqlclause)
 
 # look for the case where we are making just a list of map units regardless of what 
 # the title row of the table may be.
