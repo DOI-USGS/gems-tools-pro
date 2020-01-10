@@ -197,15 +197,17 @@ else:
 
 # check the first row for a title and pass over it regardless because we named
 # the document depending on the isLMU parameter   
-first_row = dmuRows.next()
-if first_row[2].lower in ['description of map units', 'list of map units']:
+row = dmuRows.next()
+if row[2].lower in ['description of map units', 'list of map units']:
     row = dmuRows.next()
 
 # check the first row for a headnote and add it only if we are building a full DMU
-if first_row[5] == 'DMUHeadnote' and not isLMU:
-    headnote = document.add_paragraph(first_row[4], 'DMUHeadnote')
+if row[5] == 'DMUHeadnote' and not isLMU:
+    headnote = document.add_paragraph(row[4], 'DMUHeadnote')
+    row = dmuRows.next()
 
-for row in dmuRows:
+while row:
+#for row in dmuRows:
     addMsgAndPrint('  {}: {}'.format(row[6], row[5]))
     if row[5].find('DMU-Heading') > -1:  # is a heading
         header_pr = document.add_paragraph(style=row[5])
@@ -281,6 +283,11 @@ for row in dmuRows:
     else: # Unrecognized paragraph style
         addMsgAndPrint('Do not recognize paragraph style {}'.format(row[5]))
         
+    try:
+        row = dmuRows.next()
+    except StopIteration:  
+        row = None
+        
 addMsgAndPrint('    finished appending paragraphs')
 
 if sys.argv[4] == 3:
@@ -290,5 +297,7 @@ if sys.argv[4] == 3:
 # Save our document
 addMsgAndPrint('Saving to file {}'.format(outDMUdocx))
 document.save(outDMUdocx)
+        
+
 
 
