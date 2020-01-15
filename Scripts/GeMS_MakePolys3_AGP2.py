@@ -18,7 +18,7 @@ from GeMS_Definition import tableDict
 #     a contact and found that the new polygons were created correctly and additions 
 #     were made to edit_ChangedPolys
 
-versionString = 'GeMS_MakePolys3_AGP2.py, version of 29 May 2019'
+versionString = 'GeMS_MakePolys3_AGP2.py, version of 15 January 2019'
 debug = True
 
 def checkMultiPts(multiPts, badPointList, badPolyList):
@@ -73,10 +73,11 @@ if not arcpy.Exists(str(fds)):
     forceExit()
     
 # check for schema lock
-if arcpy.TestSchemaLock(str(fds)) == False:
-    addMsgAndPrint('    TestSchemaLock({}) = False.'.format(gdb.name))
-    arcpy.AddError('CANNOT GET A SCHEMA LOCK')
-    forceExit()
+# arcpy.AddMessage(arcpy.TestSchemaLock(str(fds)))
+# if arcpy.TestSchemaLock(str(fds)) == False:
+    # addMsgAndPrint('    TestSchemaLock({}) = False.'.format(gdb.name))
+    # arcpy.AddError('CANNOT GET A SCHEMA LOCK')
+    # forceExit()
     
 # get caf, mup, nameToken
 caf = getCaf(str(fds))
