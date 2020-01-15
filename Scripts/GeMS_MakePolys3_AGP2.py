@@ -18,7 +18,7 @@ from GeMS_Definition import tableDict
 #     a contact and found that the new polygons were created correctly and additions 
 #     were made to edit_ChangedPolys
 
-versionString = 'GeMS_MakePolys3_AGP2.py, version of 15 January 2019'
+versionString = 'GeMS_MakePolys3_AGP2.py, version of 15 January 2020'
 debug = True
 
 def checkMultiPts(multiPts, badPointList, badPolyList):
