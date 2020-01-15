@@ -19,7 +19,7 @@ from GeMS_Definition import tableDict
 #     were made to edit_ChangedPolys
 
 versionString = 'GeMS_MakePolys3_AGP2.py, version of 15 January 2020'
-debug = True
+debug = False
 
 def checkMultiPts(multiPts, badPointList, badPolyList):
     # checks list of label points, all in same poly. If MapUnits are not all same,
