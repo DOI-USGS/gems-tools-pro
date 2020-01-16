@@ -1,5 +1,7 @@
 # GeMS Tools for ArcGIS Pro
 
+[![Gitter chat](https://badges.gitter.im/gitterHQ/gitter.png)](https://gitter.im/gems-schema/community)
+
 This repository contains an ArcGIS Pro toolbox and associated Python 3 scripts and resources for creating, manipulating, and validating GeMS-style geologic map databases, as well as documentation.
 
 If you are looking for tools that work in ArcMap using Python 2.7, go to https://github.com/usgs/gems-tools-arcmap
