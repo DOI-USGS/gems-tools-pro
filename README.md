@@ -22,6 +22,12 @@ The documentation for these tools may not be complete or may be poorly formatted
 
 -----------------------------------------------------------------
 
+Getting help: If, when using a tool, it fails to run and produces an error message, please start a new issue at this repository (see the Issues tab above). Provide a screenshot of the error message if you can.
+
+If you have a question about how to build or attribute a GeMS-compliant database or the schema in general, please visit the [GeMS Gitter](https://gitter.im/gems-schema/community#) chat room. If you already have a GitHub account, you can sign in there with those credentials.
+
+-----------------------------------------------------------------
+
 Collaboration: Suggestions for improvements and edited files submitted by email will be considered, but you are strongly encouraged to use GitHub to fork the project, create a new branch (e.g., "MyFixToProblemXXX"), make changes to this branch, and submit a pull request to have your changes merged with the master branch. Excellent guides for various aspects of the git workflow can be found here:
 
 [https://guides.github.com/](https://guides.github.com/)
