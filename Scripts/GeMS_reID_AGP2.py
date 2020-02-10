@@ -6,13 +6,17 @@ import arcpy, sys, time, os.path, math, uuid
 from string import whitespace
 from GeMS_utilityFunctions import *
 
-versionString = 'GeMS_reID_Arc10.py, version of 2 September 2017'
+versionString = 'GeMS_reID_Arc10.py, version of 2 September 2020'
 # modified to not work on a copy of the input database. Backup first!
 # 15 Sept 2016: modified to, by default, not reset DataSource_ID values
 # 26 April 2018: extended idRootDict to cover all classes defined in GeMS_Definion.py
 #   with thanks to freewheelCarto!
 # 16 May 2019: updated to Python 3 by using bundled auto conversion script 2to3. No other edits. 
 #   tested against a GeMS gdb and it ran with no errors although I did not check the output - Evan Thoms
+# 10 February 2020: Added MapUnitPolys to idRootDict and changed abbreviation for MapUnitPoints from 
+#   MUP to MPT! With this table missing, a user reported that MUP_IDs were being written with the 
+#   prefix 'X3X'. I think it's absence is the reason for line "if tableName == 'MapUnitPoints'" 
+#   around line 215.  - Evan Thoms
 
 idRootDict = {
         'CartographicLines':'CAL',
@@ -34,7 +38,8 @@ idRootDict = {
         'GeologicLines':'GEL',
         'Glossary':'GLO',
         'IsoValueLines':'IVL',
-        'MapUnitPoints':'MUP',
+        'MapUnitPoints':'MPT',
+        'MapUnitPolys':'MUP',
         'MapUnitOverlayPolys':'MUO',
         'MiscellaneousMapInformation':'MMI',
         'OrientationPoints':'ORP',
@@ -93,7 +98,7 @@ def idRoot(tb,rootCounter):
         return 'X'+str(rootCounter)+'X',rootCounter
 
 def getPFKeys(table):
-    #addMsgAndPrint(table)
+    addMsgAndPrint(table)
     fields2 = arcpy.ListFields(table)
     fKeys = []
     pKey = ''
@@ -198,7 +203,12 @@ def main(lastTime, dbf, useGUIDs, noSources):
     addMsgAndPrint(str(fctbs))
     for fctb in fctbs:
             addMsgAndPrint(fctb)
-            arcpy.env.workspace = fctb[0]+fctb[1]
+            # in previous script, with Python 2.7, fctb[0]+fctb[1] was (somehow) sufficient for defining 
+            # workspace. With Python 3, it fails. Feature classes within feature datasets cannot be found.
+            # set workspace using os.path.join and, better yet, re-write inventoryDatabase to use arcpy.da.walk and full # paths to tables
+            # stop depending on setting the workspace correctly and try to always point to a table with a full path
+            arcpy.env.workspace = os.path.join(fctb[0], fctb[1])
+            arcpy.AddMessage(arcpy.env.workspace)
             tabName = tableName = fctb[2]
             pKey,fKeys = getPFKeys(tableName) #Why does this have to be called again (already in inventorDatadase)
             #TODO figure out the intention behind the next two line more - creates an error for me
