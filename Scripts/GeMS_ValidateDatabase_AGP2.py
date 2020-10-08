@@ -7,14 +7,14 @@
 #
 # Edited 7/15/20 to work in ArcGIS Pro 2.5 with Python 3
 # Evan Thoms
-
+# 10/8/20 updates from Ralph's version '7 October 2020'
 
 import arcpy, os, os.path, sys, time, glob
 from arcpy import metadata as md
 from GeMS_utilityFunctions import *
 from GeMS_Definition import *
 
-versionString = 'GeMS_ValidateDatabase_AGP2.py, version of 15 July 2020'
+versionString = 'GeMS_ValidateDatabase_AGP2.py, version of 8 October 2020'
 
 
 metadataSuffix = '-vFgdcMetadata.txt'
@@ -801,6 +801,7 @@ if sys.argv[2] != '#':
 else:
     workdir = os.path.dirname(inGdb)
 refreshGeoMaterialDict = sys.argv[3]
+skipTopology = sys.argv[4]                          
 
 refgmd = os.path.join(os.path.dirname(sys.argv[0]), '..', 'Resources', 'GeMS_lib.gdb', 'GeoMaterialDict')
 mp_path = os.path.join(os.path.dirname(sys.argv[0]), '..', 'Resources', 'mp.exe')
@@ -865,9 +866,13 @@ else:
                 schemaErrorsMissingElements.append('Feature class <span class="table">GeologicMap/'+fc+'</span>')
         isMap,MUP,CAF = isFeatureDatasetAMap('GeologicMap')
         if isMap:
-            nTopoErrors = checkTopology(workdir,inGdb,outErrorsGdb,'GeologicMap',MUP,CAF,2)
-            if nTopoErrors > 0:
-                topologyErrors.append(str(nTopoErrors)+' Level 2 errors in <span class="table">GeologicMap</span>')
+            if skipTopology == 'false':                                     
+                nTopoErrors = checkTopology(workdir,inGdb,outErrorsGdb,'GeologicMap',MUP,CAF,2)
+                if nTopoErrors > 0:
+                    topologyErrors.append(str(nTopoErrors)+' Level 2 errors in <span class="table">GeologicMap</span>')
+            else:
+                addMsgAndPrint('  skipping topology check')
+                topologyErrors.append('Level 2 topology check was skipped')                 
         arcpy.env.workspace = inGdb
     
     addMsgAndPrint('  getting unused, missing, and duplicated key values')
@@ -925,9 +930,13 @@ else:
                     addMsgAndPrint('  ** skipping data set '+fc+', featureType = '+dsc.featureType)
         isMap,MUP,CAF = isFeatureDatasetAMap(fd)
         if isMap:
-            nTopoErrors = checkTopology(workdir,inGdb,outErrorsGdb,fd,MUP,CAF,3)
-            if nTopoErrors > 0:
-                topologyErrors.append(str(nTopoErrors)+' Level 3 errors in <span class="table">'+fd+'</span>')
+            if skipTopology == 'false':                                  
+                nTopoErrors = checkTopology(workdir,inGdb,outErrorsGdb,fd,MUP,CAF,3)
+                if nTopoErrors > 0:
+                    topologyErrors.append(str(nTopoErrors)+' Level 3 errors in <span class="table">'+fd+'</span>')
+            else:
+                addMsgAndPrint('  skipping topology check')
+                topologyErrors.append('Level 3 topology check was skipped')                                                                           
         fds_MapUnits.append([fd,fdMapUnitList])
         arcpy.env.workspace = inGdb
 
