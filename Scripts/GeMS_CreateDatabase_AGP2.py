@@ -12,13 +12,21 @@
 # 17 March 2017  Added optional table MiscellaneousMapInformation
 # 30 Oct 2017  Moved CartoRepsAZGS and GeMS_lib.gdb to ../Resources
 # 4 March 2018  changed to use writeLogfile()
-# 16 May 2019 GeMS_CreateDatabase_Arc10.py Python 2.7 ported to Python 3 to work in ArcGIS Pro 2.1, Evan Thoms																											  
+# 16 May 2019 GeMS_CreateDatabase_Arc10.py Python 2.7 ported to Python 3 to work in ArcGIS Pro 2.1, Evan Thoms	
+
+# 8 June 2020 In transDict (line 31), changed 'NoNulls':'NON_NULLABLE' to 'NoNulls':'NULLABLE'
+#   " "       Fixed bug with addTracking(), where EnableEditorTracking_management apparently wants in_dataset to be a full pathname
+#   " "       Added MapUnitLines to list of feature classes that could be created (line 153)
+# 28 Sept 2020 Now defines coordinate system for CMU and cross section feature datasets (= map coordinate system)
+# 7 Oct 2020 Improved definition of cross section feature classes to match specification
+
+# Edits 10/8/20 to update to Ralph's latest changes (above)																									  
 
 import arcpy, sys, os, os.path
-from GeMS_Definition import tableDict, GeoMaterialConfidenceValues, DefaultExIDConfidenceValues
+from GeMS_Definition import tableDict, GeoMaterialConfidenceValues, DefaultExIDConfidenceValues, IDLength
 from GeMS_utilityFunctions import *
 
-versionString = 'GeMS_CreateDatabase_Arc10.py, version of 4 March 2018'
+versionString = 'GeMS_CreateDatabase_AGP2.py, version of 8 October 2020'
 
 debug = True
 
@@ -29,7 +37,7 @@ default = '#'
 transDict =     { 'String': 'TEXT',
                   'Single': 'FLOAT',
                   'Double': 'DOUBLE',
-                  'NoNulls':'NON_NULLABLE',
+                  'NoNulls':'NULLABLE', #NB-enforcing NoNulls at gdb level creates headaches; instead, check while validating
                   'NullsOK':'NULLABLE',
                   'Date'  : 'DATE'  }
 
@@ -147,11 +155,11 @@ def main(thisDB,coordSystem,nCrossSections):
             
     # line feature classes
     featureClasses = ['ContactsAndFaults']
-    for fc in ['GeologicLines','CartographicLines','IsoValueLines']:
+    for fc in ['GeologicLines','CartographicLines','IsoValueLines', 'MapUnitLines']:
         if fc in OptionalElements:
             featureClasses.append(fc)
     if debug:
-        addMsgAndPrint('Feature classes = '+str(featureClasses))
+        addMsgAndPrint(f'Feature classes = {featureClasses}')
     for featureClass in featureClasses:
         fieldDefs = tableDict[featureClass]
         if featureClass in ['ContactsAndFaults','GeologicLines'] and addLTYPE:
@@ -206,24 +214,19 @@ def main(thisDB,coordSystem,nCrossSections):
         xsLetter = alphabet[n]
         xsName = 'CrossSection'+xsLetter
         xsN = 'CS'+xsLetter
-        #create feature dataset CrossSectionA
         addMsgAndPrint('  Creating feature data set CrossSection'+xsLetter+'...')
         arcpy.CreateFeatureDataset_management(thisDB,xsName)
         fieldDefs = tableDict['MapUnitPolys']
-        if addLTYPE:
-            fieldDefs.append(['PTYPE','String','NullsOK',100])
-        fieldDefs[0][0] = xsN+'MapUnitPolys_ID'
+
         createFeatureClass(thisDB,xsName,xsN+'MapUnitPolys','POLYGON',fieldDefs)
         fieldDefs = tableDict['ContactsAndFaults']
-        if addLTYPE:
-            fieldDefs.append(['LTYPE','String','NullsOK',100])
-        fieldDefs[0][0] = xsN+'ContactsAndFaults_ID'
         createFeatureClass(thisDB,xsName,xsN+'ContactsAndFaults','POLYLINE',fieldDefs)
-        fieldDefs = tableDict['OrientationPoints']
-        if addLTYPE:
-            fieldDefs.append(['PTTYPE','String','NullsOK',100]) 
-        fieldDefs[0][0] = xsN+'OrientationPoints_ID'
-        createFeatureClass(thisDB,xsName,xsN+'OrientationPoints','POINT',fieldDefs)
+        arcpy.AlterField_management(xsN+'ContactsAndFaults','ContactsAndFaults_ID',xsN+'ContactsAndFaults_ID')
+
+        if 'OrientationPoints' in OptionalElements:
+            fieldDefs = tableDict['OrientationPoints']
+            createFeatureClass(thisDB,xsName,xsN+'OrientationPoints','POINT',fieldDefs)
+            arcpy.AlterField_management(xsN+'OrientationPoints','OrientationPoints_ID',xsN+'OrientationPoints_ID')
 
     # create tables
     tables = ['DescriptionOfMapUnits','DataSources','Glossary']
@@ -331,13 +334,13 @@ def main(thisDB,coordSystem,nCrossSections):
                     except:
                         addMsgAndPrint(arcpy.GetMessages(2))
                 if trackEdits:
-                    addTracking(fc)
+                    addTracking(os.path.join(thisDB,fc))
         if trackEdits:
             addMsgAndPrint('  Tables ')
             arcpy.env.workspace = thisDB
             for aTable in tables:
                 if aTable != 'GeoMaterialDict':
-                    addTracking(aTable)
+                    addTracking(os.path.join(thisDB,aTable))
 
 def createDatabase(outputDir,thisDB):
     addMsgAndPrint('  Creating geodatabase '+thisDB+'...')
@@ -372,7 +375,8 @@ if len(sys.argv) >= 6:
     # test for extension; if not given, default to file geodatabase
 	# Arc 10 version checked for option of creating personal geodatabase but mdbs have
 	# been abandoned with AGPro
-    thisDB = thisDB+'.gdb'
+    if not thisDB[-4:].lower() in ('.gdb','.mdb'):
+        thisDB = thisDB+'.gdb'
 
     coordSystem = sys.argv[3]
 
@@ -381,7 +385,7 @@ if len(sys.argv) >= 6:
     else:
         OptionalElements = sys.argv[4].split(';')
     if debug:
-        addMsgAndPrint('Optional elements = '+str(OptionalElements))
+        addMsgAndPrint(f'Optional elements = {OptionalElements}')
     
     nCrossSections = int(sys.argv[5])
 
