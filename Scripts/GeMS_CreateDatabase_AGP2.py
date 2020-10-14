@@ -19,14 +19,13 @@
 #   " "       Added MapUnitLines to list of feature classes that could be created (line 153)
 # 28 Sept 2020 Now defines coordinate system for CMU and cross section feature datasets (= map coordinate system)
 # 7 Oct 2020 Improved definition of cross section feature classes to match specification
-
-# Edits 10/8/20 to update to Ralph's latest changes (above)																									  
+# Edits 10/8/20 to update to Ralph's latest changes (above), Evan Thoms
 
 import arcpy, sys, os, os.path
 from GeMS_Definition import tableDict, GeoMaterialConfidenceValues, DefaultExIDConfidenceValues, IDLength
 from GeMS_utilityFunctions import *
 
-versionString = 'GeMS_CreateDatabase_AGP2.py, version of 8 October 2020'
+versionString = 'GeMS_CreateDatabase_AGP2.py, version of 14 October 2020'
 
 debug = True
 
@@ -194,7 +193,7 @@ def main(thisDB,coordSystem,nCrossSections):
     # create feature dataset CorrelationOfMapUnits
     if 'CorrelationOfMapUnits' in OptionalElements:
         addMsgAndPrint('  Creating feature dataset CorrelationOfMapUnits...')
-        arcpy.CreateFeatureDataset_management(thisDB,'CorrelationOfMapUnits')
+        arcpy.CreateFeatureDataset_management(thisDB,'CorrelationOfMapUnits', coordSystem)
         fieldDefs = tableDict['CMUMapUnitPolys']
         createFeatureClass(thisDB,'CorrelationOfMapUnits','CMUMapUnitPolys','POLYGON',fieldDefs)
         fieldDefs = tableDict['CMULines']
@@ -215,12 +214,12 @@ def main(thisDB,coordSystem,nCrossSections):
         xsName = 'CrossSection'+xsLetter
         xsN = 'CS'+xsLetter
         addMsgAndPrint('  Creating feature data set CrossSection'+xsLetter+'...')
-        arcpy.CreateFeatureDataset_management(thisDB,xsName)
+        arcpy.CreateFeatureDataset_management(thisDB, xsName, coordSystem)
         fieldDefs = tableDict['MapUnitPolys']
 
-        createFeatureClass(thisDB,xsName,xsN+'MapUnitPolys','POLYGON',fieldDefs)
+        createFeatureClass(thisDB, xsName, xsN+'MapUnitPolys', 'POLYGON', fieldDefs)
         fieldDefs = tableDict['ContactsAndFaults']
-        createFeatureClass(thisDB,xsName,xsN+'ContactsAndFaults','POLYLINE',fieldDefs)
+        createFeatureClass(thisDB, xsName, xsN+'ContactsAndFaults', 'POLYLINE', fieldDefs)
         arcpy.AlterField_management(xsN+'ContactsAndFaults','ContactsAndFaults_ID',xsN+'ContactsAndFaults_ID')
 
         if 'OrientationPoints' in OptionalElements:
