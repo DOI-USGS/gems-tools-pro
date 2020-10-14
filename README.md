@@ -6,7 +6,7 @@ This repository contains an ArcGIS Pro toolbox and associated Python 3 scripts a
 
 If you are looking for tools that work in ArcMap using Python 2.7, go to https://github.com/usgs/gems-tools-arcmap
 
-See below for download and installation. See the Wiki tab (above) for documentation of the tools and instructions on the use of the GeMS schema. For information on NCGMP09, the precursor to the GeMS database schema, see the Archive section at http://ngmdb.usgs.gov/Info/standards/GeMS
+See below for download and installation. See the [Wiki](https://github.com/usgs/gems-tools-pro/wiki) tab (above) for documentation of the tools and instructions on the use of the GeMS schema. For information on the GeMS database schema, go to https://ngmdb.usgs.gov/Info/standards/GeMS/.
 
 This software is preliminary or provisional and is subject to revision. It is being provided to meet the need for timely best science. The software has not received final approval by the U.S. Geological Survey (USGS). No warranty, expressed or implied, is made by the USGS or the U.S. Government as to the functionality of the software and related material nor shall the fact of release constitute any such warranty. The software is provided on the condition that neither the USGS nor the U.S. Government shall be held liable for any damages resulting from the authorized or unauthorized use of the software.
 
@@ -14,7 +14,7 @@ Any use of trade, firm, or product names is for descriptive purposes only and do
 
 -----------------------------------------------------------------
 
-To install the GeMS Tools toolbox, click on the "Clone or download" button above and choose "Download zip". Save and unzip the contents to any folder. 
+To install the GeMS Tools toolbox, click on the "Code" button above and choose "Download zip". Save and unzip the contents to any folder. 
 
 Open ArcGIS Pro and go to either the Contents or Catalog pane. Under Project, right-click on Folders to add a folder connection. Navigate to the toolbox folder. Note that this only saves the folder connection with the current project file. If you want to have the toolbox handy for any project that you open up, go to the Catalog pane, select the Favorites tab, click Add Item, choose Add Folder, and navigate to the folder.
 
