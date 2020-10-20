@@ -90,6 +90,8 @@ def check_usage(glx_usage, fooname):
         return False
         
 def ext_check(states_list, fn_ext):
+    states_list = [foo.lower() for foo in states_list]
+    fn_ext = [bar.lower() for bar in fn_ext]
     if set(states_list).intersection(set(fn_ext)):
         return True
     else:
@@ -282,12 +284,15 @@ else:
     arcpy.AddMessage("The DMU file cannot be read\n" +
     "Choose an ESRI file geodatabase table, an Excel spreadsheet,\n" +
     "a comma-delimited text file, or a tab-delimited text file")
-
-# collect the extent of the DMU. 
-# can be single state or list of states, comma separated
-#dmu_exts = sys.argv[2].upper().split(",") 
-dmu_exts = re.split(';|,',sys.argv[2])
-
+    
+# collect and clean the extent of the DMU. 
+# can be single state or list of states, comma separated,
+# can be upper or lower case
+dmu_str = sys.argv[2]
+dmu_str = dmu_str.strip("\'")
+dmu_str = dmu_str.replace(" ", "")
+dmu_exts = re.split(';|,',dmu_str)
+ 
 # open the report after running?
 if len(sys.argv) == 4:
     open_xl = bool(strtobool(sys.argv[3]))
