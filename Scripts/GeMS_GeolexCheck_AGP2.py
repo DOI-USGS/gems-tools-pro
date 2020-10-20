@@ -25,6 +25,13 @@ from openpyxl import load_workbook
 from openpyxl.styles.borders import Border, Side
 from openpyxl.styles import Font, PatternFill, Alignment
 
+# pyinstaller
+# comment out arcpy
+# find/replace arcpy.AddMessage with print
+# pyinstaller –F GeMS_GeolexCheck_AGP2.py
+# use conda environment names-check
+#import temptree
+
 versionString = "GeMS_GeolexCheck_AGP2.py, 10/20/2020"
 
 # initialize empty list to collect usage matches in order to avoid 
@@ -139,7 +146,7 @@ def frame_it(d_path, ext_format):
         sheet = os.path.basename(d_path)
         if sheet[-1:] == '$':
             sheet = sheet[:-1]
-        dmu_df = pd.read_excel(file, sheet_name=sheet, usecols=lambda x: x.lower() in flds, dtype=types)
+        dmu_df = pd.read_excel(file, sheet_name=sheet, engine="openpyxl", usecols=lambda x: x.lower() in flds, dtype=types)
     
     elif ext_format == 'csv':
         dmu_df = pd.read_csv(d_path, usecols=lambda x: x.lower() in flds, dtype=types, keep_default_na=False)
@@ -266,20 +273,20 @@ if os.path.splitext(dmu_home)[1] == '.gdb':
     out_name = os.path.basename(dmu_home)[:-4]
     dmu_home = os.path.dirname(dmu_home)
     dmu_df = frame_it(dmu, 'gdb')
-    print('gdb')
+
 elif os.path.splitext(dmu_home)[1] == '.xlsx':
     out_name = os.path.basename(dmu_home)[:-5]
     dmu_home = os.path.dirname(dmu_home)
     dmu_df = frame_it(dmu, 'xls')
-    print('xls')
+
 elif os.path.splitext(dmu)[1] == '.csv':
     out_name = os.path.basename(dmu)[:-4]
     dmu_df = frame_it(dmu, 'csv')
-    print('csv')
+
 elif os.path.splitext(dmu)[1] == '.txt':
     out_name = os.path.basename(dmu)[:-4]
     dmu_df = frame_it(dmu, 'txt')
-    print('txt')
+
 else:
     arcpy.AddMessage("The DMU file cannot be read\n" +
     "Choose an ESRI file geodatabase table, an Excel spreadsheet,\n" +
@@ -312,7 +319,7 @@ df = pd.DataFrame(columns=['HierarchyKey', 'MapUnit', 'Name', 'Fullname', 'Age',
 df['HierarchyKey'] = df['HierarchyKey'].astype('object')
 
 fields = ['hierarchykey', 'mapunit', 'name', 'fullname', 'age']
-rows = sorted(arcpy.da.SearchCursor(dmu, fields))
+#rows = sorted(arcpy.da.SearchCursor(dmu, fields))
 
 n = 0
 for row in dmu_df.itertuples():
@@ -465,7 +472,7 @@ arcpy.AddMessage(f"Saving {xl_path}")
 if os.path.exists(xl_path):
     os.remove(xl_path)
 
-df.to_excel(xl_path, freeze_panes = (2,0), index=False)
+df.to_excel(xl_path, freeze_panes = (2,0), index=False, engine="openpyxl")
 format_excel(xl_path)
 if open_xl == True:
     os.startfile(xl_path)
