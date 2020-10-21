@@ -27,12 +27,10 @@ from openpyxl.styles import Font, PatternFill, Alignment
 import tempfile
 
 # INSTRUCTIONS FOR PYINSTALLER
-# comment out arcpy
-# find/replace arcpy.AddMessage with print
-# pyinstaller –F GeMS_GeolexCheck_AGP2.py
-# use conda environment names-check
-# uncomment line below to import subprocess
-#import subprocess
+# 1. comment out arcpy
+# 2. find/replace arcpy.AddMessage with print
+# 3. use conda environment names-check
+# 4. pyinstaller –F GeMS_GeolexCheck_AGP2.py
 
 versionString = "GeMS_GeolexCheck_AGP2.py, 10/20/2020"
 
