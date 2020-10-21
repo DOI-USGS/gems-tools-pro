@@ -110,17 +110,16 @@ def parse_age(age_str):
     return age_str.replace('\r\n', '\n')
     
 # API 
-def units_query(fn):
+def units_query(name):
     """Prepare and send the GET request"""
     units_api = r"https://ngmdb-dev.usgs.gov/db/apiv1/geolex/units/?"
-    params = {'units_in': fn}
+    params = {'units_in': name}
     response = requests.get(units_api, params)  #.text
     
     if not response.status_code == 200:
         arcpy.AddMessage(f"Server error {response.status_code} with the following url:")
         arcpy.AddMessage(response.url)
         arcpy.AddMessage("The server may be down. Try again later or write to gems@usgs.gov")
-
         raise SystemError
     else:
         return response.json()['results']
