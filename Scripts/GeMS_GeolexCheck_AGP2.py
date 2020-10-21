@@ -156,24 +156,32 @@ def frame_it(d_path, ext_format):
     # attempt to allow all cases of column names
     flds = ['hierarchykey', 'name', 'age', 'fullname', 'mapunit']
     if ext_format == 'gdb':
-        # to cast file GDB tables into a pandas data frame use
-        # arcpy.da.TableToNumPyArray
-        dmu_df = table_to_pandas_data_frame(d_path)
+        # Have to look for case where this is being run from the EXE
+        # Pyinstaller adds frozen flag to sys to figure this out
+        if getattr(sys, 'frozen', True):
+            try:
+                # in this case, arcpy is not installed. Try using ogr2ogr with the off-chance
+                # that it is installed and in the PATH
+                # write the converted CSV to a temporary directory and then cast that to a data frame
+                t_dir = tempfile.mkdtemp()
+                t_dmu = os.path.join(t_dir, 'dmu.csv')
+                gdb_p = os.path.dirname(d_path)
+                dmu_table = os.path.basename(d_path)
+                ogr_com = f'ogr2ogr -f CSV {t_dmu} {gdb_p} {dmu_table}'
+                os.system(ogr_com)
+                dmu_df = pd.read_csv(t_dmu, usecols=lambda x: x.lower() in flds, dtype=types)
+                delete the temp files and directory
+                rmtree(t_dir)
+            except:
+                print("Cannot find ogr2ogr to conver file GDB table.")
+                print("Install GDAL binaries and make sure the location is in your PATH environment 
+                print("or convert the dmu to a CSV or Excel file and try again")
         
-        # # gdb table has to first be converted to csv using gdal command ogr2ogr
-        # # write it to a temporary directory
-        # t_dir = tempfile.mkdtemp()
-        # t_dmu = os.path.join(t_dir, 'dmu.csv')
-        # gdb_p = os.path.dirname(d_path)
-        # dmu_table = os.path.basename(d_path)
-        # ogr_com = f'ogr2ogr -f CSV {t_dmu} {gdb_p} {dmu_table}'
-        # os.system(ogr_com)
-         
-        #dmu_df = pd.read_csv(t_dmu, usecols=lambda x: x.lower() in flds, dtype=types)
-     
-        # delete the temp files and directory
-        #rmtree(t_dir)
-    
+        else:
+            # to cast file GDB tables into a pandas data frame use
+            # arcpy.da.TableToNumPyArray
+            dmu_df = table_to_pandas_data_frame(d_path)
+
     elif ext_format == 'xls':
         file = os.path.dirname(d_path)
         sheet = os.path.basename(d_path)
