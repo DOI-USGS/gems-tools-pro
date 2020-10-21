@@ -13,6 +13,12 @@ Arguments:
 Enclose any arguments with spaces within double-quotes.
 """
 
+# INSTRUCTIONS FOR PYINSTALLER
+# 1. comment out arcpy
+# 2. find/replace arcpy.AddMessage with print
+# 3. use conda environment names-check
+# 4. pyinstaller –F GeMS_GeolexCheck_AGP2.py
+
 import os, sys
 import string
 import arcpy
@@ -26,11 +32,6 @@ from openpyxl.styles.borders import Border, Side
 from openpyxl.styles import Font, PatternFill, Alignment
 import tempfile
 
-# INSTRUCTIONS FOR PYINSTALLER
-# 1. comment out arcpy
-# 2. find/replace arcpy.AddMessage with print
-# 3. use conda environment names-check
-# 4. pyinstaller –F GeMS_GeolexCheck_AGP2.py
 
 versionString = "GeMS_GeolexCheck_AGP2.py, 10/20/2020"
 
@@ -176,6 +177,7 @@ def frame_it(d_path, ext_format):
                 print("Cannot find ogr2ogr to conver file GDB table.")
                 print("Install GDAL binaries and make sure the location is in your PATH environment 
                 print("or convert the dmu to a CSV or Excel file and try again")
+                raise SystemError
         
         else:
             # to cast file GDB tables into a pandas data frame use
@@ -368,7 +370,6 @@ for row in dmu_df.itertuples():
         # get some values from the input
         # map unit abbreviation
         mu = row.mapunit 
-        #arcpy.AddMessage(f'Checking Name and Fullname for {mu}')
         
         # short map unit name
         if not(pd.isna(row.name) or row.name ==""):
@@ -419,13 +420,11 @@ for row in dmu_df.itertuples():
         # if there are name and fullname matches, take the intersection of the sets
         if (sn_results and fn_results) or (sn_results and not fn_results):
             results = sn_results
-            #arcpy.AddMessage(results)
             check_name = sn
             
         # if there are only fullname matches, take those
         elif fn_results and not sn_results:
             results = fn_results 
-            #arcpy.AddMessage("case 2")
             check_name = fn
        
         # if none of those, there are no matches
