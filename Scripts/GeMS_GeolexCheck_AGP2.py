@@ -24,13 +24,15 @@ import pandas as pd
 from openpyxl import load_workbook
 from openpyxl.styles.borders import Border, Side
 from openpyxl.styles import Font, PatternFill, Alignment
+import tempfile
 
-# pyinstaller
+# INSTRUCTIONS FOR PYINSTALLER
 # comment out arcpy
 # find/replace arcpy.AddMessage with print
 # pyinstaller –F GeMS_GeolexCheck_AGP2.py
 # use conda environment names-check
-#import temptree
+# uncomment line below to import subprocess
+#import subprocess
 
 versionString = "GeMS_GeolexCheck_AGP2.py, 10/20/2020"
 
@@ -114,9 +116,39 @@ def units_query(fn):
     params = {'units_in': fn}
     response = requests.get(units_api, params)  #.text
     
-    return response.json()['results']
+    if not response.status_code == 200:
+        arcpy.AddMessage(f"Server error {response.status_code} with the following url:")
+        arcpy.AddMessage(response.url)
+        arcpy.AddMessage("The server may be down. Try again later or write to gems@usgs.gov")
+
+        raise SystemError
+    else:
+        return response.json()['results']
     
 # EXCEL
+def table_to_pandas_data_frame(feature_class):
+    """
+    Load data into a Pandas Data Frame for subsequent analysis.
+    :param feature_class: Input ArcGIS Feature Class.
+    :param field_list: Fields for input.
+    :return: Pandas DataFrame object.
+    
+    from https://joelmccune.com/arcgis-to-pandas-data-frame/
+    discussion after that was posted suggests using a Spatially Enabled Dataframe
+    https://developers.arcgis.com/python/guide/introduction-to-the-spatially-enabled-dataframe/
+    but that requires install of ArcGIS API for Python which I can't guarantee will be 
+    available on any other computer
+    """
+    field_list = ['hierarchykey', 'mapunit', 'name', 'fullname', 'age']
+    return pd.DataFrame(
+        arcpy.da.TableToNumPyArray(
+            in_table=feature_class,
+            field_names=field_list,
+            skip_nulls=False,
+            null_value = ''
+        )
+    )
+
 def frame_it(d_path, ext_format):
     """convert table to pandas dataframe
        gdbs and excel files need special consideration
@@ -127,19 +159,23 @@ def frame_it(d_path, ext_format):
     # attempt to allow all cases of column names
     flds = ['hierarchykey', 'name', 'age', 'fullname', 'mapunit']
     if ext_format == 'gdb':
-        # gdb table has to first be converted to csv using gdal command ogr2ogr
-        # write it to a temporary directory
-        t_dir = tempfile.mkdtemp()
-        t_dmu = os.path.join(t_dir, 'dmu.csv')
-        gdb_p = os.path.dirname(d_path)
-        dmu_table = os.path.basename(d_path)
-        ogr_com = f'ogr2ogr -f CSV {t_dmu} {gdb_p} {dmu_table}'
-        os.system(ogr_com)
-         
-        dmu_df = pd.read_csv(t_dmu, usecols=lambda x: x.lower() in flds, dtype=types)
+        # to cast file GDB tables into a pandas data frame use
+        # arcpy.da.TableToNumPyArray
+        dmu_df = table_to_pandas_data_frame(d_path)
         
+        # # gdb table has to first be converted to csv using gdal command ogr2ogr
+        # # write it to a temporary directory
+        # t_dir = tempfile.mkdtemp()
+        # t_dmu = os.path.join(t_dir, 'dmu.csv')
+        # gdb_p = os.path.dirname(d_path)
+        # dmu_table = os.path.basename(d_path)
+        # ogr_com = f'ogr2ogr -f CSV {t_dmu} {gdb_p} {dmu_table}'
+        # os.system(ogr_com)
+         
+        #dmu_df = pd.read_csv(t_dmu, usecols=lambda x: x.lower() in flds, dtype=types)
+     
         # delete the temp files and directory
-        rmtree(t_dir)
+        #rmtree(t_dir)
     
     elif ext_format == 'xls':
         file = os.path.dirname(d_path)
@@ -319,7 +355,6 @@ df = pd.DataFrame(columns=['HierarchyKey', 'MapUnit', 'Name', 'Fullname', 'Age',
 df['HierarchyKey'] = df['HierarchyKey'].astype('object')
 
 fields = ['hierarchykey', 'mapunit', 'name', 'fullname', 'age']
-#rows = sorted(arcpy.da.SearchCursor(dmu, fields))
 
 n = 0
 for row in dmu_df.itertuples():
@@ -331,9 +366,8 @@ for row in dmu_df.itertuples():
         #arcpy.AddMessage(f'Checking Name and Fullname for {mu}')
         
         # short map unit name
-        if not pd.isna(row.name):
+        if not(pd.isna(row.name) or row.name ==""):
             sn = row.name
-            #arcpy.AddMessage(f"Name = {sn}")
             sn_subbed = sanitize_text(sn).strip().lower()
             sn_lower = sn.lower()
         else:
@@ -342,9 +376,8 @@ for row in dmu_df.itertuples():
             sn_lower = ''
         
         # full map unit name
-        if not pd.isna(row.fullname):
+        if not (pd.isna(row.fullname) or row.fullname == ""):
             fn = row.fullname
-            #arcpy.AddMessage(f"Fullname = {fn}")
             fn_subbed = sanitize_text(fn).strip().lower()
             fn_lower = fn.lower()
         else:
