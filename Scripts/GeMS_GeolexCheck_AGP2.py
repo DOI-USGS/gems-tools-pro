@@ -116,9 +116,11 @@ def units_query(name):
     response = requests.get(units_api, params)  #.text
     
     if not response.status_code == 200:
+        arcpy.AddMessage("")       
         arcpy.AddMessage(f"Server error {response.status_code} with the following url:")
         arcpy.AddMessage(response.url)
         arcpy.AddMessage("The server may be down. Try again later or write to gems@usgs.gov")
+        arcpy.AddMessage("")                
         raise SystemError
     else:
         return response.json()['results']
@@ -171,12 +173,13 @@ def frame_it(d_path, ext_format):
                 ogr_com = f'ogr2ogr -f CSV {t_dmu} {gdb_p} {dmu_table}'
                 os.system(ogr_com)
                 dmu_df = pd.read_csv(t_dmu, usecols=lambda x: x.lower() in flds, dtype=types)
-                delete the temp files and directory
-                rmtree(t_dir)
+
             except:
-                print("Cannot find ogr2ogr to conver file GDB table.")
-                print("Install GDAL binaries and make sure the location is in your PATH environment 
+                print("")
+                print("Cannot find ogr2ogr to convert file GDB table.")
+                print("Install GDAL binaries and make sure the location is in your PATH environment") 
                 print("or convert the dmu to a CSV or Excel file and try again")
+                print("")
                 raise SystemError
         
         else:
