@@ -307,6 +307,7 @@ arcpy.AddMessage(versionString)
 
 # collect the path to the DMU table
 dmu = sys.argv[1]
+arcpy.AddMessage(f"Evaluating {dmu}")
 
 if '.xlsx' in dmu or '.xls' in dmu:
     if not dmu[-1:] == '$':
