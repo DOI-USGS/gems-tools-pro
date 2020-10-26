@@ -17,7 +17,9 @@ Enclose any arguments with spaces within double-quotes.
 # 1. comment out arcpy
 # 2. find/replace arcpy.AddMessage with print
 # 3. use conda environment names-check
-# 4. pyinstaller –F GeMS_GeolexCheck_AGP2.py
+# 4. pyinstaller –F GeMS_GeolexCheck_AGP2.py -n GeMS_GeolexCheck
+# 5. copy \dist\GeMS_GeolexCheck.exe to \Resources of GeMS Toolbox folder
+#     copy /y C:\_AAA\gems\gitspace\exe\dist\GeMS_GeolexCheck.exe C:\_AAA\gems\gitspace\gems-tools-arcmap\Resources\GeMS_GeolexCheck.exe
 
 import os, sys
 import string
@@ -111,7 +113,8 @@ def parse_age(age_str):
 # API 
 def units_query(name):
     """Prepare and send the GET request"""
-    units_api = r"https://ngmdb-dev.usgs.gov/db/apiv1/geolex/units/?"
+    units_api = r"https://ngmdb-dev.usgs.gov/connect/apiv1/geolex/units/?"
+    #units_api = r"https://ngmdb-dev.usgs.gov/db/apiv1/geolex/units/?"
     params = {'units_in': name}
     response = requests.get(units_api, params)  #.text
     
