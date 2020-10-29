@@ -123,7 +123,7 @@ startDict = {
 					['Notes','String','NullsOK',defaultLength]],
 		   'Stations':         [['FieldID','String','NoNulls',IDLength],
                                         ['LocationConfidenceMeters','Single','NoNulls'],
-					['ObservedMapUnit','String','NoNulls',mapUnitLength],
+					['ObservedMapUnit','String','NullsOK',mapUnitLength],
 					['MapUnit','String','NoNulls',mapUnitLength],
 					['Symbol','String','NullsOK',defaultLength],
 					['Label','String','NullsOK',IDLength],
