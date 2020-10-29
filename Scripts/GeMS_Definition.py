@@ -6,7 +6,7 @@
 #  Ralph Haugerud, 19 August 2016 
 # 
 
-versionString = 'GeMS_Definition.py, version of 6 October 2017'
+versionString = 'GeMS_Definition.py, version of 29 October 2020'
 # fixes errors in Station feature class definition
 # 16 Jan 2014: added ObservedMapUnit to Station feature class definition
 # 8 April 2016: Fixed ObservedMapUnit.  Put _ID field at end of each field list
@@ -18,6 +18,14 @@ versionString = 'GeMS_Definition.py, version of 6 October 2017'
 # 20 May 2017: MapUnitOverlayPolys and OverlayPolys (new names) changed to conform to v2 draft. MapUnitLabelPoints removed.
 # 6 October 2017: In IsoValueLines definition, changed LocationConfidenceMeters to ValueConfidence
 # 8 October 2017: ValueConfidence and URL added to attribDict[]
+# 29 October 2019:  Changed StationID to StationsID
+# 29 October 2019: Added MapUnitLines, MapUnitPoints to as-needed feature classes
+# 4 April 2020:  Changed NullsOK to NoNulls for some fields in DescriptionOfMapUnits, to conform with documentation
+# 9 April 2020: Changed NullsOK for Notes fields to Optional. Added definition of table LayerList
+# 19 July 2020: Added 'Age' to attribDict
+# 25 Sept 2020: Swapped Symbol and Label in ContactsAndFaults
+# 28 Sept 2020: Removed definitions of CSA feature classes, as this is handled in Create Database and in cross-section projection tools
+# 29 October 2020: Changed NoNulls to NullsOK for ObservedMapUnit in Stations per documentation - ET
 
 # to think about: Maybe change all NoNulls to NullsOK?
 
@@ -36,18 +44,18 @@ startDict = {
                                         ['Label','String','NullsOK',IDLength],
                                         ['Symbol','String','NullsOK',defaultLength],
                                         ['DataSourceID','String','NoNulls',IDLength],
-                                        ['Notes','String','NullsOK',defaultLength]],
+                                        ['Notes','String','Optional',defaultLength]],
 	'ContactsAndFaults':           [['Type','String','NoNulls',defaultLength],
 					['IsConcealed','String','NoNulls',booleanLength],
 					['LocationConfidenceMeters','Single','NoNulls'],
 					['ExistenceConfidence','String','NoNulls',IDLength],
                                         ['IdentityConfidence','String','NoNulls',IDLength],
-                                        ['Symbol','String','NullsOK',defaultLength],
 					['Label','String','NullsOK',IDLength],
+                                        ['Symbol','String','NullsOK',defaultLength],
                                         ['DataSourceID','String','NoNulls',IDLength],
-					['Notes','String','NullsOK',defaultLength]],
+					['Notes','String','Optional',defaultLength]],
              'DescriptionOfMapUnits':  [['MapUnit','String','NullsOK',mapUnitLength],  
-                                        ['Name','String','NullsOK',defaultLength],
+                                        ['Name','String','NoNulls',defaultLength],
 					['FullName','String','NullsOK',defaultLength],
 					['Age','String','NullsOK',defaultLength],
 					['Description','String','NullsOK',memoLength],
@@ -61,8 +69,8 @@ startDict = {
                                         ['GeoMaterial','String','NullsOK',defaultLength],
                                         ['GeoMaterialConfidence','String','NullsOK',defaultLength]],
  		   'DataSources':      [['Source','String','NoNulls',500],
-					['Notes','String','NullsOK',300],
-                                        ['URL','String','NullsOK',300]],
+					['Notes','String','Optional',300],
+                                        ['URL','String','Optional',300]],
                'Glossary':             [['Term','String','NoNulls',defaultLength],
 					['Definition','String','NoNulls',memoLength],
 					['DefinitionSourceID','String','NoNulls',IDLength]],
@@ -76,7 +84,7 @@ startDict = {
 					['MapUnit','String','NoNulls',mapUnitLength],
 					['LocationSourceID','String','NoNulls',IDLength],
 					['DataSourceID','String','NoNulls',IDLength],
-					['Notes','String','NullsOK',defaultLength]],
+					['Notes','String','Optional',defaultLength]],
 		'GenericSamples':      [['Type','String','NoNulls',defaultLength],
 					['Symbol','String','NullsOK',defaultLength],
 					['Label','String','NullsOK',IDLength],
@@ -89,7 +97,7 @@ startDict = {
 					['MapUnit','String','NoNulls',mapUnitLength],
 					['LocationSourceID','String','NoNulls',IDLength],
 					['DataSourceID','String','NoNulls',IDLength],
-					['Notes','String','NullsOK',defaultLength]],
+					['Notes','String','Optional',defaultLength]],
 		'OrientationPoints':   [['Type','String','NoNulls',defaultLength],
                                         ['Azimuth','Single','NoNulls'],
 					['Inclination','Single','NoNulls'],
@@ -103,7 +111,7 @@ startDict = {
 					['MapUnit','String','NoNulls',mapUnitLength],
 					['LocationSourceID','String','NoNulls',IDLength],
 					['OrientationSourceID','String','NoNulls',IDLength],
-					['Notes','String','NullsOK',defaultLength]],
+					['Notes','String','Optional',defaultLength]],
                 'GeochronPoints':      [['Type','String','NoNulls',defaultLength],
 					['FieldSampleID','String','NullsOK',defaultLength],
 					['AlternateSampleID','String','NullsOK',defaultLength],
@@ -120,10 +128,10 @@ startDict = {
 					['StationID','String','NullsOK',IDLength],
 					['LocationSourceID','String','NoNulls',IDLength],
 					['AnalysisSourceID','String','NullsOK',IDLength],
-					['Notes','String','NullsOK',defaultLength]],
+					['Notes','String','Optional',defaultLength]],
 		   'Stations':         [['FieldID','String','NoNulls',IDLength],
                                         ['LocationConfidenceMeters','Single','NoNulls'],
-					['ObservedMapUnit','String','NoNulls',mapUnitLength],
+					['ObservedMapUnit','String','NullsOK',mapUnitLength],
 					['MapUnit','String','NoNulls',mapUnitLength],
 					['Symbol','String','NullsOK',defaultLength],
 					['Label','String','NullsOK',IDLength],
@@ -147,33 +155,52 @@ startDict = {
                                         ['Symbol','String','NullsOK',defaultLength],
 					['Label','String','NullsOK',IDLength],
                                         ['DataSourceID','String','NoNulls',IDLength],
-					['Notes','String','NullsOK',defaultLength]],
+					['Notes','String','Optional',defaultLength]],
 	       'CartographicLines':    [['Type','String','NoNulls',defaultLength],
                                         ['Symbol','String','NullsOK',defaultLength],
 					['Label','String','NullsOK',IDLength],
                                         ['DataSourceID','String','NoNulls',IDLength],
-					['Notes','String','NullsOK',defaultLength]],
+					['Notes','String','Optional',defaultLength]],
 	        'IsoValueLines':       [['Type','String','NoNulls',defaultLength],
                                         ['Value','Single','NoNulls'],
 					['ValueConfidence','Single','NoNulls'],
 					['Symbol','String','NullsOK',defaultLength],
 					['Label','String','NullsOK',IDLength],
                                         ['DataSourceID','String','NoNulls',IDLength],
-					['Notes','String','NullsOK',defaultLength]],
+					['Notes','String','Optional',defaultLength]],
+               'MapUnitLines':         [['MapUnit','String','NoNulls',mapUnitLength],
+                                        ['IsConcealed','String','NoNulls',booleanLength],
+                                        ['LocationConfidenceMeters','Single','NoNulls'],
+					['ExistenceConfidence','String','NoNulls',IDLength],
+                                        ['IdentityConfidence','String','NoNulls',IDLength],
+                                        ['Label','String','NullsOK',IDLength],
+                                        ['Symbol','String','NullsOK',defaultLength],
+                                        ['PlotAtScale','Single','NoNulls'],
+					['DataSourceID','String','NoNulls',IDLength],
+                                        ['Notes','String','Optional',defaultLength]],
+               'MapUnitPoints':        [['MapUnit','String','NoNulls',mapUnitLength],
+                                        ['LocationConfidenceMeters','Single','NoNulls'],
+					['ExistenceConfidence','String','NoNulls',IDLength],
+                                        ['IdentityConfidence','String','NoNulls',IDLength],
+                                        ['Label','String','NullsOK',IDLength],
+                                        ['Symbol','String','NullsOK',defaultLength],
+                                        ['PlotAtScale','Single','NoNulls'],
+					['DataSourceID','String','NoNulls',IDLength],
+                                        ['Notes','String','Optional',defaultLength]],
                  'MapUnitOverlayPolys':[['MapUnit','String','NoNulls',defaultLength],
                                         ['IdentityConfidence','String','NoNulls',IDLength],
                                         ['Label','String','NullsOK',IDLength],
 					['Symbol','String','NullsOK',defaultLength],
                                         ['DataSourceID','String','NoNulls',IDLength],
-                                        ['Notes','String','NullsOK',defaultLength]],
+                                        ['Notes','String','Optional',defaultLength]],
                       'OverlayPolys':  [['Type','String','NoNulls',defaultLength],
                                         ['IdentityConfidence','String','NoNulls',IDLength],
                                         ['Label','String','NullsOK',IDLength],
                                         ['Symbol','String','NullsOK',defaultLength],
 					['DataSourceID','String','NoNulls',IDLength],
-                                        ['Notes','String','NullsOK',defaultLength]],
+                                        ['Notes','String','Optional',defaultLength]],
                'DataSourcePolys':      [['DataSourceID','String','NoNulls',IDLength],
-                                        ['Notes','String','NullsOK',defaultLength]],
+                                        ['Notes','String','Optional',defaultLength]],
              'RepurposedSymbols':      [['FgdcIdentifier','String','NoNulls',defaultLength],
                                         ['OldExplanation','String','NoNulls',defaultLength],
                                         ['NewExplanation','String','NoNulls',defaultLength]],
@@ -186,8 +213,12 @@ startDict = {
                'CMUPoints':            [['Type','String','NoNulls',defaultLength],
 					['Label','String','NullsOK',IDLength],
 					['Symbol','String','NullsOK',defaultLength]],
- 'MiscellaneousMapInformation':        [['MapProperty','String','NoNulls',defaultLength],
-                                        ['MapPropertyValue','String','NoNulls',memoLength]],
+ 'MiscellaneousMapInformation':        [['MapProperty','String','NullsOK',defaultLength],
+                                        ['MapPropertyValue','String','NullsOK',memoLength]],
+               'LayerList':            [['OrderFromTop','Integer','NoNulls'],
+                                        ['FeatureDatasetName','String','NoNulls',defaultLength],
+                                        ['ElevationObject','String','NullsOK',defaultLength],
+                                        ['Description','String','NoNulls',memoLength]],
                'StandardLithology':    [['MapUnit','String','NoNulls',mapUnitLength],
 					['PartType','String','NoNulls',defaultLength],
 					['Lithology','String','NoNulls',defaultLength],
@@ -260,7 +291,7 @@ unrepresentableDomainDict = {
      'PlotAtScale':'Positive real number.',
      'OrientationConfidenceDegrees':'Positive real number. Value of -9, -99, or -999 indicates value is unknown.',
      'LocationConfidenceMeters':'Positive real number. Value of -9, -99, or -999 indicates value is unknown.',
-     'Age':'Positive real number. Zero or negative value may indicate non-numeric (e.g., limiting) age.',
+     'NumericAge':'Positive real number. Zero or negative value may indicate non-numeric (i.e., limiting) age.',
      'AgePlusError':'Positive real number. Value of -9, -99, or -999 indicates value is unknown.',
      'AgeMinusError':'Positive real number. Value of -9, -99, or -999 indicates value is unknown.',
      'Notes':'Unrepresentable domain. Free text. Values of <null> or #null indicate no entry.',
@@ -271,10 +302,10 @@ unrepresentableDomainDict = {
      }
 attribDict = {
     '_ID':'Primary key.',
-    'Age':'May be interpreted (preferred) age calculated from geochronological analysis, not necessarily the date calculated from a single set of measurements.',
+    'Age':'Age of map unit as shown in Description of Map Units. Examples of values are "late Holocene", "Pliocene and Miocene", "Lower Cretaceous".',
     'AgeMinusError':'Negative (younger) age error, measured in AgeUnits. Type of error (RMSE, 1 sigma, 2 sigma, 95% confidence limit) should be stated in Notes field.',
     'AgePlusError':'Positive (older) age error, measured in AgeUnits. Type of error (RMSE, 1 sigma, 2 sigma, 95% confidence limit) should be stated in Notes field.',
-    'AgeUnits':'Units for Age, AgePlusError, AgeMinusError.',
+    'AgeUnits':'Units for NumericAge, AgePlusError, AgeMinusError.',
     'AlternateSampleID':'Museum #, lab #, etc.',
     'AnalysisSourceID':'Source of analysis; foreign key to table DataSources.',
     'AreaFillPatternDescription':'Text description (e.g., "random small red dashes") provided as a convenience for users who must recreate symbolization.',
@@ -310,6 +341,7 @@ attribDict = {
     'Name':'Name of map unit, as shown in boldface in traditional DMU, e.g., "Shnabkaib Member". Identifies unit within its hierarchical context.',
     'NewExplanation':'Explanation of usage of symbol in this map portrayal',
     'Notes':'Additional information specific to a particular feature or table entry.',
+    'NumericAge':'Numeric age of sample, measured in AgeUnits. May be interpreted from one or several analyses; is not necessarily the date calculated from a single set of measurements.',
     'OldExplanation':'Explanatory text from FGDC standard for meaning of symbol',
     'OrientationConfidenceDegrees':'Estimated angular precision of combined azimuth AND inclination measurements, in degrees.',
     'OrientationSourceID':'Source of orientation data; foreign key to table DataSources.',
@@ -332,7 +364,7 @@ entityDict = {
     'CMUText':'Text of the Correlation of Map Units diagram.',
     'ContactsAndFaults':'Contacts between map units, faults that bound map units, and associated dangling faults. Includes concealed faults and contacts, waterlines, snowfield and glacier boundaries, and map boundary.',
     'CorrelationOfMapUnits':'CorrelationOfMapUnits is a feature dataset that encodes the Correlation of Map Units (CMU) diagram found on many geologic maps. Spatial reference frame is arbitrary; units may be page inches.',
-    'CrossSection':'Feature dataset equivalent to a cross section.',
+    'CrossSection':'Feature dataset equivalent to a cross section. Note that spatial reference framework is probably meaningless. Coordinates are within the plane of the section: easting is horizontal distance from the cross-section origin and northing is distance from the vertical datum of the map.',
     'DataSourcePolys':'Polygons that delineate data sources for all parts of the map.',
     'DataSources':'Non-spatial table of sources of all spatial features, sources of some attributes of spatial features, and sources of some attributes of non-spatial table entries.',
     'DescriptionOfMapUnits':'Non-spatial table that captures content of the Description of Map Units (or equivalent List of Map Units and associated pamphlet text) included in a traditional paper geologic map. Has an internal hierarchy expressed by attribute HierarchyKey',
@@ -344,7 +376,9 @@ entityDict = {
     'Glossary':'Non-spatial table that, for certain fields (including all Type fields, Confidence fields, and GeneralLithology), lists the terms that populate these fields, term definitions, and sources for definitions.',
     'IsoValueLines':'Lines that represent structure contours, concentration isopleths, and other lines that share properties of: (A) Having an associated value (e.g., elevation, concentration) that is a real number. (B ) Having a definable uncertainty in their location. (C) Describing an idealized surface that need not be shown as concealed beneath covering map units.',
     'MiscellaneousMapInformation':'Properties of the map report as a whole. May include title, authorship, scale, geologic mapping credit, editing credit, cartography credit, date of approval, local magnetic declination, publication series and number, and base map information.',
+    'MapUnitLines':'Lines that record distribution of map units of narrow, linear extent on the particular map horizon. ',
     'MapUnitPolys':'Polygons that record distribution of map units (including water, snowfields, glaciers, and unmapped area) on the particular map horizon. ',
+    'MapUnitPoints':'Points that record distribution of map units of point-like extent on the particular map horizon. ',
     'MapUnitOverlayPolys':'Polygons that delineate underlying material, overlying material, or some other aspect of earth materials that is described in table DescriptionOfMapUnits, e.g., dike swarm, colluvium. On a map graphic, such polygons are commonly shown by a patterned overprint.', 
     'OrientationPoints':'Point structure data (e.g., bedding attitudes, foliation attitudes, slip vectors measured at a point, etc.), one point per measurement. Multiple measurements at a single station (e.g., bedding and cleavage) should have the same StationID.',
     'OverlayPolys':'Polygons that delineate underlying material, overlying material, or some aspect of earth materials other than the geologic map unit, e.g., dike swarm, alteration zone. On a map graphic, such polygons are commonly shown by a patterned overprint.',
@@ -358,13 +392,8 @@ entityDict = {
 #***************************************************
 tableDict = {}
 
-# build CSA feature class attribute definitions
-startDict['CSAMapUnitPolys'] = startDict['MapUnitPolys']
-startDict['CSAContactsAndFaults'] = startDict['ContactsAndFaults']
-startDict['CSAOrientationPoints'] = startDict['OrientationPoints']
-
 # set feature_ID definitions
-for table in list(startDict.keys()):
+for table in startDict.keys():
 	oldFields = startDict[table]
 	newfields = []
 	for field in oldFields:
@@ -374,7 +403,7 @@ for table in list(startDict.keys()):
 
 # build fieldNullsOKDict
 fieldNullsOKDict = {}
-for table in list(tableDict.keys()):
+for table in tableDict.keys():
     for field in tableDict[table]:
         tableField = table+' '+field[0]
         if field[2] == 'NullsOK':
