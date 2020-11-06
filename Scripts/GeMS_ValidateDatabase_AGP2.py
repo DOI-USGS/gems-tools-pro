@@ -314,7 +314,8 @@ def matchRefs(definedVals, allRefs):
     missing = []
     for i in used:
         ### problem here with values in Unicode. Not sure solution will be generally valid
-        if not i[0].encode("ascii",'xmlcharrefreplace') in definedVals and not i[0] in usedVals:
+        #if not i[0].encode("ascii",'xmlcharrefreplace') in definedVals and not i[0] in usedVals:
+        if not i[0] in definedVals and not i[0] in usedVals:
             missing.append('<span class="value">'+str(i[0])+'</span>, field <span class="field">'+
                            i[1]+'</span>, table <span class="table">'+i[2]+'</span>')
         usedVals.append(i[0])
@@ -562,7 +563,7 @@ def isBadNull(x):
         return False
 
 def fixNull(x):
-    x = x.encode('ascii','xmlcharrefreplace')
+    #x = x.encode('ascii','xmlcharrefreplace')
     if x.lower() == '<null>':
         return '&lt;Null&gt;'
     else:
@@ -709,7 +710,7 @@ def scanTable(table, fds=''):
                     if empty(xx) or isBadNull(xx):
                         missingRequiredValues.append('<span class="table">'+table+'</span>, field <span class="field">'+
                                                      fieldNames[i]+'</span>, ObjectID '+str(row[objIdIndex]))
-
+                                                     
     return mapUnits
 
 def tableToHtml(table, html):
