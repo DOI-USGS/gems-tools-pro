@@ -258,7 +258,7 @@ def format_excel(xlf):
     ws['M1'] = "Author Review"
     ws['M1'].font = Font(bold=True)
     ws['M1'].alignment = Alignment(horizontal='center')
-    ws.merge_cells('M1:P1')
+    ws.merge_cells('M1:Q1')
 
     maxRow = ws.max_row + 1
     
@@ -273,7 +273,7 @@ def format_excel(xlf):
             ws.cell(row=rowNum, column=colNum).fill = yellowFill
             ws.cell(row=rowNum, column=colNum).border = border
             
-    for colNum in range(13, 17):
+    for colNum in range(13, 18):
         for rowNum in range(1, maxRow):
             ws.cell(row=rowNum, column=colNum).fill = orangeFill
             ws.cell(row=rowNum, column=colNum).border = border
@@ -285,7 +285,7 @@ def format_excel(xlf):
             link(ws_cell, ws_cell.value, ws_cell.value)
     
     # re-apply black borders around the header cells
-    for colNum in range(1, 17):
+    for colNum in range(1, 18):
         for rowNum in range(1, 3):
             ws.cell(row=rowNum, column=colNum).border = blackBorder
     
@@ -364,7 +364,7 @@ geolex_db = os.path.join(os.path.dirname(this_py),'..', 'Resources', 'geolex_uni
 d={}
 df = pd.DataFrame(columns=['HierarchyKey', 'MapUnit', 'Name', 'Fullname', 'Age', 'Extent', # DMU Contents
                     'GeolexID', 'Name', 'Usage', 'Age', 'Extent', 'URL',           # Geolex Results
-                    'Extent Match?', 'Usage Match?', 'Remarks', 'References'])              # Author Review
+                    'Extent Match?', 'Usage Match?', 'Age Match?', 'Remarks', 'References'])              # Author Review
                     
 df['HierarchyKey'] = df['HierarchyKey'].astype('object')
 
@@ -494,7 +494,7 @@ for row in dmu_df.itertuples():
                                 glx_url = ''
                        
                             # extend the list with Geolex results
-                            unit_list.extend([glx_id, glx_name, usage_i['usage'], glx_age, glx_ext, glx_url, ext_str, '', '', ''])
+                            unit_list.extend([glx_id, glx_name, usage_i['usage'], glx_age, glx_ext, glx_url, ext_str, '', '', '', ''])
                             
                             # add list to dataframe
                             unit_series = pd.Series(unit_list, index = df.columns)
@@ -505,7 +505,7 @@ for row in dmu_df.itertuples():
                     
         # there is no match
         else:
-            nomatch = unit_list.extend(['', '', '', '', '', '', 'no', '', '', ''])
+            nomatch = unit_list.extend(['', '', '', '', '', '', 'no', '', '', '', ''])
             
             # add list to dataframe
             unit_series = pd.Series(unit_list, index = df.columns)
