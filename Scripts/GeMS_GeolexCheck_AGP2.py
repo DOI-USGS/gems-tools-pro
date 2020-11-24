@@ -34,8 +34,7 @@ from openpyxl.styles.borders import Border, Side
 from openpyxl.styles import Font, PatternFill, Alignment
 import tempfile
 
-
-versionString = "GeMS_GeolexCheck_AGP2.py, 10/20/2020"
+versionString = "GeMS_GeolexCheck_AGP2.py, 11/23/2020"
 
 # initialize empty list to collect usage matches in order to avoid 
 # displaying redundant matches.
