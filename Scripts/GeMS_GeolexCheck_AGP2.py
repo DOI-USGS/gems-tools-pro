@@ -289,8 +289,8 @@ def format_excel(xlf):
             ws.cell(row=rowNum, column=colNum).border = blackBorder
     
     # adjust the width of the cells
-    for i in list(string.ascii_uppercase[0:15]):
-        ws.column_dimensions[i].width = 12
+    for i in list(string.ascii_uppercase[0:16]):
+        ws.column_dimensions[i].width = 15
         
     # materialized paths often get imported to Excel as dates.
     # try to ensure HierarchyKey as text, not date
