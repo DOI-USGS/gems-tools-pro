@@ -112,8 +112,8 @@ def parse_age(age_str):
 # API 
 def units_query(name):
     """Prepare and send the GET request"""
-    units_api = r"https://ngmdb-dev.usgs.gov/connect/apiv1/geolex/units/?"
-    #units_api = r"https://ngmdb-dev.usgs.gov/db/apiv1/geolex/units/?"
+    #units_api = r"https://ngmdb-dev.usgs.gov/connect/apiv1/geolex/units/?"
+    units_api = r"https://ngmdb.usgs.gov/connect/apiv1/geolex/units/?"
     params = {'units_in': name}
     response = requests.get(units_api, params)  #.text
     
