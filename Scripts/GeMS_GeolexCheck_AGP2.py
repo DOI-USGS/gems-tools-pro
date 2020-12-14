@@ -34,7 +34,7 @@ from openpyxl.styles.borders import Border, Side
 from openpyxl.styles import Font, PatternFill, Alignment
 import tempfile
 
-versionString = "GeMS_GeolexCheck_AGP2.py, 11/23/2020"
+versionString = "GeMS_GeolexCheck_AGP2.py, 12/14/2020"
 
 # initialize empty list to collect usage matches in order to avoid 
 # displaying redundant matches.
@@ -112,7 +112,6 @@ def parse_age(age_str):
 # API 
 def units_query(name):
     """Prepare and send the GET request"""
-    #units_api = r"https://ngmdb-dev.usgs.gov/connect/apiv1/geolex/units/?"
     units_api = r"https://ngmdb.usgs.gov/connect/apiv1/geolex/units/?"
     params = {'units_in': name}
     response = requests.get(units_api, params)  #.text
