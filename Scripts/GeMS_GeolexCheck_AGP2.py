@@ -16,7 +16,7 @@ Enclose any arguments with spaces within double-quotes.
 # INSTRUCTIONS FOR PYINSTALLER
 # 1. comment out arcpy
 # 2. find/replace arcpy.AddMessage with print
-# 3. use conda environment names-check
+# 3. activate environment that has only python, requests, pandas, and openpyxl
 # 4. pyinstaller –F GeMS_GeolexCheck_AGP2.py -n GeMS_GeolexCheck
 # 5. copy \dist\GeMS_GeolexCheck.exe to \Resources of GeMS Toolbox folder
 #     copy /y C:\_AAA\gems\gitspace\exe\dist\GeMS_GeolexCheck.exe C:\_AAA\gems\gitspace\gems-tools-arcmap\Resources\GeMS_GeolexCheck.exe
@@ -34,7 +34,7 @@ from openpyxl.styles.borders import Border, Side
 from openpyxl.styles import Font, PatternFill, Alignment
 import tempfile
 
-versionString = "GeMS_GeolexCheck_AGP2.py, 12/14/2020"
+versionString = "GeMS_GeolexCheck_AGP2.py, 12/17/2020"
 
 # initialize empty list to collect usage matches in order to avoid 
 # displaying redundant matches.
