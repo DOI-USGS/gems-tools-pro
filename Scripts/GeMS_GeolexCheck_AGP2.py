@@ -162,7 +162,7 @@ def frame_it(d_path, ext_format):
     if ext_format == 'gdb':
         # Have to look for case where this is being run from the EXE
         # Pyinstaller adds frozen flag to sys to figure this out
-        if getattr(sys, 'frozen', True):
+        if getattr(sys, 'frozen', False):
             try:
                 # in this case, arcpy is not installed. Try using ogr2ogr with the off-chance
                 # that it is installed and in the PATH
@@ -327,6 +327,12 @@ elif os.path.splitext(dmu_home)[1] == '.xlsx':
     dmu_home = os.path.dirname(dmu_home)
     dmu_df = frame_it(dmu, 'xls')
 
+elif os.path.splitext(dmu_home)[1] == '.xls':
+    arcpy.AddMessage("XLS format files cannot be read by the tool\n" +
+    "Please choose an ESRI file geodatabase table, an XLSX Excel spreadsheet,\n" +
+    "a comma-delimited text file, or a tab-delimited text file")
+    raise SystemError
+
 elif os.path.splitext(dmu)[1] == '.csv':
     out_name = os.path.basename(dmu)[:-4]
     dmu_df = frame_it(dmu, 'csv')
@@ -337,7 +343,7 @@ elif os.path.splitext(dmu)[1] == '.txt':
 
 else:
     arcpy.AddMessage("The DMU file cannot be read\n" +
-    "Choose an ESRI file geodatabase table, an Excel spreadsheet,\n" +
+    "Choose an ESRI file geodatabase table, an XLSX Excel spreadsheet,\n" +
     "a comma-delimited text file, or a tab-delimited text file")
     
 # collect and clean the extent of the DMU. 
