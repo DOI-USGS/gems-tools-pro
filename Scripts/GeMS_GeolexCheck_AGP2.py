@@ -199,7 +199,7 @@ def frame_it(d_path, ext_format):
         dmu_df = pd.read_csv(d_path, usecols=lambda x: x.lower() in flds, dtype=types, keep_default_na=False)
     
     else:
-        dmu_df = pd.read_table(d_path, usecols=lambda x: x.lower() in flds, dtype=type, keep_default_na=False)
+        dmu_df = pd.read_table(d_path, usecols=lambda x: x.lower() in flds, dtype=types, keep_default_na=False)
     
     # smash all column names to lower case because we can't be sure of the case
     # in the input dmu
