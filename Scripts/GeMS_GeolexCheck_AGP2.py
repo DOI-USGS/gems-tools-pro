@@ -13,13 +13,13 @@ Arguments:
 Enclose any arguments with spaces within double-quotes.
 """
 
-# INSTRUCTIONS FOR PYINSTALLER
-# 1. comment out arcpy
-# 2. find/replace arcpy.AddMessage with print
-# 3. activate environment that has only python, requests, pandas, and openpyxl
-# 4. pyinstaller –F GeMS_GeolexCheck_AGP2.py -n GeMS_GeolexCheck
-# 5. copy \dist\GeMS_GeolexCheck.exe to \Resources of GeMS Toolbox folder
-#     copy /y C:\_AAA\gems\gitspace\exe\dist\GeMS_GeolexCheck.exe C:\_AAA\gems\gitspace\gems-tools-arcmap\Resources\GeMS_GeolexCheck.exe
+# INSTRUCTIONS FOR PYINSTALLER 
+# (notes to myself for my specific setup to build the exe file necessary for the ArcMap version of this tool - ET)
+# 1. copy this file to \exe
+# 2. be sure gems-tools-arcmap is currently pointing to the right environment - as of 1/12/21 that is names-check
+# 3. comment out arcpy
+# 4. find/replace arcpy.AddMessage with print
+# 5. run makeexe.bat
 
 import os, sys
 import string
