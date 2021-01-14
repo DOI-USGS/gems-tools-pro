@@ -410,5 +410,3 @@ for table in tableDict.keys():
             fieldNullsOKDict[tableField] = True
         else:
             fieldNullsOKDict[tableField] = False
-        
-                
