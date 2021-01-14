@@ -1,0 +1,44 @@
+# Example keyvalue file for use with ncgmp09_AttributeByKeyValues.py
+#
+# For partial translation DIG to NCGMP09, 
+# with values appropriate for 1:24K scale geologic mapping
+
+ContactsAndFaults
+LTYPE	|Type	|LocationConfidenceMeters|ExistenceConfidence| IdentityConfidence
+contact	|contact|20	|certain| certain
+contact dashed|contact|100|certain|certain
+fault|fault|20|certain|certain
+fault dashed|fault|100|certain|certain
+fossil shoreline|fossil shoreline|50|certain|certain
+scratch boundary|contact|200|certain|certain
+waterline|waterline|15|certain|certain
+
+OrientationPoints
+STYPE|Type|OrientationConfidenceDegrees|LocationConfidenceMeters
+bedding	|bedding			|5	|20
+approx bedding	 |bedding 		|30 	|20
+upright bedding	|upright bedding 	|5 	|20
+approx upright bedding	|upright bedding|30	|20
+
+#  COMMENTS
+#
+#  File must be in form
+#
+#    FeatureClassName
+#    IndependentField | DependentField1 | DependentField2 | ...
+#    IndependentFieldVal | DependentField1Val | DependendentField2Val | ...
+#    ...
+#    FeatureClassName
+#    ...
+#
+# Empty lines are OK.
+# Lines that begin with # symbol are comments and are disregarded.
+# Don't put comments at the end of a line.
+# Within a line, values must be separated by the | character.
+# Whitespace (spaces, tabs) between values and delimiters is OK.
+#
+# You may find it useful to make, or edit, this file in a spreadsheet
+# and then save it in csv format, specifying the | character as the delimiter.
+#
+#  Ralph Haugerud
+#  rhaugerud@usgs.gov
