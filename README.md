@@ -7,10 +7,6 @@ If you are looking for tools that work in ArcMap using Python 2.7, go to https:/
 
 See below for download and installation. See the [Wiki](https://github.com/usgs/gems-tools-pro/wiki) tab (above) for documentation of the tools and instructions on the use of the GeMS schema. For information on the GeMS database schema, go to https://ngmdb.usgs.gov/Info/standards/GeMS/.
 
-This software is preliminary or provisional and is subject to revision. It is being provided to meet the need for timely best science. The software has not received final approval by the U.S. Geological Survey (USGS). No warranty, expressed or implied, is made by the USGS or the U.S. Government as to the functionality of the software and related material nor shall the fact of release constitute any such warranty. The software is provided on the condition that neither the USGS nor the U.S. Government shall be held liable for any damages resulting from the authorized or unauthorized use of the software.
-
-Any use of trade, firm, or product names is for descriptive purposes only and does not imply endorsement by the U.S. Government.
-
 ## Download
 
 To install the GeMS Tools toolbox, click on the "Code" button above and choose "Download zip". Save and unzip the contents to any folder.
@@ -40,3 +36,8 @@ Suggestions for improvements and edited files submitted by email will be conside
 * "DMU to .docx" requires the python-docx third party module. Install by opening the ArcGIS Pro Python Command Prompt so that you are starting in the arcgispro-py conda environment and type
 
 `conda install -c conda-forge python-docx`
+
+## Disclaimer
+This software is preliminary or provisional and is subject to revision. It is being provided to meet the need for timely best science. The software has not received final approval by the U.S. Geological Survey (USGS). No warranty, expressed or implied, is made by the USGS or the U.S. Government as to the functionality of the software and related material nor shall the fact of release constitute any such warranty. The software is provided on the condition that neither the USGS nor the U.S. Government shall be held liable for any damages resulting from the authorized or unauthorized use of the software.
+
+Any use of trade, firm, or product names is for descriptive purposes only and does not imply endorsement by the U.S. Government.
