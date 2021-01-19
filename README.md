@@ -1,5 +1,5 @@
 # GeMS Tools for ArcGIS Pro
-![GitHub tag (latest SemVer)](https://img.shields.io/github/v/tag/usgs/gems-tools-pro) [![Gitter chat](https://badges.gitter.im/gitterHQ/gitter.png)](https://gitter.im/gems-schema/community)
+![GitHub tag (latest SemVer)](https://img.shields.io/github/v/tag/usgs/gems-tools-pro) [![Gitter chat](https://badges.gitter.im/gitterHQ/gitter.png)](https://gitter.im/gems-schema/community) [![Wiki](https://img.shields.io/badge/wiki-%40%20gems--resources-brightgreen)](https://github.com/usgs/gems-resources/wiki)
 
 This repository contains an ArcGIS Pro toolbox and associated Python 3 scripts and resources for creating, manipulating, and validating GeMS-style geologic map databases, as well as documentation. Note that some files previously distributed in the Resources folder have been moved to a separate repository called [gems-resources.](https://github.com/usgs/gems-resources)
 
@@ -19,21 +19,17 @@ Open ArcGIS Pro and go to either the Contents or Catalog pane. Under Project, ri
 
 The documentation for these tools may not be complete or may be poorly formatted for display in either the ArcGIS Pro help popup (hover your cursor over the ? icon when looking at the tool parameter form) or metadata view (right-click on the tool from the Catalog pane and choose View Metadata), but, for the most part, the Python 3 versions produce the same results as the older Python 2.7 versions. Also the Docs subdirectory of this package contains documentation in .docx and .pdf format.
 
------------------------------------------------------------------
-
-Getting help: If, when using a tool, it fails to run and produces an error message, please start a new issue at this repository (see the Issues tab above). Provide a screenshot of the error message if you can.
+## Getting help
+If, when using a tool, it fails to run and produces an error message, please start a new issue at this repository (see the Issues tab above). Provide a screenshot of the error message if you can.
 
 If you have a question about how to build or attribute a GeMS-compliant database or the schema in general, please visit the [GeMS Gitter](https://gitter.im/gems-schema/community#) chat room. If you already have a GitHub account, you can sign in there with those credentials.
 
------------------------------------------------------------------
-
-Collaboration: Suggestions for improvements and edited files submitted by email will be considered, but you are strongly encouraged to use GitHub to fork the project, create a new branch (e.g., "MyFixToProblemXXX"), make changes to this branch, and submit a pull request to have your changes merged with the master branch. Excellent guides for various aspects of the git workflow can be found here:
+## Collaborate
+Suggestions for improvements and edited files submitted by email will be considered, but you are strongly encouraged to use GitHub to fork the project, create a new branch (e.g., "MyFixToProblemXXX"), make changes to this branch, and submit a pull request to have your changes merged with the master branch. Excellent guides for various aspects of the git workflow can be found here:
 
 [https://guides.github.com/](https://guides.github.com/)
 
------------------------------------------------------------------
-
-Known issues with these scripts include:
+## Known issues
 
 * "Project Map Data to Cross Section" does not always produce the correct apparent dip direction. The dip magnitude is correct, but it may be in the wrong direction.
 
