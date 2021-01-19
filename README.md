@@ -1,5 +1,5 @@
 # GeMS Tools for ArcGIS Pro
-![GitHub tag (latest SemVer)](https://img.shields.io/github/v/tag/usgs/gems-tools-pro)  [![Wiki](https://img.shields.io/badge/wiki-%40%20gems--resources-brightgreen)](https://github.com/usgs/gems-resources/wiki) [![Gitter chat](https://badges.gitter.im/gitterHQ/gitter.png)](https://gitter.im/gems-schema/community)
+![GitHub tag (latest SemVer)](https://img.shields.io/github/v/tag/usgs/gems-tools-pro)  [![Wiki](https://img.shields.io/badge/wiki-%40%20gems--resources-blue)](https://github.com/usgs/gems-resources/wiki) [![Gitter chat](https://badges.gitter.im/gitterHQ/gitter.png)](https://gitter.im/gems-schema/community) [![GeMS on USGS](https://img.shields.io/badge/GeMS-USGS-blue)](https://ngmdb.usgs.gov/Info/standards/GeMS/)
 
 This repository contains an ArcGIS Pro toolbox and associated Python 3 scripts and resources for creating, manipulating, and validating [GeMS](https://ngmdb.usgs.gov/Info/standards/GeMS/)-style geologic map databases, as well as documentation. Note that some files previously distributed in the Resources folder have been moved to a separate repository called [gems-resources.](https://github.com/usgs/gems-resources)
 
