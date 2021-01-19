@@ -1,6 +1,7 @@
 # GeMS Tools for ArcGIS Pro
+![GitHub tag (latest SemVer)](https://img.shields.io/github/v/tag/usgs/gems-tools-pro) [![Gitter chat](https://badges.gitter.im/gitterHQ/gitter.png)](https://gitter.im/gems-schema/community)
 
-[![Gitter chat](https://badges.gitter.im/gitterHQ/gitter.png)](https://gitter.im/gems-schema/community)
+
 
 This repository contains an ArcGIS Pro toolbox and associated Python 3 scripts and resources for creating, manipulating, and validating GeMS-style geologic map databases, as well as documentation.
 
@@ -14,11 +15,11 @@ Any use of trade, firm, or product names is for descriptive purposes only and do
 
 -----------------------------------------------------------------
 
-To install the GeMS Tools toolbox, click on the "Code" button above and choose "Download zip". Save and unzip the contents to any folder. 
+To install the GeMS Tools toolbox, click on the "Code" button above and choose "Download zip". Save and unzip the contents to any folder.
 
 Open ArcGIS Pro and go to either the Contents or Catalog pane. Under Project, right-click on Folders to add a folder connection. Navigate to the toolbox folder. Note that this only saves the folder connection with the current project file. If you want to have the toolbox handy for any project that you open up, go to the Catalog pane, select the Favorites tab, click Add Item, choose Add Folder, and navigate to the folder.
 
-The documentation for these tools may not be complete or may be poorly formatted for display in either the ArcGIS Pro help popup (hover your cursor over the ? icon when looking at the tool parameter form) or metadata view (right-click on the tool from the Catalog pane and choose View Metadata), but, for the most part, the Python 3 versions produce the same results as the older Python 2.7 versions. Also the Docs subdirectory of this package contains documentation in .docx and .pdf format. 
+The documentation for these tools may not be complete or may be poorly formatted for display in either the ArcGIS Pro help popup (hover your cursor over the ? icon when looking at the tool parameter form) or metadata view (right-click on the tool from the Catalog pane and choose View Metadata), but, for the most part, the Python 3 versions produce the same results as the older Python 2.7 versions. Also the Docs subdirectory of this package contains documentation in .docx and .pdf format.
 
 -----------------------------------------------------------------
 
@@ -45,4 +46,3 @@ Known issues with these scripts include:
 * "DMU to .docx" requires the python-docx third party module. Install by opening the ArcGIS Pro Python Command Prompt so that you are starting in the arcgispro-py conda environment and type
 
 `conda install -c conda-forge python-docx`
-
