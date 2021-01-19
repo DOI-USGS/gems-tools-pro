@@ -3,7 +3,7 @@
 
 
 
-This repository contains an ArcGIS Pro toolbox and associated Python 3 scripts and resources for creating, manipulating, and validating GeMS-style geologic map databases, as well as documentation.
+This repository contains an ArcGIS Pro toolbox and associated Python 3 scripts and resources for creating, manipulating, and validating GeMS-style geologic map databases, as well as documentation. Note that some files previously distributed in the Resources folder have been moved to a separate repository called [gems-resources.](https://github.com/usgs/gems-resources)
 
 If you are looking for tools that work in ArcMap using Python 2.7, go to https://github.com/usgs/gems-tools-arcmap
 
