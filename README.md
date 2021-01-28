@@ -1,12 +1,12 @@
-# GeMS Tools for ArcGIS Pro
-
 [![GitHub tag (latest SemVer)](https://img.shields.io/github/v/release/usgs/gems-tools-pro)](https://github.com/usgs/gems-tools-pro/releases/latest) [![Wiki](https://img.shields.io/badge/wiki-%40%20gems--resources-blue)](https://github.com/usgs/gems-resources/wiki) [![Gitter chat](https://badges.gitter.im/gitterHQ/gitter.png)](https://gitter.im/gems-schema/community) [![GeMS on USGS](https://img.shields.io/badge/GeMS-USGS-brightgreen)](https://ngmdb.usgs.gov/Info/standards/GeMS/) [![pro](https://img.shields.io/badge/gems--tools-arcmap-orange)](https://github.com/usgs/gems-tools-arcmap)
 
+<img width="250" align="right" src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/1c/USGS_logo_green.svg/500px-USGS_logo_green.svg.png"/>
+
+GeMS Tools for ArcGIS Pro
+========================
 This repository contains an ArcGIS toolbox of Python 3 geoprocessing tools for creating, manipulating, and validating [GeMS](https://ngmdb.usgs.gov/Info/standards/GeMS/)-style geologic map databases for use in ArcGIS Pro. Note that some files previously distributed in the Resources folder have been moved to a separate repository called [gems-resources.](https://github.com/usgs/gems-resources)
 
 If you are looking for tools that work in ArcMap using Python 2.7, go to [gems-tools-arcmap](https://github.com/usgs/gems-tools-arcmap)
-
-GeMS Tools was originally written by in Python 2.7 by Ralph Haugerud, Evan Thoms, and others and ported to Python 3 by Evan Thoms.
 
 ## Installation
 
@@ -40,9 +40,12 @@ Suggestions for improvements and edited files submitted by [email](gems@usgs.gov
 
 * "MapOutline" stumbles over some choices of datum.
 
-* "Purge Metdata" and "FDGC CSDGM2 Metadata" have been removed from the ArcGIS Pro version of the toolbox. With ArcGIS Pro, FGDC CSDGM metadata is exported with no Spatial Reference Information node ([BUG-000124294](https://community.esri.com/t5/arcgis-pro-questions/fgdc-spatial-reference-info-missing-when-using-export-metadata/m-p/681417)). Until the bug is addressed or we find a workaround, only the ArcMap versions of these tools will be available.
+* All metadata tools have been removed from the ArcGIS Pro version of the toolbox. With ArcGIS Pro, FGDC CSDGM metadata is exported with no Spatial Reference Information node ([BUG-000124294](https://community.esri.com/t5/arcgis-pro-questions/fgdc-spatial-reference-info-missing-when-using-export-metadata/m-p/681417)). Until the bug is addressed or we find a workaround, only the ArcMap versions of these tools will be available.
 
 * "DMU to .docx" requires the [python-docx](https://python-docx.readthedocs.io/en/latest/) third party package. **Do not try to install this package into your default arcgispro-py3 python environment**. Instead, install it into a [clone](https://pro.arcgis.com/en/pro-app/latest/arcpy/get-started/work-with-python-environments.htm#ESRI_SECTION1_175473E6EB0D46E0B195996EAE768C1D). Remember to activate this environment before running the tool.
+
+## Acknowledgements
+GeMS Tools was originally written by in Python 2.7 by Ralph Haugerud, Evan Thoms, and others and ported to Python 3 by Evan Thoms.
 
 ## Disclaimer
 This software is preliminary or provisional and is subject to revision. It is being provided to meet the need for timely best science. The software has not received final approval by the U.S. Geological Survey (USGS). No warranty, expressed or implied, is made by the USGS or the U.S. Government as to the functionality of the software and related material nor shall the fact of release constitute any such warranty. The software is provided on the condition that neither the USGS nor the U.S. Government shall be held liable for any damages resulting from the authorized or unauthorized use of the software.
