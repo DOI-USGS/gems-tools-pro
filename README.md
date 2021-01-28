@@ -1,9 +1,9 @@
-[![GitHub tag (latest SemVer)](https://img.shields.io/github/v/release/usgs/gems-tools-pro)](https://github.com/usgs/gems-tools-pro/releases/latest) [![Wiki](https://img.shields.io/badge/wiki-%40%20gems--resources-blue)](https://github.com/usgs/gems-resources/wiki) [![Gitter chat](https://badges.gitter.im/gitterHQ/gitter.png)](https://gitter.im/gems-schema/community) [![GeMS on USGS](https://img.shields.io/badge/GeMS-USGS-brightgreen)](https://ngmdb.usgs.gov/Info/standards/GeMS/) [![pro](https://img.shields.io/badge/gems--tools-arcmap-orange)](https://github.com/usgs/gems-tools-arcmap)
+[![GitHub tag (latest SemVer)](https://img.shields.io/github/v/release/usgs/gems-tools-pro)](https://github.com/usgs/gems-tools-pro/releases/latest) [![resources](https://img.shields.io/badge/gems-resources-orange)](https://github.com/usgs/gems-resources) [![Wiki](https://img.shields.io/badge/gems-wiki-orange)](https://github.com/usgs/gems-resources/wiki) [![pro](https://img.shields.io/badge/gems--tools-arcmap-orange)](https://github.com/usgs/gems-tools-arcmap) [![Gitter chat](https://badges.gitter.im/gitterHQ/gitter.png)](https://gitter.im/gems-schema/community) [![gems on USGS](https://img.shields.io/badge/gems-%40%20USGS-brightgreen)](https://ngmdb.usgs.gov/Info/standards/GeMS/) 
 
 <img width="250" align="right" src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/1c/USGS_logo_green.svg/500px-USGS_logo_green.svg.png"/>
 
-GeMS Tools for ArcGIS Pro
-========================
+# GeMS Tools for ArcGIS Pro
+
 This repository contains an ArcGIS toolbox of Python 3 geoprocessing tools for creating, manipulating, and validating [GeMS](https://ngmdb.usgs.gov/Info/standards/GeMS/)-style geologic map databases for use in ArcGIS Pro. Note that some files previously distributed in the Resources folder have been moved to a separate repository called [gems-resources.](https://github.com/usgs/gems-resources)
 
 If you are looking for tools that work in ArcMap using Python 2.7, go to [gems-tools-arcmap](https://github.com/usgs/gems-tools-arcmap)
