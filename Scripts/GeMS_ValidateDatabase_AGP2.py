@@ -48,7 +48,7 @@ requiredTables = ['DataSources','DescriptionOfMapUnits','Glossary','GeoMaterialD
 requiredFeatureDataSets = ['GeologicMap']
 requiredGeologicMapFeatureClasses = ['ContactsAndFaults','MapUnitPolys']
 
-schemaExtensions = ['<i>Some of the extensions to the GeMS schema identified here may be necessary to capture geologic content, and are entirely appropriate. Others may be intermediate datasets, fields, or files that should be deleted before distribution of the database.</i><br>']
+schemaExtensions = ['<i>Some of the extensions to the GeMS schema identified here may be necessary to capture geologic content and are entirely appropriate. <b>Please document these extensions in metadata for the database, any accompanying README file, and (if applicable) any transmittal letter that accompanies the dataset.</b> Other extensions may be intermediate datasets, fields, or files that should be deleted before distribution of the database.</i><br>']
 schemaErrorsMissingElements = ['Missing required elements']
 schemaErrorsMissingFields = ['Missing or mis-defined fields']
 
@@ -86,7 +86,7 @@ topologyErrors = ['Feature datasets with bad basic topology']
 topologyErrorNote = """
 <i>Note that the map boundary commonly gives an unavoidable "Must Not Have Gaps" line error.
 Other errors should be fixed. Level 2 errors are also Level 3 errors. Errors are
-identified in feature classes within XXX-ComplianceErrors.gdb</i><br><br>
+identified in feature classes within XXX-Validation.gdb</i><br><br>
 """
 
 zeroLengthStrings = ['Zero-length, whitespace-only, or "&ltNull&gt" text values that probably should be &lt;Null&gt;']
@@ -247,12 +247,12 @@ def checkTopology(workdir,inGdb,outGdb,fd,MUP,CAF,level=2):
     if not arcpy.Exists(outFd):
         arcpy.CreateFeatureDataset_management(outGdb, fd, inGdb+'/'+fd)
     # delete any existing topology, CAF, MUP and copy MUP and CAF to errors fd
-    ##addMsgAndPrint('Got to here #1')
+
     outCaf = outFd+'/'+CAF
     outMup = outFd+'/'+MUP
     outTop = outFd+'/'+fd+'_topology'
     for i in outTop,outMup,outCaf:
-        ##addMsgAndPrint('got to here #2 '+i)
+
         testAndDelete(i)
     arcpy.Copy_management(inGdb+'/'+fd+'/'+MUP,outMup)
     arcpy.Copy_management(inGdb+'/'+fd+'/'+CAF,outCaf)
@@ -312,6 +312,7 @@ def matchRefs(definedVals, allRefs):
     usedVals = []
     unused = []
     missing = []
+    plainUnused = []                    
     for i in used:
         ### problem here with values in Unicode. Not sure solution will be generally valid
         #if not i[0].encode("ascii",'xmlcharrefreplace') in definedVals and not i[0] in usedVals:
@@ -323,8 +324,9 @@ def matchRefs(definedVals, allRefs):
     for i in definedVals:
         if not i in usedVals:
             unused.append('<span class="value">'+str(i)+'</span>')
+            plainUnused.append(i)                                 
     unused.sort()
-    return unused, missing
+    return unused, missing, plainUnused
 
 def getDuplicateIDs(all_IDs):
     addMsgAndPrint('Getting duplicate _ID values')
@@ -499,11 +501,29 @@ def checkForLockFiles(inGdb):
     os.chdir(oldDir)
     return
 
-def checkFieldDefinitions(table):
+def checkFieldDefinitions(def_table, compare_table=None):
+    """Compares the fields in a compare_table to those in a controlled def_table
+       There are two arguments, one optional, to catch the case where, for example
+       we want to compare the fields in CSAMapUnitPolys with MapUnitPolys. 
+       tableDict will not have the key 'CSAMapUnitPolys'. The key MapUnitPolys is derived in 
+       def ScanTable from CSAMapUnitPolys as the table to which it should be compared.
+       If the compare_table IS the name of a table in the GeMS definition; it doesn't need to be derived,
+       it does not need to be supplied. 
+    """                                                                                
+    
     # build dictionary of required fields 
     requiredFields = {}
     optionalFields = {}
     requiredFieldDefs = tableDict[table]
+    if compare_table:
+        # update the definition of the _ID field to include a 'CSX' prefix
+        prefix = compare_table[:3]
+        id_item = [n for n in requiredFieldDefs if n[0] == def_table + '_ID']
+        new_id = prefix + id_item[0][0]
+        i = requiredFieldDefs.index(id_item[0])
+        requiredFieldDefs[i][0] = new_id
+    else:
+        compare_table = def_table
     for fieldDef in requiredFieldDefs:
         if fieldDef[2] != 'Optional':
             requiredFields[fieldDef[0]] = fieldDef
@@ -512,27 +532,27 @@ def checkFieldDefinitions(table):
     # build dictionary of existing fields
     try:
         existingFields = {}
-        fields = arcpy.ListFields(table)
+        fields = arcpy.ListFields(compare_table)
         for field in fields:
           existingFields[field.name] = field
         # now check to see what is excess / missing
         for field in requiredFields.keys():
           if field not in existingFields:
-            schemaErrorsMissingFields.append('<span class="table">'+table+
+            schemaErrorsMissingFields.append('<span class="table">'+compare_table+
                                              '</span>, field <span class="field">'+field+'</span> is missing')
         for field in existingFields.keys():
             if not (field.lower() in lcStandardFields) and not (field in requiredFields.keys()) and not (field in optionalFields.keys()):
-                schemaExtensions.append('<span class="table">'+table+'</span>, field <span class="field">'+field+'</span>')
+                schemaExtensions.append('<span class="table">'+compare_table+'</span>, field <span class="field">'+field+'</span>')
             # check field definition
             fType = existingFields[field].type
             if field in requiredFields.keys() and fType != requiredFields[field][1]:
-                schemaErrorsMissingFields.append('<span class="table">'+table+'</span>, field <span class="field">'+
+                schemaErrorsMissingFields.append('<span class="table">'+compare_table+'</span>, field <span class="field">'+
                                                  field+'</span>, type should be '+requiredFields[field][1])
             if field in optionalFields.keys() and fType != optionalFields[field][1]:
-                schemaErrorsMissingFields.append('<span class="table">'+table+'</span>, field <span class="field">'+
+                schemaErrorsMissingFields.append('<span class="table">'+compare_table+'</span>, field <span class="field">'+
                                                  field+'</span>, type should be '+optionalFields[field][1])
     except:
-        schemaErrorsMissingFields.append('<span class="table">'+table+
+        schemaErrorsMissingFields.append('<span class="table">'+compare_table+
                                      '</span> could not get field list. Fields not checked.')
 
 def notEmpty(x):
@@ -569,7 +589,9 @@ def fixNull(x):
     else:
         return x
 
-def scanTable(table, fds=''):
+def scanTable(table, fds=None):
+    if fds is None:
+        fds = ''
     addMsgAndPrint('  scanning '+table)
     dsc = arcpy.Describe(table)
 ### check table and field definition against GeMS_Definitions
@@ -582,7 +604,7 @@ def scanTable(table, fds=''):
     elif fds[:12] == 'CrossSection' and table[:3] == 'CS'+fds[12] and tableDict.has_key(table[3:]):
         isExtension = False
         fieldDefs = tableDict[table[3:]]
-        checkFieldDefinitions(table[3:])
+        checkFieldDefinitions(table[3:], table)
 
     else:  # is an extension
         isExtension = True
@@ -653,7 +675,7 @@ def scanTable(table, fds=''):
 ### open search cursor and run through rows
     with arcpy.da.SearchCursor(table, fieldNames) as cursor:
         for row in cursor:
-            if hasHKey:
+            if hasHKey and row[hKeyIndex] != None:
                 allDMUHKeyValues.append(row[hKeyIndex])
             if hasTermField:
                 xx = row[termFieldIndex]
@@ -793,6 +815,17 @@ def checkGeoMaterialDict(inGdb):
     else:
         addMsgAndPrint('Table '+gmd+' is missing.')
     return
+def deleteExtraRows(table,field,vals):
+    # deleteExtraRows('Glossary','Term',unused)
+    if len(vals) == 0:
+        return
+    addMsgAndPrint('    removing extra rows from '+table)
+    with arcpy.da.UpdateCursor(table, [field]) as cursor:
+        for row in cursor:
+            if row[0] in vals:
+                addMsgAndPrint('      '+row[0])
+                cursor.deleteRow()
+    return
 
 ##############start main##################
 ##get inputs
@@ -802,7 +835,8 @@ if sys.argv[2] != '#':
 else:
     workdir = os.path.dirname(inGdb)
 refreshGeoMaterialDict = sys.argv[3]
-skipTopology = sys.argv[4]                          
+skipTopology = sys.argv[4]
+deleteExtraGlossaryDataSources = sys.argv[5]
 
 refgmd = os.path.join(os.path.dirname(sys.argv[0]), '..', 'Resources', 'GeMS_lib.gdb', 'GeoMaterialDict')
 mp_path = os.path.join(os.path.dirname(sys.argv[0]), '..', 'Resources', 'mp.exe')
@@ -821,12 +855,25 @@ except:
 else:
     # write starting messages
     addMsgAndPrint(versionString)
+
+# having trouble getting this to work in Python 3, punting for now, 1/27/21
+#    if editSessionActive(inGdb):
+#        arcpy.AddWarning ("\nDatabase is being edited. Results may be incorrect if there are unsaved edits\n")
     if refreshGeoMaterialDict == 'true':
         addMsgAndPrint('Refreshing GeoMaterialDict')
         gmd = inGdb+'/GeoMaterialDict'
         testAndDelete(gmd)
-        arcpy.Copy_management(refgmd,gmd)
-        
+        arcpy.management.Copy(refgmd,gmd)
+        addMsgAndPrint('Replacing GeoMaterial domain')
+        ## remove domain from field
+        arcpy.management.RemoveDomainFromField(inGdb+'/DescriptionOfMapUnits', 'GeoMaterial')
+        ## DeleteDomain
+        if 'GeoMaterials' in arcpy.da.ListDomains(inGdb):
+            arcpy.management.DeleteDomain(inGdb, 'GeoMaterials')
+        ##   make GeoMaterials domain
+        arcpy.management.TableToDomain(inGdb+'/GeoMaterialDict', 'GeoMaterial', 'IndentedName', inGdb, 'GeoMaterials', '', 'REPLACE')
+        ##   attach it to DMU field GeoMaterial
+        arcpy.management.AssignDomainToField(inGdb+'/DescriptionOfMapUnits','GeoMaterial','GeoMaterials')                                                    
     # open output files
     summaryName = os.path.basename(inGdb)+'-Validation.html'
     summary = open(workdir+'/'+summaryName,'w', errors='xmlcharrefreplace')
@@ -856,7 +903,16 @@ else:
         gMapSRF = ''
         schemaErrorsMissingElements.append('Feature dataset <span class="table">GeologicMap</span>')
     else:
-        gMapSRF = arcpy.Describe('GeologicMap').spatialReference.name
+        srf = arcpy.Describe('GeologicMap').spatialReference
+        gMapSRF = srf.name
+
+        # check for NAD83 or WGS84
+        if srf.type == 'Geographic':
+            pcsd = srf.datumName
+        else: # is projected
+            pcsd = srf.PCSName
+        if pcsd.find('World_Geodetic_System_1984') < 0 and pcsd.find('NAD_1983') < 0:
+            SRFWarnings.append('Spatial reference framework is '+pcsd+'. Consider reprojecting this dataset to NAD83 or WGS84')                       
         arcpy.env.workspace = 'GeologicMap'
         gMap_MapUnits = []
         for fc in requiredGeologicMapFeatureClasses:
@@ -867,27 +923,27 @@ else:
                 schemaErrorsMissingElements.append('Feature class <span class="table">GeologicMap/'+fc+'</span>')
         isMap,MUP,CAF = isFeatureDatasetAMap('GeologicMap')
         if isMap:
-            if skipTopology == 'false':                                     
+            if skipTopology == 'false':
                 nTopoErrors = checkTopology(workdir,inGdb,outErrorsGdb,'GeologicMap',MUP,CAF,2)
                 if nTopoErrors > 0:
                     topologyErrors.append(str(nTopoErrors)+' Level 2 errors in <span class="table">GeologicMap</span>')
             else:
                 addMsgAndPrint('  skipping topology check')
-                topologyErrors.append('Level 2 topology check was skipped')                 
+                topologyErrors.append('Level 2 topology check was skipped')
         arcpy.env.workspace = inGdb
     
     addMsgAndPrint('  getting unused, missing, and duplicated key values')
-    unused, missing = matchRefs(dataSources_IDs, allDataSourcesRefs)
+    unused, missing, plainUnused  = matchRefs(dataSources_IDs, allDataSourcesRefs)
     appendValues(missingSourceIDs, missing)
     for d in getDuplicates(dataSources_IDs):
         duplicatedSourceIDs.append('<span class="value">'+d+'</span>')
     
-    unused, missing = matchRefs(glossaryTerms, allGlossaryRefs)
+    unused, missing, plainUnused  = matchRefs(glossaryTerms, allGlossaryRefs)
     appendValues(missingGlossaryTerms, missing)
     for d in getDuplicates(glossaryTerms):
         glossaryTermDuplicates.append('<span class="value">'+d+'</span>')
    
-    unused, missing = matchRefs(dmuMapUnits, allMapUnits)
+    unused, missing, plainUnused  = matchRefs(dmuMapUnits, allMapUnits)
     appendValues(missingDmuMapUnits, missing)
     for d in getDuplicates(dmuMapUnits):
         dmuMapUnitsDuplicates.append('<span class="value">'+d+'</span>')
@@ -931,13 +987,13 @@ else:
                     addMsgAndPrint('  ** skipping data set '+fc+', featureType = '+dsc.featureType)
         isMap,MUP,CAF = isFeatureDatasetAMap(fd)
         if isMap:
-            if skipTopology == 'false':                                  
+            if skipTopology == 'false':
                 nTopoErrors = checkTopology(workdir,inGdb,outErrorsGdb,fd,MUP,CAF,3)
                 if nTopoErrors > 0:
                     topologyErrors.append(str(nTopoErrors)+' Level 3 errors in <span class="table">'+fd+'</span>')
             else:
                 addMsgAndPrint('  skipping topology check')
-                topologyErrors.append('Level 3 topology check was skipped')                                                                           
+                topologyErrors.append('Level 3 topology check was skipped')
         fds_MapUnits.append([fd,fdMapUnitList])
         arcpy.env.workspace = inGdb
 
@@ -945,15 +1001,21 @@ else:
     
     addMsgAndPrint('  getting unused, missing, and duplicated key values')
 
-    unused, missing = matchRefs(dataSources_IDs, allDataSourcesRefs)
-    appendValues(unusedSourceIDs, unused)
+    unused, missing, plainUnused  = matchRefs(dataSources_IDs, allDataSourcesRefs)
+    if deleteExtraGlossaryDataSources == 'true':
+        deleteExtraRows('DataSources','DataSources_ID',plainUnused)
+    else:     
+        appendValues(unusedSourceIDs, unused)
     appendValues(missingSourceIDs, missing)
 
-    unused, missing = matchRefs(glossaryTerms, allGlossaryRefs)
-    appendValues(unusedGlossaryTerms, unused)
+    unused, missing, plainUnused = matchRefs(glossaryTerms, allGlossaryRefs)
+    if deleteExtraGlossaryDataSources == 'true':
+        deleteExtraRows('Glossary','Term',plainUnused)
+    else:
+        appendValues(unusedGlossaryTerms, unused)
     appendValues(missingGlossaryTerms, missing)
     
-    unused, missing = matchRefs(dmuMapUnits, allMapUnits)
+    unused, missing, plainUnused = matchRefs(dmuMapUnits, allMapUnits)
     appendValues(unusedDmuMapUnits,unused)
     appendValues(missingDmuMapUnits, missing)
 
@@ -1100,7 +1162,7 @@ else:
     summary.write('</tr>\n')       
     # open search cursor on DMU sorted by HKey
     sql = (None, 'ORDER BY HierarchyKey')
-    with arcpy.da.SearchCursor('DescriptionOfMapUnits',('MapUnit'),None,None,False,sql) as cursor:
+    with arcpy.da.SearchCursor('DescriptionOfMapUnits',('MapUnit', 'HierarchyKey'),None,None,False,sql) as cursor:
         for row in cursor:
             mu = row[0]
             if notEmpty(mu):

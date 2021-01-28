@@ -179,4 +179,36 @@ def isPlanar(orientationType):
             isPlanarType = True
     return isPlanarType
 
+def editSessionActive(gdb):
+    # returns True if edit session active, else False
+    # test for 
+    if arcpy.Exists(gdb+'/GeoMaterialDict'):
+        tbl = gdb+'/GeoMaterialDict'
+        fld = 'GeoMaterial'
+    elif arcpy.Exists(gdb+'/GeologicMap/MapUnitPolys') and numberOfRows(gdb+'/GeologicMap/MapUnitPolys') > 2:
+        tbl = gdb+'/GeologicMap/MapUnitPolys'
+        fld = 'MapUnit'
+    else:
+        # doesn't appear to be a GeMS database
+        # default to no edit session active and bail
+        return False 
+    ## Following code modified from routine posted by Curtis Price at
+    ## https://gis.stackexchange.com/questions/61708/checking-via-arcpy-if-arcmap-is-in-edit-session
+    edit_session = True
+    try:
+        # attempt to open two cursors on the input
+        # this generates a RuntimeError if no edit session is active
+        with arcpy.da.UpdateCursor(tbl, fld) as rows:
+            row = next(rows)
+            with arcpy.da.UpdateCursor(tbl, fld) as rows2:
+                row2 = next(rows2)
+    except: # RuntimeError as e:
+        arcpy.AddMessage("workspace already in transaction mode")
+        #if e == "workspace already in transaction mode":
+            # this error means that no edit session is active
+        edit_session = False
+        # else:
+            # # we have some other error going on, report it
+            # raise
+    return edit_session
 
