@@ -202,13 +202,12 @@ def editSessionActive(gdb):
             row = next(rows)
             with arcpy.da.UpdateCursor(tbl, fld) as rows2:
                 row2 = next(rows2)
-    except: # RuntimeError as e:
-        arcpy.AddMessage("workspace already in transaction mode")
-        #if e == "workspace already in transaction mode":
-            # this error means that no edit session is active
-        edit_session = False
-        # else:
-            # # we have some other error going on, report it
-            # raise
+    except RuntimeError as e:
+        if "workspace already in transaction mode" in str(e):
+            # # this error means that no edit session is active
+            edit_session = False
+        else:
+            # # # we have some other error going on, report it
+            raise
     return edit_session
 

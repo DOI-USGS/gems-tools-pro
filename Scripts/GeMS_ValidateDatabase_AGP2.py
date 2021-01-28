@@ -8,13 +8,21 @@
 # Edited 7/15/20 to work in ArcGIS Pro 2.5 with Python 3
 # Evan Thoms
 # 10/8/20 updates from Ralph's version '7 October 2020'
+# 1/27/21 added all of the following updates from the ArcMap version - ET
+#
+# 22 December 2020: Edited output text to correctly identify XXX_Validation.gdb. Added option to delete unused rows in Glossary and DataSources - RH
+# 23 December 2020: Refreshing GeoMaterialDict now also refreshes the domain associated with GeoMaterial field in DescriptionOfMapUnits - RH
+# 28 December 2020: Added warning if active edit session on input GDB - RH
+# 15 January 2021: Added warning if SRF not in (NAD83, WGS84)
+#    Added reminder to document any schema extensions
+#    Added feature dataset SRF names to database inventory     - RH
 
 import arcpy, os, os.path, sys, time, glob
 from arcpy import metadata as md
 from GeMS_utilityFunctions import *
 from GeMS_Definition import *
 
-versionString = 'GeMS_ValidateDatabase_AGP2.py, version of 8 October 2020'
+versionString = 'GeMS_ValidateDatabase_AGP2.py, version of 27 January 2021'
 
 
 metadataSuffix = '-vFgdcMetadata.txt'
@@ -856,9 +864,9 @@ else:
     # write starting messages
     addMsgAndPrint(versionString)
 
-# having trouble getting this to work in Python 3, punting for now, 1/27/21
-#    if editSessionActive(inGdb):
-#        arcpy.AddWarning ("\nDatabase is being edited. Results may be incorrect if there are unsaved edits\n")
+    if editSessionActive(inGdb):
+       arcpy.AddWarning ("\nDatabase is being edited. Results may be incorrect if there are unsaved edits\n")
+       
     if refreshGeoMaterialDict == 'true':
         addMsgAndPrint('Refreshing GeoMaterialDict')
         gmd = inGdb+'/GeoMaterialDict'
