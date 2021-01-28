@@ -40,7 +40,7 @@ Suggestions for improvements and edited files submitted by [email](gems@usgs.gov
 
 * "MapOutline" stumbles over some choices of datum.
 
-* "Purge Metdata" and "FDGC CSDGM2 Metadata" have been removed from the ArcGIS Pro version of the toolbox. With ArcGIS Pro, FGDC CSDGM metadata is exported with no Spatial Reference Information node ([BUG-000124294](https://community.esri.com/t5/arcgis-pro-questions/fgdc-spatial-reference-info-missing-when-using-export-metadata/m-p/681417)). Until the bug is addressed or we find a workaround, only the ArcMap versions of these tools will be available.
+* All metadata tools have been removed from the ArcGIS Pro version of the toolbox. With ArcGIS Pro, FGDC CSDGM metadata is exported with no Spatial Reference Information node ([BUG-000124294](https://community.esri.com/t5/arcgis-pro-questions/fgdc-spatial-reference-info-missing-when-using-export-metadata/m-p/681417)). Until the bug is addressed or we find a workaround, only the ArcMap versions of these tools will be available.
 
 * "DMU to .docx" requires the [python-docx](https://python-docx.readthedocs.io/en/latest/) third party package. **Do not try to install this package into your default arcgispro-py3 python environment**. Instead, install it into a [clone](https://pro.arcgis.com/en/pro-app/latest/arcpy/get-started/work-with-python-environments.htm#ESRI_SECTION1_175473E6EB0D46E0B195996EAE768C1D). Remember to activate this environment before running the tool.
 

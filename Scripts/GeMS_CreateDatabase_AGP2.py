@@ -7,7 +7,7 @@
 # RUN AS TOOLBOX SCRIPT FROM ArcCatalog OR ArcMap
 
 # 9 Sept 2016: Made all fields NULLABLE
-# 19 Dec 2016: Added GeoMaterials table, domains
+# 19 Dec 2016: Added GeoMaterialsDict table, domains
 # 8 March 2017: Added  ExistenceConfidence, IdentityConfidence, ScientificConfidence domains, definitions, and definitionsource
 # 17 March 2017  Added optional table MiscellaneousMapInformation
 # 30 Oct 2017  Moved CartoRepsAZGS and GeMS_lib.gdb to ../Resources
@@ -20,12 +20,14 @@
 # 28 Sept 2020 Now defines coordinate system for CMU and cross section feature datasets (= map coordinate system)
 # 7 Oct 2020 Improved definition of cross section feature classes to match specification
 # Edits 10/8/20 to update to Ralph's latest changes (above), Evan Thoms
+# 23 December 2020: Changed how MapUnitPoints feature class is created, so that it follows definition in GeMS_Definitions.py - RH                                                                                                                          
 
 import arcpy, sys, os, os.path
 from GeMS_Definition import tableDict, GeoMaterialConfidenceValues, DefaultExIDConfidenceValues, IDLength
 from GeMS_utilityFunctions import *
+import copy       
 
-versionString = 'GeMS_CreateDatabase_AGP2.py, version of 14 October 2020'
+versionString = 'GeMS_CreateDatabase_AGP2.py, version of 28 January 2021'
 
 debug = True
 
@@ -38,6 +40,7 @@ transDict =     { 'String': 'TEXT',
                   'Double': 'DOUBLE',
                   'NoNulls':'NULLABLE', #NB-enforcing NoNulls at gdb level creates headaches; instead, check while validating
                   'NullsOK':'NULLABLE',
+                  'Optional':'NULLABLE',                                        
                   'Date'  : 'DATE'  }
 
 usage = """Usage:
@@ -131,6 +134,17 @@ def cartoRepsExistAndLayer(fc):
             hasReps = True
             repLyr = os.path.join(crPath,repFc+'.lyr')
     return hasReps,repLyr
+def rename_field(defs, start_name, end_name):
+    """renames a field in a list generated from tableDict for
+    special cases; CrossSections and OrientationPoints
+    instead of using AlterField after creation which was throwing errors"""
+    f_list = copy.deepcopy(defs)
+    list_item = [n for n in f_list if n[0] == start_name] #finds ['MapUnitPolys_ID', 'String', 'NoNulls', 50], for instance
+    i = f_list.index(list_item[0]) #finds the index of that item
+    f_list[i][0] = end_name #changes the name in the list
+    arcpy.AddMessage(f_list[i][0] +  ' becoming ' + end_name)
+    arcpy.AddMessage(f_list)
+    return f_list                                                   
 
 def main(thisDB,coordSystem,nCrossSections):
     # create feature dataset GeologicMap
@@ -157,8 +171,7 @@ def main(thisDB,coordSystem,nCrossSections):
     for fc in ['GeologicLines','CartographicLines','IsoValueLines', 'MapUnitLines']:
         if fc in OptionalElements:
             featureClasses.append(fc)
-    if debug:
-        addMsgAndPrint(f'Feature classes = {featureClasses}')
+
     for featureClass in featureClasses:
         fieldDefs = tableDict[featureClass]
         if featureClass in ['ContactsAndFaults','GeologicLines'] and addLTYPE:
@@ -172,7 +185,14 @@ def main(thisDB,coordSystem,nCrossSections):
         if fc in OptionalElements:
             featureClasses.append(fc)
     for featureClass in featureClasses:
-    
+        """
+The following block of code was bypassing the MapUnitPoints definition now in GeMS_Definitions.py and
+appending PTYPE to the resulting feature class, along with the PTTYPE field appended in the 
+next statement. I think we don't need it, but need to talk with Evan about this.
+If he concurs, will delete this block.
+Ralph Haugerud
+23 December 2020
+I agree - 
         # the following if statement used to be here, but was removed at some point
         # putting it back to allow for creation of MapUnitPoints after discussion
         # with Luke Blair - Evan Thoms
@@ -185,7 +205,8 @@ def main(thisDB,coordSystem,nCrossSections):
             if addLTYPE and featureClass in ['OrientationPoints']:
                 fieldDefs.append(['PTTYPE','String','NullsOK',50])
         # end of re-inserted if statement   
-        
+        """
+        fieldDefs = tableDict[featureClass]                                           
         if addLTYPE:
             fieldDefs.append(['PTTYPE','String','NullsOK',50])
         createFeatureClass(thisDB,'GeologicMap',featureClass,'POINT',fieldDefs)
@@ -215,17 +236,17 @@ def main(thisDB,coordSystem,nCrossSections):
         xsN = 'CS'+xsLetter
         addMsgAndPrint('  Creating feature data set CrossSection'+xsLetter+'...')
         arcpy.CreateFeatureDataset_management(thisDB, xsName, coordSystem)
-        fieldDefs = tableDict['MapUnitPolys']
+        muDefs = rename_field(tableDict['MapUnitPolys'], 'MapUnitPolys_ID', xsN+'MapUnitPolys_ID')
 
-        createFeatureClass(thisDB, xsName, xsN+'MapUnitPolys', 'POLYGON', fieldDefs)
-        fieldDefs = tableDict['ContactsAndFaults']
-        createFeatureClass(thisDB, xsName, xsN+'ContactsAndFaults', 'POLYLINE', fieldDefs)
+        createFeatureClass(thisDB, xsName, xsN+'MapUnitPolys', 'POLYGON', muDefs)
+       cfDefs = rename_field(tableDict['ContactsAndFaults'], 'ContactsAndFaults_ID', xsN+'ContactsAndFaults_ID')
+        createFeatureClass(thisDB, xsName, xsN+'ContactsAndFaults', 'POLYLINE', cDefs)
         arcpy.AlterField_management(xsN+'ContactsAndFaults','ContactsAndFaults_ID',xsN+'ContactsAndFaults_ID')
 
         if 'OrientationPoints' in OptionalElements:
-            fieldDefs = tableDict['OrientationPoints']
-            createFeatureClass(thisDB,xsName,xsN+'OrientationPoints','POINT',fieldDefs)
-            arcpy.AlterField_management(xsN+'OrientationPoints','OrientationPoints_ID',xsN+'OrientationPoints_ID')
+            opDefs = rename_field(tableDict['OrientationPoints'], 'OrientationPoints_ID', xsN+'OrientationPoints_ID')
+            createFeatureClass(thisDB, xsName, xsN+'OrientationPoints','POINT', opDefs)
+  
 
     # create tables
     tables = ['DescriptionOfMapUnits','DataSources','Glossary']
@@ -250,7 +271,7 @@ def main(thisDB,coordSystem,nCrossSections):
             addMsgAndPrint(arcpy.GetMessages())
 
     ### GeoMaterials
-    addMsgAndPrint('  Setting up GeoMaterials table and domains...')
+    addMsgAndPrint('  Setting up GeoMaterialsDict table and domains...')
     #  Copy GeoMaterials table
     arcpy.Copy_management(os.path.dirname(sys.argv[0])+'/../Resources/GeMS_lib.gdb/GeoMaterialDict', thisDB+'/GeoMaterialDict')
     #   make GeoMaterials domain
@@ -348,8 +369,7 @@ def createDatabase(outputDir,thisDB):
         addMsgAndPrint('   forcing exit with error')
         raise arcpy.ExecuteError
     try:
-        if thisDB[-4:] == '.mdb':
-            arcpy.CreatePersonalGDB_management(outputDir,thisDB)
+        # removed check for mdb. Personal geodatabases are out - ET
         if thisDB[-4:] == '.gdb':
             arcpy.CreateFileGDB_management(outputDir,thisDB)
         return True
@@ -371,11 +391,7 @@ if len(sys.argv) >= 6:
     outputDir = outputDir.replace('\\','/')
 
     thisDB = sys.argv[2]
-    # test for extension; if not given, default to file geodatabase
-	# Arc 10 version checked for option of creating personal geodatabase but mdbs have
-	# been abandoned with AGPro
-    if not thisDB[-4:].lower() in ('.gdb','.mdb'):
-        thisDB = thisDB+'.gdb'
+    thisDB = thisDB+'.gdb'
 
     coordSystem = sys.argv[3]
 
