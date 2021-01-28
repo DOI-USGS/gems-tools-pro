@@ -239,7 +239,7 @@ I agree -
         muDefs = rename_field(tableDict['MapUnitPolys'], 'MapUnitPolys_ID', xsN+'MapUnitPolys_ID')
 
         createFeatureClass(thisDB, xsName, xsN+'MapUnitPolys', 'POLYGON', muDefs)
-       cfDefs = rename_field(tableDict['ContactsAndFaults'], 'ContactsAndFaults_ID', xsN+'ContactsAndFaults_ID')
+        cfDefs = rename_field(tableDict['ContactsAndFaults'], 'ContactsAndFaults_ID', xsN+'ContactsAndFaults_ID')
         createFeatureClass(thisDB, xsName, xsN+'ContactsAndFaults', 'POLYLINE', cDefs)
         arcpy.AlterField_management(xsN+'ContactsAndFaults','ContactsAndFaults_ID',xsN+'ContactsAndFaults_ID')
 
