@@ -688,24 +688,24 @@ def esriTopology(outFds,caf,mup):
     addMsgAndPrint('Checking topology of '+os.path.basename(outFds))
     # First delete any existing topology
     ourTop = os.path.basename(outFds)+'_topology'
-    testAndDelete(outFds+'/'+ourTop)
+    testAndDelete(os.path.join(outFds, ourTop)
     # create topology
-    addMsgAndPrint('  creating topology '+ourTop)
-    arcpy.CreateTopology_management(outFds,ourTop)
-    ourTop = outFds+'/'+ourTop
+    addMsgAndPrint('  creating topology ' + ourTop)
+    arcpy.CreateTopology_management(outFds, ourTop)
+    ourTop = os.path.join(outFds, ourTop)
     # add feature classes to topology
-    arcpy.AddFeatureClassToTopology_management(ourTop, caf,1,1)
+    arcpy.AddFeatureClassToTopology_management(ourTop, caf, 1, 1)
     if arcpy.Exists(mup):
-        arcpy.AddFeatureClassToTopology_management(ourTop, mup,2,2)
+        arcpy.AddFeatureClassToTopology_management(ourTop, mup, 2, 2)
     # add rules to topology
     addMsgAndPrint('  adding rules to topology:')
-    for aRule in ('Must Not Overlap (Line)','Must Not Self-Overlap (Line)','Must Not Self-Intersect (Line)','Must Be Single Part (Line)'):
-        addMsgAndPrint('    '+aRule)
+    for aRule in ('Must Not Overlap (Line)', 'Must Not Self-Overlap (Line)', 'Must Not Self-Intersect (Line)', 'Must Be Single Part (Line)'):
+        addMsgAndPrint(f'    {aRule}')
         arcpy.AddRuleToTopology_management(ourTop, aRule, caf)
-    for aRule in ('Must Not Overlap (Area)','Must Not Have Gaps (Area)'):
-        addMsgAndPrint('    '+aRule)
+    for aRule in ('Must Not Overlap (Area)', 'Must Not Have Gaps (Area)'):
+        addMsgAndPrint(f'    {aRule}')
         arcpy.AddRuleToTopology_management(ourTop, aRule, mup)
-    addMsgAndPrint('    '+'Boundary Must Be Covered By (Area-Line)')
+    addMsgAndPrint('    Boundary Must Be Covered By (Area-Line)')
     arcpy.AddRuleToTopology_management(ourTop,'Boundary Must Be Covered By (Area-Line)',mup,'',caf)
     # validate topology
     addMsgAndPrint('  validating topology')
