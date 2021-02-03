@@ -245,10 +245,10 @@ def processNodes(nodeList,hKeyDict):
         ######################
         elif nArcs == 2:
             count2 += 1
-            if arcs[0].Type <> arcs[1].Type:
+            if arcs[0].Type != arcs[1].Type:
                 node.append('mismatched Type values')
                 badNodes.append(node)
-            if arcs[0].IsConc <> arcs[1].IsConc:
+            if arcs[0].IsConc != arcs[1].IsConc:
                 node.append('one arc concealed, one not')
                 badNodes.append(node)
             if sameArcAttributes(arcs[0],arcs[1]):
@@ -270,7 +270,7 @@ def processNodes(nodeList,hKeyDict):
                 badNodes.append(node)
             else:  # all arcs or none are concealed, at least two are of same type
                 if nCon == 3:
-                    if mapUnits[0] <> mapUnits[1] or mapUnits[1] <> mapUnits[2]:
+                    if mapUnits[0] != mapUnits[1] or mapUnits[1] != mapUnits[2]:
                         node.append('all arcs concealed but bounding map units not all the same')
                         badNodes.append(node)
                 if len(same) == 2:  # only two arcs have same Type
@@ -306,13 +306,13 @@ def processNodes(nodeList,hKeyDict):
         ######################
         elif nArcs == 4:
             nCon,conIndx = concealedArcs(arcs)
-            if nCon <> 0:
+            if nCon != 0:
                 opp, adj = arcOrder(conIndx[0])
             if nCon > 2:
                 node.append('too many concealed arcs') 
                 badNodes.append(node)
             elif nCon == 2:
-                if arcs[conIndx[0]].Type <> arcs[conIndx[1]].Type or arcs[adj[0]].Type <> arcs[adj[1]].Type:
+                if arcs[conIndx[0]].Type != arcs[conIndx[1]].Type or arcs[adj[0]].Type != arcs[adj[1]].Type:
                     node.append('opposite arcs must have same Type')
                     badNodes.append(node)
                 elif not arcs[opp].isConcealed(): # thus the 2nd concealed arc must be adjacent
@@ -330,7 +330,7 @@ def processNodes(nodeList,hKeyDict):
                 if isFault(arcs[adj[0]].Type):
                     node.append('arcs adjacent to single concealed arc must not be faults')
                     badNodes.append(node)
-                elif arcs[opp].Type <> arcs[conIndx[0]].Type:
+                elif arcs[opp].Type != arcs[conIndx[0]].Type:
                     node.append('concealed arc and unconcealed continuation must be same Type')
                     badNodes.append(node)
                 else:
@@ -431,7 +431,7 @@ def planarizeAndGetArcEndPoints(fds,caf,mup,fdsToken):
     fns = fieldNameList(cafp)
     deleteFields = []
     for f in fieldNameList(mup):
-        if f <> 'MapUnit':
+        if f != 'MapUnit':
             for hf in ('RIGHT_'+f,'LEFT_'+f): 
                 if hf in fns:
                     deleteFields.append(hf)
@@ -478,14 +478,14 @@ def unplanarize(cafp,caf,connectFIDs):
     newLineIDs = {}
     for pair in connectFIDs:
         f1 = pair[0]; f2 = pair[1]
-        if newLineIDs.has_key(f1):
-            if newLineIDs.has_key(f2):  # both keys in dict, set all values of f2 = f1
-                for i in newLineIDs.keys():
+        if f1 in newLineIDs:
+            if f2 in newLineIDs:  # both keys in dict, set all values of f2 = f1
+                for i in list(newLineIDs.keys()):
                     if newLineIDs[i]==f2:
                         newLineIDs[i] = newLineIDs[f1]
             else:  # only f1 is in newLineIDs.keys()
                 newLineIDs[f2] = newLineIDs[f1]
-        elif newLineIDs.has_key(f2):  # only f2 in newLineIDs.keys()
+        elif f2 in newLineIDs:  # only f2 in newLineIDs.keys()
             newLineIDs[f1] = newLineIDs[f2]
         else: # neither f1 nor f2 in newLineIDs.keys()
             newLineIDs[f1] = f1
@@ -495,7 +495,7 @@ def unplanarize(cafp,caf,connectFIDs):
     addMsgAndPrint('  setting NewLineID values')
     with arcpy.da.UpdateCursor(cafp, ['OBJECTID','NewLineID']) as cursor:
         for row in cursor:
-            if newLineIDs.has_key(row[0]):
+            if row[0] in newLineIDs:
                 row[1] = newLineIDs[row[0]]
             else:
                 row[1] = row[0]
@@ -557,7 +557,7 @@ def writeLRTable(outHtml,linesDict,dmuUnits,tagRoot):
                 if lmu == rmu and tagRoot == 'internalContacts':
                     anchorStart = '<a href="#'+tagRoot+lmu+rmu+'">'
                     anchorEnd = '</a'
-                elif lmu <> rmu and tagRoot == 'badConcealed':
+                elif lmu != rmu and tagRoot == 'badConcealed':
                     anchorStart = '<a href="#'+tagRoot+lmu+rmu+'">'
                     anchorEnd = '</a'
                 else:
@@ -610,7 +610,7 @@ def adjacencyTables(cafp,sortedUnits,outHtml):
                 lr = '--|--'
             if thisArc.isConcealed():  # IsConcealed = Y
                 addRowToDict(lr,thisArc,alength,concealedLinesDict)
-                if thisArc.LMU <> thisArc.RMU:
+                if thisArc.LMU != thisArc.RMU:
                     badConcealed.append([thisArc,alength])
             elif isFault(thisArc.Type):  # it's a fault
                 addRowToDict(lr,thisArc,alength,faultLinesDict)
@@ -635,13 +635,13 @@ def contactListWrite(conList,outHtml,tagRoot):
     for arcLine in conList:
         outHtml.write('  <tr>\n')
         anArc = arcLine[0]; alength = arcLine[1]
-        if anArc.LMU <> lastArcLMU or anArc.RMU <> lastArcRMU:
+        if anArc.LMU != lastArcLMU or anArc.RMU != lastArcRMU:
             lastArcLMU = translateNone(anArc.LMU)
             lastArcRMU = translateNone(anArc.RMU)
             #addMsgAndPrint(str(aRow))
             anchorString = '<a name="'+tagRoot+lastArcLMU+lastArcRMU+'"></a>'
         for i in (anArc.LMU,anArc.RMU,anArc.Type,anArc.IsConc,anArc.OFID):
-            if i <> anArc.LMU: anchorString = ''
+            if i != anArc.LMU: anchorString = ''
             outHtml.write('    <td>'+anchorString+str(i)+'</td>\n')
         outHtml.write('    <td style="text-align:right">'+'%.1f' % (alength)+'</td>\n')
         outHtml.write('  </tr>\n')
