@@ -1,30 +1,52 @@
-# args inGdb, validateAllFdSets, inFdSets, validateLinesAndPolys, validateNodes
-#    validateLineDirs, matchMapUnits, findPointDups, smallFeatures
+"""
+Reports on certain aspects of geologic-map topology
 
-import arcpy, os.path, time, sys, math
+Inputs:
+    fds with CAF and MUP,
+    HKey cutoff value for covering units
+       (used to calculate whether a concealed continuation should be shown)
+
+Outputs:
+    feature class of bad nodes. Includes:
+        1-arc nodes that are not faults (i.e., dangles)
+        2-arc nodes at which there is a change in Type or IsConcealed 
+        3-arc nodes at which:
+            no two arcs have same Type
+            1 or 2 arcs are concealed
+            youngest map unit is not bounded by arcs of same Type
+                (Note that in some maps this rule may not be applicable)
+        4-arc nodes at which:
+            opposite arcs don't have same Type
+            0, 3, or 4 arcs are concealed
+            all arcs are faults
+            fault marks transition from unconcealed to concealed crossing arcs
+        5+ arc nodes       
+    feature class of nodes missing a continuing concealed contact or fault
+        if the concealing unit has an HKey value smaller than some test value
+    feature class of nodes with faultline direction changes
+    deplanarized CAF feature class # still need to remove internal contacts
+
+Significant assumptions:
+    Faults have offset
+    Contacts are continuous
+    Improbability of coincident truncations => no 4-arc junctions unless
+        one arc is concealed continuation of opposite arc
+    Arcs are either faults (recognized by presence of 'fault' within Type value) or contacts
+        See functions isFault, isContact in GeMS_utilityFunctions        
+    HierarchyKeys correspond (mostly) to age. Lower values of HKey = younger age
+    Water, permanent snow, and unmapped area (including stuff outside neatline) are youngest map units.
+    Water, ice, glacier, ... thus should have LOW HKey values. Ditto "unmapped area", if it is a defined map unit. 
+    Assume existence of Notes field in CAF. Code may fail if is absent.
+    Also note that connectFIDs is calculated without reference to Symbol or Label fields, but
+        that when arcs are unplanarized, arcs are dissolved on these fields also
+"""
+
+versionString = 'GeMS_TopologyCheck_Arc10.py, version of 2 February 2021'
+# see gems-tools version<=1.3 to get earlier TopologyCheck tool
+
+import arcpy, os, sys, math, os.path, operator, time
 from GeMS_utilityFunctions import *
 
-# minor changes to CAF node check logic
-# modified to explicitly disable M and Z values in FeatureToLine output, circa line 585
-# further improved CAF node check
-# fixed Fault Direction
-# 11 December 2017  Improved node-check logic, added pre-clean for layer and table views, add cleanup for layer and table views
-# 17 July 2019: Tool ran in ArcGIS Pro without errors after updating to Python3 with 2to3.
-#   Amazing. No other edits done. Renamed to GeMS_TopologyCheck_AGP2.py
-
-versionString = 'GeMS_TopologyCheck_AGP2.py, version of 7 July 2019'
-
-tooSmallAreaMM2 = 12 # minimum mapunit poly area in mm2
-tooSkinnyWidthMM = 2   # minimum mapunit poly "width" in mm
-tooShortMM = 4           # minimum arc length in mm
-
-searchRadius = 0.02  # distance, in map units, within which nodes are considered identical
-
-debug1 = False
-debug2 = False
-debug3 = False
-
-############# HTML file functions ####################
 htmlStart = """<html>\n
     <head>\n
         <meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">\n
@@ -33,79 +55,493 @@ htmlStart = """<html>\n
 htmlEnd = '         </body>\n   </html>\n'
 ValidateTopologyNote = """Note that not all geologic-map topology errors will be identified in this report.
 Some of the features identified here may not be errors. Use your judgement!"""
+space4 = '&nbsp;&nbsp;&nbsp;&nbsp;'
 
-def writeHeader(outHtml,inGdb):
-    outHtml.write(htmlStart)
-    outHtml.write('<h1>Topology report, '+os.path.basename(inGdb)+'</h1>\n')
-    timeStamp = str(time.ctime())
-    outHtml.write(inGdb+' &nbsp;&nbsp;&nbsp;'+' last modified '+time.ctime(os.path.getmtime(inGdb))+'<br>\n')
-    outHtml.write('This file created by '+versionString+', at '+timeStamp+'<br>\n')
-    outHtml.write('<blockquote><i>'+ValidateTopologyNote+'</blockquote></i>\n')
+################################
 
-def html_writeFreqTable(outHtml,fc,fields):
-    # make frequency table
-    fds = os.path.dirname(fc)
-    freqTable = fds+'xxxFreqTable'
-    testAndDelete(freqTable)
-    if debug1:
-        addMsgAndPrint(fc+'  '+str(fields))
-    arcpy.Frequency_analysis (fc, freqTable, fields)
-    fieldNames = ['FREQUENCY']
-    for afield in fields:
-        fieldNames.append(afield)
-    if numberOfRows(freqTable) > 0:
-        with arcpy.da.SearchCursor(freqTable, fieldNames) as cursor:
-            for row in cursor:
-                spaceString = ''
-                for i in range(len(str(row[0])), 6):
-                    spaceString = spaceString+'&nbsp;'
-                outHtml.write('<tt>'+spaceString+' '+str(row[0])+'&nbsp;&nbsp; ')
-                for i in range(1,len(row)):
-                    outHtml.write(str(row[i])+'&nbsp;&nbsp; ')
-                outHtml.write('</tt><br>\n')
+gemsFields = ['Type','IsConcealed','ExistenceConfidence',
+                'IdentityConfidence','LocationConfidenceMeters',
+                'DataSourceID','Label','Symbol']
+
+class CAF_arc:
+    fieldList = ['Type','IsConcealed','ExistenceConfidence',
+                 'IdentityConfidence','LocationConfidenceMeters',
+                 'DataSourceID','Notes','LineDir','ToFrom',
+                 'RIGHT_MapUnit','LEFT_MapUnit','ORIG_FID']
+    def __init__(self,attribs):
+        self.Type = attribs[0]
+        self.IsConc = attribs[1]
+        self.ExConf = attribs[2]
+        self.IdConf = attribs[3]
+        self.LCM = attribs[4]
+        self.DSID = attribs[5]
+        self.Notes = attribs[6]
+        self.LineDir = attribs[7]
+        self.ToFrom = attribs[8]
+        self.RMU = attribs[9]
+        self.LMU = attribs[10]
+        self.OFID = attribs[11]
+    def isConcealed(self):  # returns True if IsConcealed value is 'Y'
+        if self.IsConc.lower() == 'y':
+            return True
+        else:
+            return False
+
+def sameArcAttributes(a,b):  # a and b are CAF_arc
+    if a.Type==b.Type and a.IsConc==b.IsConc and a.ExConf==b.ExConf and a.IdConf==b.IdConf and a.LCM==b.LCM and a.DSID==b.DSID and a.Notes==b.Notes:
+        return True
     else:
-        outHtml.write('<tt>&nbsp;&nbsp;&nbsp; no errors</tt><br>\n')
-    if debug2 and numberOfRows(fc) > 0:
-        addMsgAndPrint('input fc = '+fc)
-        addMsgAndPrint('input fc field names = '+str(fieldNameList(fc)))
-        addMsgAndPrint('# rows input fc = '+str(numberOfRows(fc)))
-        addMsgAndPrint(' frequency fields = '+str(fields))
-        addMsgAndPrint('frequency table = '+freqTable)
-        addMsgAndPrint('freq table field names = '+str(fieldNameList(freqTable)))
-        addMsgAndPrint('# rows freq table = '+str(numberOfRows(freqTable)))
-        addMsgAndPrint(' ')
-    testAndDelete(freqTable)
+        return False
 
-def numberMapBoundaryArcs(arcTypes):
-    # we assume map boundary arcs, and only map boundary arcs, have Type values that contain 'map' or 'neatline'
-    lc = arcTypes.lower()
-    return lc.count('map') + lc.count('neatline')
+def sameTypeIndices(arcs): # arcs is triplet of CAF_arc
+    a=arcs[0]; b=arcs[1]; c=arcs[2]
+    if a.Type==b.Type:
+        same = [0,1]; diff = 2
+        if b.Type==c.Type:
+            same = [0,1,2]; diff = None
+    elif a.Type==c.Type:
+        same = [0,2]; diff = 1
+        if b.Type==c.Type:
+            same = [0,1,2]; diff = None
+    elif b.Type==c.Type:
+        same = [1,2]; diff = 0
+    else:
+        same = [0]; diff = [0,1,2]
+    return same, diff
 
+def sameToFrom(a,b,c=None):
+    if c == None:
+        c = a
+    if a.ToFrom == b.ToFrom == c.ToFrom:
+        return True
+    else:
+        return False
+
+def concealedArcs(arcs):  # arcs is a list of CAF_arc 
+    nConcealed = 0; concealedIndices = []
+    for a in arcs:
+        if a.isConcealed() == True:
+            nConcealed += 1
+            concealedIndices.append(arcs.index(a))
+    return nConcealed, concealedIndices
+
+def adjoiningMapUnits(arcs):
+    # for 3 arcs around a node, returns list ['a','b','c'] of adjoining map units
+    # 'a' is map unit opposite (not adjoining) arcs[0], 'b' is map unit opposite arcs[1], ...
+    mapUnits = []
+    if arcs[1].ToFrom == 'From':
+        mapUnits.append(arcs[1].RMU)
+    else:
+        mapUnits.append(arcs[1].LMU)
+    if arcs[2].ToFrom == 'From':
+        mapUnits.append(arcs[2].RMU)
+    else:
+        mapUnits.append(arcs[2].LMU)
+    if arcs[0].ToFrom == 'From':
+        mapUnits.append(arcs[0].RMU)
+    else:
+        mapUnits.append(arcs[0].LMU)
+    return mapUnits
+        
+
+def arcOrder(i):
+    # for 4 arcs around a node, indexed 0--3, returns index of arcOpposite and indices of arcsAdjacent
+    if i == 0:
+        return 2,[1,3]
+    elif i == 1:
+        return 3,[0,2]
+    elif i == 2:
+        return 0,[1,3]
+    elif i == 3:
+        return 1,[0,2]
+
+def ptsGeographicAzimuth(pt1,pt2):
+    dx = pt2[0]-pt1[0]
+    dy = pt2[1]-pt1[1]
+    azi = math.atan2(dy,dx)
+    azi = 90 - math.degrees(azi)
+    if azi < 0:
+        azi = azi + 360
+    return azi
+
+def startEndGeogDirections(lineSeg):
+    firstPoint = [lineSeg[0].X,lineSeg[0].Y]
+    secondPoint = [lineSeg[1].X,lineSeg[1].Y]
+    lpt = len(lineSeg) - 1
+    ntlPoint = [lineSeg[lpt-1].X,lineSeg[lpt-1].Y]
+    lastPoint= [lineSeg[lpt].X,lineSeg[lpt].Y]
+    return ptsGeographicAzimuth(firstPoint,secondPoint), ptsGeographicAzimuth(lastPoint,ntlPoint)
+
+def makeNodeFC(fd, fc):
+    addMsgAndPrint('Building feature class '+fc)
+    fdfc = os.path.join(fd,fc)
+    testAndDelete(fdfc)
+    arcpy.CreateFeatureclass_management(fd,fc,'POINT')
+    # add fields nArcs,ArcOIDs,ArcTypes,Note
+    arcpy.AddField_management(fdfc,'nArcs','SHORT')
+    for f in ['ArcOIDs','ArcTypes','Note']:
+        arcpy.AddField_management(fdfc,f,'TEXT','','',100)        
+    return fdfc
+
+def makeNodeFCXY(fd, fc):
+    addMsgAndPrint('Building feature class '+fc)
+    fdfc = os.path.join(fd,fc)
+    testAndDelete(fdfc)
+    arcpy.CreateFeatureclass_management(fd,fc,'POINT')
+    return fdfc
+
+def buildHKeyDict(DMU):
+    hKeyDict = {}
+    hKeyUnits = []
+    with arcpy.da.SearchCursor(DMU,['MapUnit','HierarchyKey']) as cursor:
+        for row in cursor:
+            hKeyDict[row[0]] = row[1]
+            hKeyUnits.append([row[1],row[0]])
+    hKeyDict[None] = None
+    hKeyDict[''] = None
+    hKeyUnits.sort()
+    sortedUnits = []
+    for i in hKeyUnits:
+        sortedUnits.append(i[1])
+    return hKeyDict, sortedUnits
+
+def youngestMapUnit(mapUnits,hKeyDict):
+    # returns youngest map unit in list mapUnits
+    ymu = mapUnits[0]
+    for mu in mapUnits[1:]:
+        if hKeyDict[mu] < hKeyDict[ymu]:
+            ymu = mu
+    return ymu
+
+def isCoveringUnit(mu,hKeyDict):
+    if mu == None or mu == '':  # stuff outside map, unmapped areas
+        return False
+    elif hKeyDict[mu] < hKeyTestValue:
+        return True
+    else:
+        return False
+
+def processNodes(nodeList,hKeyDict):
+    # nodes is a list of nodes (points at which one or more arcs begins or ends)
+    addMsgAndPrint('Processing nodes')
+    badNodes = []
+    connectFIDs = []  # pairs of OIDs denoting arcs that should be merged
+    missingConcealedArcNodes = []
+    faultFlipNodes = []
+    count1 = 0; count2 = 0; count3 = 0; count4 = 0; count5 = 0
+    for node in nodeList:
+        arcs = node[2]
+        nArcs = len(arcs)
+        ######################
+        if nArcs == 1:
+            count1 += 1
+            if not isFault(arcs[0].Type):  # is a contact
+                if arcs[0].isConcealed():
+                    node.append('dangling concealed contact')
+                    badNodes.append(node)
+                else: # dangling contact
+                    node.append('dangling contact')
+                    badNodes.append(node)
+        ######################
+        elif nArcs == 2:
+            count2 += 1
+            if arcs[0].Type <> arcs[1].Type:
+                node.append('mismatched Type values')
+                badNodes.append(node)
+            if arcs[0].IsConc <> arcs[1].IsConc:
+                node.append('one arc concealed, one not')
+                badNodes.append(node)
+            if sameArcAttributes(arcs[0],arcs[1]):
+                connectFIDs.append([arcs[0].OFID,arcs[1].OFID])
+            if isFault(arcs[0].Type) and isFault(arcs[1].Type) and sameToFrom(arcs[0],arcs[1]):
+                node.append(arcs[0].ToFrom+','+arcs[1].ToFrom)
+                faultFlipNodes.append(node)
+        ######################
+        elif nArcs == 3:
+            count3 += 1
+            nCon,conIndx = concealedArcs(arcs)
+            same,diff = sameTypeIndices(arcs)
+            mapUnits = adjoiningMapUnits(arcs) # map units are ordered by not-adjacent arcs
+            if nCon in (1,2): # 1 or 2 arcs are concealed
+                node.append('impossible number of concealed arcs')
+                badNodes.append(node)
+            elif len(same) < 2: # no two arcs have same type
+                node.append('at least 2 arcs must be same Type')
+                badNodes.append(node)
+            else:  # all arcs or none are concealed, at least two are of same type
+                if nCon == 3:
+                    if mapUnits[0] <> mapUnits[1] or mapUnits[1] <> mapUnits[2]:
+                        node.append('all arcs concealed but bounding map units not all the same')
+                        badNodes.append(node)
+                if len(same) == 2:  # only two arcs have same Type
+                    if isFault(arcs[same[0]].Type):
+                        if sameToFrom(arcs[same[0]],arcs[same[1]]):
+                            faultFlipNodes.append(node)
+                        elif sameArcAttributes(arcs[same[0]],arcs[same[1]]):
+                            connectFIDs.append([arcs[same[0]].OFID,arcs[same[1]].OFID])
+                    else:  # two arcs with same Type are not-faults; their shared adjacent poly should be youngest
+                        if youngestMapUnit(mapUnits,hKeyDict) == mapUnits[diff]:
+                            # if same arc attributes, flag for merge
+                            if sameArcAttributes(arcs[same[0]],arcs[same[1]]):
+                                connectFIDs.append([arcs[same[0]].OFID,arcs[same[1]].OFID])
+                            # test to see if we could add a concealed extension
+                            if isCoveringUnit(youngestMapUnit(mapUnits,hKeyDict),hKeyDict):
+                                missingConcealedArcNodes.append(node)
+                        else:
+                            node.append('# '+str(mapUnits[diff])+' is not youngest unit in '+str(mapUnits))
+                            badNodes.append(node)
+                else:  # all 3 arcs have same Type
+                    if isFault(arcs[same[0]].Type):
+                        if sameToFrom(arcs[0],arcs[1],arcs[2]):
+                            faultFlipNodes.append(node)
+                    else:   # all arcs are not-faults
+                        # find the arcs that bound the youngest map unit
+                        ymu = youngestMapUnit(mapUnits,hKeyDict)
+                        youngArcs = [0,1,2]
+                        youngArcs.remove(mapUnits.index(ymu))
+                        if sameArcAttributes(arcs[youngArcs[0]],arcs[youngArcs[1]]):
+                            connectFIDs.append([arcs[youngArcs[0]].OFID,arcs[youngArcs[1]].OFID])
+                        if isCoveringUnit(ymu,hKeyDict) == True:
+                            missingConcealedArcNodes.append(node)            
+        ######################
+        elif nArcs == 4:
+            nCon,conIndx = concealedArcs(arcs)
+            if nCon <> 0:
+                opp, adj = arcOrder(conIndx[0])
+            if nCon > 2:
+                node.append('too many concealed arcs') 
+                badNodes.append(node)
+            elif nCon == 2:
+                if arcs[conIndx[0]].Type <> arcs[conIndx[1]].Type or arcs[adj[0]].Type <> arcs[adj[1]].Type:
+                    node.append('opposite arcs must have same Type')
+                    badNodes.append(node)
+                elif not arcs[opp].isConcealed(): # thus the 2nd concealed arc must be adjacent
+                    node.append('adjacent arcs concealed')
+                    badNodes.append(node)
+                else:  #  geometry is OK. Test for arcs to be merged
+                    if sameArcAttributes(arcs[adj[0]],arcs[adj[1]]):
+                        connectFIDs.append([arcs[adj[0]].OFID,arcs[adj[1]].OFID])
+                    if isFault(arcs[conIndx[0]].Type) and sameToFrom(arcs[conIndx[0]],arcs[opp]):
+                        faultFlipNodes.append(node)
+                    elif sameArcAttributes(arcs[conIndx[0]],arcs[opp]): # don't merge arcs when one should be flipped
+                        connectFIDs.append([arcs[conIndx[0]].OFID,arcs[opp].OFID])
+            elif nCon == 1:
+                # adjacent arcs must be same-type contacts and opposite arc must be of same type
+                if isFault(arcs[adj[0]].Type):
+                    node.append('arcs adjacent to single concealed arc must not be faults')
+                    badNodes.append(node)
+                elif arcs[opp].Type <> arcs[conIndx[0]].Type:
+                    node.append('concealed arc and unconcealed continuation must be same Type')
+                    badNodes.append(node)
+                else:
+                    if sameArcAttributes(arcs[adj[0]],arcs[adj[1]]):
+                        connectFIDs.append([arcs[adj[0]].OFID,arcs[adj[1]].OFID])                       
+            else:  #nConc = 0
+                node.append('4 unconcealed arcs')
+                badNodes.append(node)
+            count4 += 1
+        ######################
+        else: # 5 or more arcs at this node
+            count5 += 1
+            node.append('too many arcs')
+            badNodes.append(node)
+    addMsgAndPrint('  '+str(count1)+' 1-arc nodes')
+    addMsgAndPrint('  '+str(count2)+' 2-arc nodes')
+    addMsgAndPrint('  '+str(count3)+' 3-arc nodes')
+    addMsgAndPrint('  '+str(count4)+' 4-arc nodes')
+    addMsgAndPrint('  '+str(count5)+' 5+ arc nodes')
+    return badNodes,faultFlipNodes,missingConcealedArcNodes,connectFIDs
+
+def insertNodes(ptFc,nodeList):
+    # creates insertcursor in pointFc
+    addMsgAndPrint('  inserting points into '+os.path.basename(ptFc))
+    fields = ['SHAPE@XY','nArcs','ArcOIDs','ArcTypes','Note']
+    cursor = arcpy.da.InsertCursor(ptFc, fields)
+    for node in nodeList:
+        narcs = len(node[2])
+        arcoids = ''
+        arctypes = ''
+        for a in node[2]:
+            arcoids = arcoids+str(a.OFID)+', '
+            if a.isConcealed() == True:
+                concealed = 'concealed '
+            else:
+                concealed = ''
+            arctypes = arctypes+concealed+a.Type+', '
+        row = [(node[0],node[1]),narcs,arcoids[:-2],arctypes[:-2],node[3]]
+        cursor.insertRow(row)
+        
+def insertNodesXY(ptFc,nodeList):
+    # creates insertcursor in pointFc
+    addMsgAndPrint('  inserting points into '+os.path.basename(ptFc))
+    fields = ['SHAPE@XY']
+    cursor = arcpy.da.InsertCursor(ptFc, fields)
+    for node in nodeList:
+        row = [(node[0],node[1])]
+        cursor.insertRow(row)
+
+def getNodes(arcEndPoints):
+    #  sorts arcEndPoints into a Python list of nodes
+    addMsgAndPrint('Sorting segment endpoints into nodes')
+    addMsgAndPrint('  '+ str(numberOfRows(arcEndPoints))+' endpoints')                               
+    nodeList = []
+    # open searchCursor on arcEndPoints sorted by POINT_X and POINT_Y
+    sql = (None, 'ORDER BY POINT_X, POINT_Y')
+    fieldNames = ['POINT_X','POINT_Y']
+    fieldNames.extend(CAF_arc.fieldList)
+    lastX = -99999
+    lastY = -99999
+    nodeArcs = []
+    with arcpy.da.SearchCursor(arcEndPoints,fieldNames,None,None,False,sql) as cursor:
+        for row in cursor:
+            x = row[0]; y = row[1]; thisArc = CAF_arc(row[2:])
+            if abs(x - lastX) < zeroValue and abs(y - lastY) < zeroValue:
+                nodeArcs.append(thisArc)
+            else:
+                if len(nodeArcs) > 0:
+                    # note that we sort arcs by LineDir, so that they are in clockwise order
+                    nodeArcs.sort(key=operator.attrgetter('LineDir'))
+                    nodeList.append([lastX,lastY,nodeArcs])
+                lastX = x
+                lastY = y
+                nodeArcs = [thisArc]
+        nodeArcs.sort(key=operator.attrgetter('LineDir'))
+        nodeList.append([lastX,lastY,nodeArcs])
+    addMsgAndPrint('  '+str(len(nodeList))+' nodes')                                    
+    return nodeList
+
+def planarizeAndGetArcEndPoints(fds,caf,mup,fdsToken):
+    # returns a feature class of endpoints of all caf lines, two per planarized line segment
+    addMsgAndPrint('Planarizing '+os.path.basename(caf)+' and getting segment endpoints')
+    #   add LineID (so we can recover lines after planarization)
+    arcpy.AddField_management(caf,'LineID','LONG')
+    arcpy.CalculateField_management(caf,'LineID','!OBJECTID!','PYTHON_9.3')
+    # planarize CAF by FeatureToLine
+    addMsgAndPrint('  planarizing caf')
+    planCaf = caf+'_xxx_plan'
+    testAndDelete(planCaf)
+    arcpy.FeatureToLine_management(caf,planCaf)
+    #   planarize CAF (by IDENTITY with MUP)
+    addMsgAndPrint('  IDENTITYing caf with mup')
+    cafp = caf+'_planarized'
+    testAndDelete(cafp)
+    arcpy.Identity_analysis(planCaf,mup,cafp,'ALL','','KEEP_RELATIONSHIPS')
+    # delete extra fields
+    addMsgAndPrint('  deleting extra fields')
+    fns = fieldNameList(cafp)
+    deleteFields = []
+    for f in fieldNameList(mup):
+        if f <> 'MapUnit':
+            for hf in ('RIGHT_'+f,'LEFT_'+f): 
+                if hf in fns:
+                    deleteFields.append(hf)
+    arcpy.DeleteField_management(cafp,deleteFields)   
+    #   calculate azimuths startDir and endDir
+    addMsgAndPrint('  adding StartAzimuth and EndAzimuth')
+    for f in ('LineDir','StartAzimuth','EndAzimuth'):
+        arcpy.AddField_management(cafp,f,'FLOAT')
+    arcpy.AddField_management(cafp,'ToFrom','TEXT','','',4)                              
+    fields = ['SHAPE@','StartAzimuth','EndAzimuth']
+    with arcpy.da.UpdateCursor(cafp,fields) as cursor:
+        for row in cursor:
+            lineSeg = row[0].getPart(0)
+            row[1],row[2] = startEndGeogDirections(lineSeg)
+            cursor.updateRow(row)
+    #   make endpoint feature class
+    addMsgAndPrint('  converting line ends to points')
+    arcEndPoints = fds+'/'+fdsToken+'xxx_EndPoints'   # will be a feature class in fds
+    arcEndPoints2 = arcEndPoints+'_end'
+    testAndDelete(arcEndPoints)
+    arcpy.FeatureVerticesToPoints_management(cafp,arcEndPoints, 'START')
+    arcpy.CalculateField_management(arcEndPoints,'LineDir','!StartAzimuth!','PYTHON')
+    arcpy.CalculateField_management(arcEndPoints,'ToFrom','"From"','PYTHON')
+    testAndDelete(arcEndPoints2)
+    arcpy.FeatureVerticesToPoints_management(cafp,arcEndPoints2,'END')
+    arcpy.CalculateField_management(arcEndPoints2,'LineDir','!EndAzimuth!','PYTHON')
+    arcpy.CalculateField_management(arcEndPoints2,'ToFrom','"To"','PYTHON')
+    arcpy.Append_management(arcEndPoints2,arcEndPoints)
+    testAndDelete(arcEndPoints2)
+    #  delete some more fields
+    deleteFields = ['EndAzimuth','StartAzimuth','LEFT_MapUnitPolys','RIGHT_MapUnitPolys']
+    arcpy.DeleteField_management(arcEndPoints,deleteFields)      
+    addMsgAndPrint('  adding POINT_X and POINT_Y')
+    arcpy.AddXY_management(arcEndPoints)
+    testAndDelete(planCaf)
+    return cafp, arcEndPoints
+
+def unplanarize(cafp,caf,connectFIDs):
+    addMsgAndPrint('Unplanarizing '+os.path.basename(cafp))
+    # add NewLineID to cafp
+    arcpy.AddField_management(cafp,'NewLineID','LONG')
+    # go through connectFIDs to set NewLineID values
+    addMsgAndPrint('  building newLineIDs dictionary')
+    newLineIDs = {}
+    for pair in connectFIDs:
+        f1 = pair[0]; f2 = pair[1]
+        if newLineIDs.has_key(f1):
+            if newLineIDs.has_key(f2):  # both keys in dict, set all values of f2 = f1
+                for i in newLineIDs.keys():
+                    if newLineIDs[i]==f2:
+                        newLineIDs[i] = newLineIDs[f1]
+            else:  # only f1 is in newLineIDs.keys()
+                newLineIDs[f2] = newLineIDs[f1]
+        elif newLineIDs.has_key(f2):  # only f2 in newLineIDs.keys()
+            newLineIDs[f1] = newLineIDs[f2]
+        else: # neither f1 nor f2 in newLineIDs.keys()
+            newLineIDs[f1] = f1
+            newLineIDs[f2] = f1
+    addMsgAndPrint('  '+str(len(newLineIDs))+' entries in newLineIDs')
+    # update cursor on cafp, if newLineIDs.has_key(caf.OFID): NewLineID = newLineIDs(caf.OFID) else NewLineID = caf.OFID
+    addMsgAndPrint('  setting NewLineID values')
+    with arcpy.da.UpdateCursor(cafp, ['OBJECTID','NewLineID']) as cursor:
+        for row in cursor:
+            if newLineIDs.has_key(row[0]):
+                row[1] = newLineIDs[row[0]]
+            else:
+                row[1] = row[0]
+            cursor.updateRow(row)
+    # dissolve cafp on GeMS attribs and NewLineID to get cafu
+    cafu = cafp.replace('planarized','unplanarized')
+    addMsgAndPrint('  dissolving to get '+os.path.basename(cafu))
+    testAndDelete(cafu)
+    dissolveFields = gemsFields
+    if 'Notes' in fieldNameList(cafp):
+        dissolveFields.append('Notes')
+    dissolveFields.append('NewLineID')
+    arcpy.Dissolve_management(cafp,cafu,dissolveFields,'','','UNSPLIT_LINES')
+    # delete NewLineID from caf_unplanarized. maybe add _ID field??
+    arcpy.DeleteField_management(cafu,'NewLineID')
+    addMsgAndPrint(str(numberOfRows(caf))+' arcs in '+os.path.basename(caf))
+    addMsgAndPrint(str(numberOfRows(cafp))+' arcs in '+os.path.basename(cafp))
+    addMsgAndPrint(str(numberOfRows(cafu))+' arcs in '+os.path.basename(cafu))
+
+    outTxt = open('connectedFIDs.txt','w')
+    connectFIDs.sort()
+    for aline in connectFIDs:
+        outTxt.write(str(aline)+'  '+str(newLineIDs[aline[0]])+' '+str(newLineIDs[aline[1]])+'\n')
+    outTxt.close()
+   
+    return cafu
+
+
+### WRITE OUTPUT ADJACENCY TABLES
 def writeLRTable(outHtml,linesDict,dmuUnits,tagRoot):
     # get mapunits that participate in linesDict
-    lmus = []
-    rmus = []
+    lmus = []; rmus = []
     for key in linesDict:
         uns = key.split('|')
         lmus.append(uns[0])
         rmus.append(uns[1])
-    lMapUnits = []
-    rMapUnits = []
+    lMapUnits = []; rMapUnits = []
     for unit in dmuUnits:
         if unit in lmus:
             lMapUnits.append(unit)
         if unit in rmus:
             rMapUnits.append(unit)
-    for unit in lmus:
+    for unit in lmus:   # catch units not in dmuUnits
         if not unit in lMapUnits: lMapUnits.append(unit)
     for unit in rmus:
         if not unit in rMapUnits: rMapUnits.append(unit)
-    if debug3:
-        addMsgAndPrint('dmuUnits = '+str(dmuUnits))
-        addMsgAndPrint('lmus = '+str(lmus))
-        addMsgAndPrint('rmus = '+str(rmus))
-        addMsgAndPrint('rMapUnits = '+str(rMapUnits))
-        addMsgAndPrint('lMapUnits = '+str(lMapUnits))
     # now write table guts
     outHtml.write('<table border="1" cellpadding="2" cellspacing="2">\n  <tbody>\n')
     # write heading row
@@ -121,7 +557,7 @@ def writeLRTable(outHtml,linesDict,dmuUnits,tagRoot):
                 if lmu == rmu and tagRoot == 'internalContacts':
                     anchorStart = '<a href="#'+tagRoot+lmu+rmu+'">'
                     anchorEnd = '</a'
-                elif lmu != rmu and tagRoot == 'badConcealed':
+                elif lmu <> rmu and tagRoot == 'badConcealed':
                     anchorStart = '<a href="#'+tagRoot+lmu+rmu+'">'
                     anchorEnd = '</a'
                 else:
@@ -137,6 +573,7 @@ def writeLRTable(outHtml,linesDict,dmuUnits,tagRoot):
     outHtml.write('  </tbody>\n</table>')
 
 def writeLineAdjacencyTable(tableName,outHtml,lineDict,dmuUnits,tagRoot):
+    addMsgAndPrint('  writing line-adjacency table '+tableName)
     outHtml.write('<b>'+tableName+'</b><br>\n')
     outHtml.write('<table border="1" cellpadding="2" cellspacing="2">\n  <tbody>\n')
     outHtml.write('    <tr><td></td><td align="center">right-side map unit</td></tr>\n')
@@ -144,6 +581,46 @@ def writeLineAdjacencyTable(tableName,outHtml,lineDict,dmuUnits,tagRoot):
     writeLRTable(outHtml,lineDict,dmuUnits,tagRoot)
     outHtml.write('      </td></tr>\n  </tbody>\n</table>')
 
+def addRowToDict(lr,thisArc,arcLength,lineDict):
+    if lr in lineDict:
+        numArcs,sumArcLength = lineDict[lr]
+        numArcs = numArcs+1
+        sumArcLength = float(sumArcLength) + float(arcLength)
+        lineDict[lr] = [numArcs,sumArcLength]
+    else:
+        lineDict[lr] = [1,float(arcLength)]
+
+def adjacencyTables(cafp,sortedUnits,outHtml):
+    addMsgAndPrint('Building dictionaries of line adjacencies')
+    concealedLinesDict = {}
+    faultLinesDict = {}
+    contactLinesDict = {}
+    internalContacts = []
+    badConcealed = []
+    fields = CAF_arc.fieldList
+    fields.remove('ORIG_FID')
+    fields.extend(['OBJECTID','Shape_Length'])
+    with arcpy.da.SearchCursor(cafp, fields) as cursor:
+        for row in cursor:
+            thisArc = CAF_arc(row[:-1]); alength = row[12]
+            try:
+                lr = thisArc.LMU+'|'+thisArc.RMU
+            except:
+                addMsgAndPrint(str(row))
+                lr = '--|--'
+            if thisArc.isConcealed():  # IsConcealed = Y
+                addRowToDict(lr,thisArc,alength,concealedLinesDict)
+                if thisArc.LMU <> thisArc.RMU:
+                    badConcealed.append([thisArc,alength])
+            elif isFault(thisArc.Type):  # it's a fault
+                addRowToDict(lr,thisArc,alength,faultLinesDict)
+            else:
+                if isContact(thisArc.Type):
+                    addRowToDict(lr,thisArc,alength,contactLinesDict)
+                if thisArc.LMU == thisArc.RMU:
+                    internalContacts.append([thisArc,alength])
+    return badConcealed,internalContacts,concealedLinesDict,contactLinesDict,faultLinesDict
+    
 def translateNone(s):
     if s == None:
         return '--'
@@ -153,79 +630,26 @@ def translateNone(s):
 def contactListWrite(conList,outHtml,tagRoot):
     conList.sort()
     outHtml.write('<table border="1" cellpadding="2" cellspacing="2">\n  <tbody>\n')
-    outHtml.write('  <tr><td>L MapUnit</td><td>R mapunit</td><td>Type</td><td>IsConcealed</td><td>OBJECTID</td><td>Shape_Length</td></tr>\n')
-    lastARow0 = ''; lastARow1 = ''; anchorString = '-'
-    for aRow in conList:
+    outHtml.write('  <tr><td>L MapUnit</td><td>R MapUnit</td><td>Type</td><td>IsConcealed</td><td>OBJECTID</td><td>Shape_Length</td></tr>\n')
+    lastArcLMU = ''; lastArcRMU = ''; anchorString = '-'
+    for arcLine in conList:
         outHtml.write('  <tr>\n')
-        if aRow[0] != lastARow0 or aRow[1] != lastARow1:
-            lastARow0 = translateNone(aRow[0])
-            lastARow1 = translateNone(aRow[1])
+        anArc = arcLine[0]; alength = arcLine[1]
+        if anArc.LMU <> lastArcLMU or anArc.RMU <> lastArcRMU:
+            lastArcLMU = translateNone(anArc.LMU)
+            lastArcRMU = translateNone(anArc.RMU)
             #addMsgAndPrint(str(aRow))
-            anchorString = '<a name="'+tagRoot+lastARow0+lastARow1+'"></a>'
-        for i in range(0,len(aRow)):
-            if i != 0: anchorString = ''
-            outHtml.write('    <td>'+anchorString+str(aRow[i])+'</td>\n')
+            anchorString = '<a name="'+tagRoot+lastArcLMU+lastArcRMU+'"></a>'
+        for i in (anArc.LMU,anArc.RMU,anArc.Type,anArc.IsConc,anArc.OFID):
+            if i <> anArc.LMU: anchorString = ''
+            outHtml.write('    <td>'+anchorString+str(i)+'</td>\n')
+        outHtml.write('    <td style="text-align:right">'+'%.1f' % (alength)+'</td>\n')
         outHtml.write('  </tr>\n')
     outHtml.write('  </body></table>\n')
 
-################  other functions ###################
-def addRowToDict(lr,row,lineDict):
-    if lr in lineDict:
-        numArcs,sumArcLength = lineDict[lr]
-        numArcs = numArcs+1
-        sumArcLength = sumArcLength + row[4]
-        lineDict[lr] = [numArcs,sumArcLength]
-    else:
-        lineDict[lr] = [1,row[4]]
-
-def isFlippedNode(NodeTypes):
-    # NodeTypes is a list of 'TO', 'FROM'
-    nTo = 0
-    nFrom = 0
-    for nd in NodeTypes:
-        if nd == 'TO': nTo = nTo+1
-        elif nd == 'FROM': nFrom = nFrom+1
-    if abs(nTo-nFrom) > 0:
-        return True
-    else:
-        return False
-
-def pointPairGeographicAzimuth(pt1,pt2):
-    dx = pt2[0]-pt1[0]
-    dy = pt2[1]-pt1[1]
-    azi = math.atan2(dy,dx)
-    azi = 90 - math.degrees(azi)
-    if azi < 0:
-        azi = azi + 360
-    return azi
-
-def startGeogDirection(lineSeg):
-    firstPoint = [lineSeg[0].X,lineSeg[0].Y]
-    secondPoint = [lineSeg[1].X,lineSeg[1].Y]
-    return pointPairGeographicAzimuth(firstPoint,secondPoint)
-
-def endGeogDirection(lineSeg):
-    lpt = len(lineSeg) - 1
-    ntlPoint = [lineSeg[lpt-1].X,lineSeg[lpt-1].Y]
-    lastPoint= [lineSeg[lpt].X,lineSeg[lpt].Y]
-    return pointPairGeographicAzimuth(lastPoint,ntlPoint)
-
-def concealedArcNumber(arcs):
-    # arcs is an array of arc characteristics. 5th value (index = 4)
-    #   is IsConcealed (=Y or N)
-    # This function returns the index number of the 1st element in arcs
-    #  that has arcs[i][4] = 'Y'  (IsConcealed)
-    i = 0
-    while arcs[i][4].upper() == 'N':
-        i = i+1
-        if i > 4:
-            addMsgAndPrint('Problem in routine concealedArcNumber')
-            addMsgAndPrint(str(arcs))
-            raise arcpy.ExecuteError
-    return i
-    
-############ find duplicate points #########################################
-def findDupPts(inFds,outFds,outHtml):
+def findDupPts(inFds,outFds):
+    addMsgAndPrint('Looking for duplicate points')
+    duplicatePoints = []
     arcpy.env.workspace = os.path.dirname(inFds)
     ptFcs1 = arcpy.ListFeatureClasses('','POINT',os.path.basename(inFds))
     ptFcs2 = []
@@ -235,7 +659,6 @@ def findDupPts(inFds,outFds,outHtml):
             if fc.find(pfx) > -1:
                 notEdit = False
         if notEdit: ptFcs2.append(fc)
-    outHtml.write('<h3>Duplicate point features</h3>\n')
     for fc in ptFcs2:
         addMsgAndPrint('  finding duplicate records in '+fc)
         newTb = os.path.dirname(outFds)+'/dups_'+fc
@@ -254,278 +677,37 @@ def findDupPts(inFds,outFds,outHtml):
         if numberOfRows(newTb) == 0:
             testAndDelete(newTb)
         else:
-            outHtml.write('&nbsp;&nbsp; '+str(numberOfRows(newTb))+' rows in '+os.path.basename(newTb)+'<br>\n')
+            duplicatePoints.append('&nbsp;&nbsp; '+str(numberOfRows(newTb))+' rows in '+os.path.basename(newTb))
 
+    return duplicatePoints
 
-########### find nodes where line directions change #########################
-##                faults only!
-def lineDirections(inFds,outFds,outHtml):
-    inCaf = os.path.basename(getCaf(inFds))
-    nameToken = inCaf.replace('ContactsAndFaults','')
-    inCaf = inFds+'/'+inCaf
-    fNodes = outFds+'/errors_'+nameToken+'FaultDirNodes'
-    fNodes2 = fNodes+'2'
-    ### NEXT LINE IS A PROBLEM--NEED BETTER WAY TO SELECT FAULTS
-    query = """ "TYPE" LIKE '%fault%' """
-    testAndDelete('xxxFaults')
-    arcpy.MakeFeatureLayer_management(inCaf,'xxxFaults',query)
-    testAndDelete(fNodes)
-    addMsgAndPrint('  getting TO and FROM nodes')
-    arcpy.FeatureVerticesToPoints_management('xxxFaults',fNodes,'START')
-    arcpy.AddField_management(fNodes,'NodeType','TEXT','#','#',5)
-    arcpy.CalculateField_management (fNodes, 'NodeType',"'FROM'",'PYTHON')
-    testAndDelete(fNodes2)
-    arcpy.FeatureVerticesToPoints_management('xxxFaults',fNodes2,'END')
-    arcpy.AddField_management(fNodes2,'NodeType','TEXT','#','#',5)
-    arcpy.CalculateField_management (fNodes2, 'NodeType',"'TO'",'PYTHON')
-    addMsgAndPrint('  merging TO and FROM node classes')
-    arcpy.Append_management(fNodes2,fNodes)
-    testAndDelete(fNodes2)
-    arcpy.AddXY_management(fNodes)
-    arcpy.Sort_management(fNodes,fNodes2,[['POINT_X','ASCENDING'],['POINT_Y','ASCENDING']])
-    testAndDelete(fNodes)
-    fields = ['NodeType','POINT_X','POINT_Y']
-    listOfSharedNodes = []
-    with arcpy.da.SearchCursor(fNodes2, fields) as cursor:
-        oldxy = None
-        NodeTypes = []
-        for row in cursor:
-            nArcs = 0
-            xy = (row[1],row[2])
-            if xy == oldxy:
-                NodeTypes.append(row[0])
-                nArcs = nArcs+1
-            else:  # is new Node
-                if len(NodeTypes) > 1: listOfSharedNodes.append([oldxy,NodeTypes,nArcs])
-                oldxy = xy
-                NodeTypes = [row[0]]
-                nArcs = 1
-    addMsgAndPrint('  '+str(len(listOfSharedNodes))+' nodes in listOfSharedNodes')
-
-    arcpy.CreateFeatureclass_management(outFds,os.path.basename(fNodes),'POINT')
-    arcpy.AddField_management(fNodes,'NodeTypes','TEXT','#','#',40)
-    arcpy.AddField_management(fNodes,'NArcs','SHORT')
-
-    fields = ["SHAPE@XY","NodeTypes","NArcs"]
-    d = arcpy.da.InsertCursor(fNodes,fields)
-    for aRow in listOfSharedNodes:
-        if isFlippedNode(aRow[1]):
-            nodeList = ''
-            for nd in aRow[1]:
-                nodeList = nodeList+nd+','
-            d.insertRow([aRow[0],nodeList[:-1],aRow[2]])
-    testAndDelete(fNodes2)
-    addMsgAndPrint('  '+str(numberOfRows(fNodes))+' nodes with arcs that may need flipping')
-    outHtml.write('<h3>End-points of fault arcs that may need flipping</h3>\n')
-    outHtml.write('&nbsp;&nbsp; '+os.path.basename(fNodes)+'<br>\n')
-    if numberOfRows(fNodes) > 0:
-        outHtml.write('<tt>&nbsp;&nbsp;&nbsp; '+str(numberOfRows(fNodes))+' nodes</tt><br>\n')
-    else:
-        outHtml.write('<tt>&nbsp;&nbsp;&nbsp; no errors</tt><br>\n')
-        testAndDelete(fNodes)
-
-
-############ list MapUnits adjacent to each arc in ContactsAndFaults##########
-def adjacentMapUnits(inFds,outFds,outHtml,validateCafTopology,planCaf):
-    # get CAF and MUP
-    inCaf = getCaf(inFds)
-    inMup = inCaf.replace('ContactsAndFaults','MapUnitPolys')
-    if not arcpy.Exists(inMup):
-        addMsgAndPrint('Cannot find MapUnitPolys feature class '+inMup)
-        raise arcpy.ExecuteError
-    if not validateCafTopology:
-        testAndDelete(planCaf)
-        arcpy.FeatureToLine_management(inCaf,planCaf)
-    # IDENTITY planCAF with MUP to make idCaf
-    idCaf = outFds+'/'+os.path.basename(inCaf)+'_MUPid'
-    testAndDelete(idCaf)
-    addMsgAndPrint('  IDENTITYing '+planCaf+'\n    with '+inMup+' to get adjoining polys')
-    arcpy.Identity_analysis(planCaf,inMup,idCaf,'ALL','','KEEP_RELATIONSHIPS')
-    # get ordered list of mapUnits from DMU
-    addMsgAndPrint('  getting ordered list of map units from DMU table')
-    sortedDMU = os.path.dirname(outFds)+'/sortedDMU'
-    testAndDelete(sortedDMU)
-    dmu = os.path.dirname(inFds)+'/DescriptionOfMapUnits'
-    testAndDelete('dmuView')
-    arcpy.MakeTableView_management(dmu,'dmuView')
-    arcpy.Sort_management('dmuView',sortedDMU,[['HierarchyKey','ASCENDING']])
-    dmuUnits = []
-    with arcpy.da.SearchCursor(sortedDMU, ['MapUnit']) as cursor:
-        for row in cursor:
-            if row[0] != None and row[0] != '':
-                dmuUnits.append(row[0])
-    if debug3: addMsgAndPrint('dmuUnits = '+str(dmuUnits))
-    testAndDelete(sortedDMU)
-    # SearchCursor through idCaf
-    addMsgAndPrint('  building dictionaries of line adjacencies')
-    concealedLinesDict = {}
-    faultLinesDict = {}
-    contactLinesDict = {}
-    internalContacts = []
-    badConcealed = []
-    fields = ['Type','IsConcealed','RIGHT_MapUnit','LEFT_MapUnit','Shape_Length','OBJECTID']
-    if debug3: addMsgAndPrint(str(numberOfRows(idCaf))+' rows in '+idCaf)
-    with arcpy.da.SearchCursor(idCaf, fields) as cursor:
-        for row in cursor:
-            if debug3: addMsgAndPrint(str(row))
-            try:
-                lr = row[3]+'|'+row[2]
-            except:
-                addMsgAndPrint(str(row))
-                lr = '--|--'
-            if row[1].upper() == 'Y':  # IsConcealed = Y
-                if debug3: addMsgAndPrint('*** is concealed')
-                addRowToDict(lr,row,concealedLinesDict)
-                if row[3] != row[2]:
-                    badConcealed.append([row[3],row[2],row[0],row[1],row[5],row[4]])
-            elif isContact(row[0]):
-                if debug3: addMsgAndPrint('*** is a contact')
-                addRowToDict(lr,row,contactLinesDict)
-                if row[3] == row[2]:
-                    internalContacts.append([row[3],row[2],row[0],row[1],row[5],row[4]])
-            elif isFault(row[0]):  # it's a fault
-                addRowToDict(lr,row,faultLinesDict)
-    outHtml.write('<h3>MapUnits adjacent to CAF lines</h3>\n')
-    outHtml.write('See feature class '+os.path.basename(idCaf)+' for ContactsAndFaults arcs attributed with adjacent polygon information. \n')
-    outHtml.write('<i>In tables below, upper cell value is number of arcs. Lower cell value is cumulative arc length in map units.</i><br><br>\n')
-    writeLineAdjacencyTable('Concealed contacts and faults',outHtml,concealedLinesDict,dmuUnits,'badConcealed')
-    outHtml.write('<br>\n')
-    writeLineAdjacencyTable('Contacts (not concealed)',outHtml,contactLinesDict,dmuUnits,'internalContacts')
-    outHtml.write('<br>\n')
-    writeLineAdjacencyTable('Faults (not concealed)',outHtml,faultLinesDict,dmuUnits,'')
-    testAndDelete('dmuView')
-    return badConcealed,internalContacts,idCaf
-
-############ check for too-small features ###############################
-def smallFeaturesCheck(inFds,outFds,mapScaleString,outHtml,tooShortArcMM,tooSmallAreaMM2,tooSkinnyWidthMM):
-    # get inputs
-    inCaf = os.path.basename(getCaf(inFds))
-    inMup = inCaf.replace('ContactsAndFaults','MapUnitPolys')
-    nameToken = inCaf.replace('ContactsAndFaults','')
-    # set mapscale and mapunits
-    mapUnit1 = arcpy.Describe(inFds).spatialReference.linearUnitName
-    mapUnit1 = mapUnit1.upper()
-    if mapUnit1.find('FOOT') > -1:
-        mapUnits = 'feet'
-    else:
-        mapUnits = 'meters'
-    mapScale = 1.0/float(mapScaleString)
-
-
-    tooShortArcLength = tooShortMM/1000.0/mapScale
-    tooSmallPolyArea = tooSmallAreaMM2/1e6/mapScale/mapScale
-    #addMsgAndPrint(str(tooSmallAreaMM2)+'  '+str(tooSmallPolyArea))
-    tooSkinnyWidth = tooSkinnyWidthMM/1000/mapScale
-    if mapUnits == 'feet':
-        tooShortArcLength = tooShortArcLength * 3.28
-        tooSmallPolyArea = tooSmallPolyArea * 3.28 * 3.28
-        tooSkinnyWidth = tooSkinnyWidth * 3.28
-
-    tooShortArcs = outFds+'/errors_'+nameToken+'ShortArcs'
-    tooSmallPolys = outFds+'/errors_'+nameToken+'SmallPolys'
-    tooSmallPolyPoints = outFds+'/errors_'+nameToken+'SmallPolyPoints'
-    tooSkinnyPolys = outFds+'/errors_'+nameToken+'SkinnyPolys'
-    testAndDelete(tooShortArcs)
-    testAndDelete(tooSmallPolys)
-    testAndDelete(tooSmallPolyPoints)
-    testAndDelete(tooSkinnyPolys)
-
-    outHtml.write('<h3>Small feature inventory</h3>\n')
-    outHtml.write('&nbsp;&nbsp; map scale = 1:'+mapScaleString+'<br>\n')
-    
-    # short arcs
-    testAndDelete('cafLayer')
-    arcpy.MakeFeatureLayer_management(inFds+'/'+inCaf, 'cafLayer', 'Shape_Length < '+str(tooShortArcLength))
-    arcpy.CopyFeatures_management('cafLayer',tooShortArcs)
-    outHtml.write('&nbsp;&nbsp; '+str(numberOfRows(tooShortArcs))+' arcs shorter than '+str(tooShortMM)+' mm<br>\n')
-    if numberOfRows(tooShortArcs) == 0:
-        testAndDelete(tooShortArcs)
-    if arcpy.Exists(inMup):
-        # small polys
-        addMsgAndPrint('  tooSmallPolyArea = '+str(tooSmallPolyArea))
-        testAndDelete('mupLayer')
-        arcpy.MakeFeatureLayer_management(inFds+'/'+inMup,'mupLayer','Shape_Area < '+str(tooSmallPolyArea))
-        arcpy.CopyFeatures_management('mupLayer',tooSmallPolys)
-        addMsgAndPrint('  '+str(numberOfRows(tooSmallPolys))+ ' too-small polygons')
-        arcpy.FeatureToPoint_management(tooSmallPolys,tooSmallPolyPoints,'INSIDE')
-        outHtml.write('&nbsp;&nbsp; '+str(numberOfRows(tooSmallPolys))+' polys with area less than '+str(tooSmallAreaMM2)+' mm<sup>2</sup><br>\n')
-        # sliver polys
-        arcpy.CopyFeatures_management(inFds+'/'+inMup,tooSkinnyPolys)
-        testAndDelete('sliverLayer')
-        arcpy.MakeFeatureLayer_management(tooSkinnyPolys,'sliverLayer')
-        arcpy.AddField_management('sliverLayer','AreaDivLength','FLOAT')
-        arcpy.CalculateField_management('sliverLayer','AreaDivLength',"!Shape_Area! / !Shape_Length!","PYTHON")
-        arcpy.SelectLayerByAttribute_management('sliverLayer','NEW_SELECTION',"AreaDivLength >= "+str(tooSkinnyWidth))
-        arcpy.DeleteFeatures_management('sliverLayer')
-        addMsgAndPrint('  tooSkinnyPolyWidth = '+str(tooSkinnyWidth))
-        addMsgAndPrint('  '+str(numberOfRows(tooSkinnyPolys))+ ' too-skinny polygons')
-        
-        outHtml.write('&nbsp;&nbsp; '+str(numberOfRows(tooSkinnyPolys))+' polys with area/length ratio less than '+str(tooSkinnyWidth)+' '+mapUnits+'<br>\n')
-        for fc in (tooSkinnyPolys,tooSmallPolys):
-            if numberOfRows(fc) == 0: testAndDelete(fc)
-    else:
-        outHtml.write('&nbsp;&nbsp; No MapUnitPolys feature class<br>\n')
-
-        for xx in 'cafLayer','mupLayer','sliverLayer':
-            testAndDelete(xx)
-
-    return      
-
-############# checking arc-defined formal topology #####################
-def validateCafTopology(inFds,outFds,outHtml):
-    inCaf = getCaf(inFds)
-    caf = os.path.basename(inCaf)
-    nameToken = caf.replace('ContactsAndFaults','')
-    outCaf = outFds+'/'+caf
-    inMup = inFds+'/'+nameToken+'MapUnitPolys'
-    outMup = outFds+'/'+nameToken+'MapUnitPolys'
-    inGel = inFds+'/'+nameToken+'GeologicLines'
-    outGel = outFds+'/'+nameToken+'GeologicLines'
-            
+def esriTopology(outFds,caf,mup):
+    addMsgAndPrint('Checking topology of '+os.path.basename(outFds))
     # First delete any existing topology
     ourTop = os.path.basename(outFds)+'_topology'
     testAndDelete(outFds+'/'+ourTop)
-    # copy CAF to _errors.gdb
-    testAndDelete(outCaf)
-    arcpy.Copy_management(inCaf,outCaf)
-    # copy MUP to _errors.gdb
-    testAndDelete(outMup)
-    if arcpy.Exists(inMup):
-        arcpy.Copy_management(inMup,outMup)
-    # copy GeL to _errors.gdb
-    testAndDelete(outGel)
-    if arcpy.Exists(inGel):
-        arcpy.Copy_management(inGel,outGel)
-  
     # create topology
     addMsgAndPrint('  creating topology '+ourTop)
     arcpy.CreateTopology_management(outFds,ourTop)
     ourTop = outFds+'/'+ourTop
     # add feature classes to topology
-    arcpy.AddFeatureClassToTopology_management(ourTop, outCaf,1,1)
-    if arcpy.Exists(outMup):
-        arcpy.AddFeatureClassToTopology_management(ourTop, outMup,2,2)
-    if arcpy.Exists(outGel):
-        arcpy.AddFeatureClassToTopology_management(ourTop, outGel,3,3)
+    arcpy.AddFeatureClassToTopology_management(ourTop, caf,1,1)
+    if arcpy.Exists(mup):
+        arcpy.AddFeatureClassToTopology_management(ourTop, mup,2,2)
     # add rules to topology
     addMsgAndPrint('  adding rules to topology:')
     for aRule in ('Must Not Overlap (Line)','Must Not Self-Overlap (Line)','Must Not Self-Intersect (Line)','Must Be Single Part (Line)'):
         addMsgAndPrint('    '+aRule)
-        arcpy.AddRuleToTopology_management(ourTop, aRule, outCaf)
-    if arcpy.Exists(outMup):
-        for aRule in ('Must Not Overlap (Area)','Must Not Have Gaps (Area)'):
-            addMsgAndPrint('    '+aRule)
-            arcpy.AddRuleToTopology_management(ourTop, aRule, outMup)
-        addMsgAndPrint('    '+'Boundary Must Be Covered By (Area-Line)')
-        arcpy.AddRuleToTopology_management(ourTop,'Boundary Must Be Covered By (Area-Line)',outMup,'',outCaf)
-    if arcpy.Exists(outGel):
-        for aRule in ('Must Be Single Part (Line)','Must Not Self-Overlap (Line)','Must Not Self-Intersect (Line)'):
-            addMsgAndPrint('    '+aRule)
-            arcpy.AddRuleToTopology_management(ourTop, aRule, outGel)
-        
+        arcpy.AddRuleToTopology_management(ourTop, aRule, caf)
+    for aRule in ('Must Not Overlap (Area)','Must Not Have Gaps (Area)'):
+        addMsgAndPrint('    '+aRule)
+        arcpy.AddRuleToTopology_management(ourTop, aRule, mup)
+    addMsgAndPrint('    '+'Boundary Must Be Covered By (Area-Line)')
+    arcpy.AddRuleToTopology_management(ourTop,'Boundary Must Be Covered By (Area-Line)',mup,'',caf)
     # validate topology
     addMsgAndPrint('  validating topology')
     arcpy.ValidateTopology_management(ourTop)
+    nameToken = os.path.basename(caf).replace('ContactsAndFaults','')
     if nameToken == '':
         nameToken = 'GeologicMap'
     nameToken = 'errors_'+nameToken+'Topology'
@@ -534,344 +716,158 @@ def validateCafTopology(inFds,outFds,outHtml):
     # export topology errors
     addMsgAndPrint('  exporting topology errors')
     arcpy.ExportTopologyErrors_management(ourTop,outFds,nameToken)
-    outHtml.write('<h3>Line and polygon topology</h3>\n')
-    outHtml.write('<blockquote><i>Note that the map boundary commonly results in a "Must Not Have Gaps" error</i></blockquote>')
+    topoStuff = []
+    topoStuff.append('<i>Note that the map boundary commonly results in one "Must Not Have Gaps" line error</i>')
     for sfx in ('_point','_line','_poly'):
         fc = outFds+'/'+nameToken+sfx
-        outHtml.write('&nbsp; '+nameToken+sfx+'<br>\n')
-        html_writeFreqTable(outHtml,fc,['RuleDescription','RuleType'])
+        topoStuff.append(space4+str(numberOfRows(fc))+' rows in <b>'+os.path.basename(fc)+'</b>')       
         addMsgAndPrint('    '+str(numberOfRows(fc))+' rows in '+os.path.basename(fc))
         if numberOfRows(fc) == 0: testAndDelete(fc)
+    return topoStuff
 
-############# checking for validity of CAF nodes #######################
-def validateCafNodes(inFds,outFds,outHtml,planCaf):
-    inCaf = getCaf(inFds)
-    caf = os.path.basename(inCaf)
-    outGdb = os.path.dirname(outFds)
-    fv1 = outGdb+'/xxxLineNodes1'
-    fv1a = outGdb+'/xxxLineNodes1a'
-    fv2 = outGdb+'/xxxLineNodes2'
-    nearTable = outGdb+'/xxxNearTable'
-    badNodes = outFds+'/errors_BadNodes'
-
-    testAndDelete(planCaf)
-    arcpy.env.outputZFlag = "Disabled"
-    arcpy.env.outputMFlag = "Disabled"
-
-    arcpy.FeatureToLine_management(inCaf,planCaf)
-    addMsgAndPrint('  calculating line directions at line ends')
-    arcpy.AddField_management(planCaf,'LineDir','FLOAT')
-    arcpy.AddField_management(planCaf,'EndDir','FLOAT')
-    fields = ['SHAPE@','LineDir','EndDir']
-    with arcpy.da.UpdateCursor(planCaf,fields) as cursor:
-        for row in cursor:
-            lineSeg = row[0].getPart(0)
-            row[1] = startGeogDirection(lineSeg)
-            row[2] = endGeogDirection(lineSeg)
-            cursor.updateRow(row)
-
-    addMsgAndPrint('  converting line ends to points')
-    testAndDelete(fv1)
-    testAndDelete(fv1a)
-    arcpy.FeatureVerticesToPoints_management(planCaf,fv1, 'START')
-    arcpy.FeatureVerticesToPoints_management(planCaf,fv1a,'END')
-    arcpy.CalculateField_management(fv1a,'LineDir','!EndDir!','PYTHON')
-    arcpy.Append_management(fv1a,fv1)
-
-    addMsgAndPrint('  adding XY values and sorting by XY')
-    arcpy.AddXY_management(fv1)
-    testAndDelete(fv2)
-    arcpy.Sort_management(fv1,fv2,[["POINT_X","ASCENDING"],["POINT_Y","ASCENDING"]])
-
-    fields = ["POINT_X","POINT_Y","FID_"+caf,"Type","IsConcealed","ORIG_FID","LineDir"]
-    isFirst = True
-    nArcs = 0
-    nodes = []
-    with arcpy.da.SearchCursor(fv2, fields) as cursor:
-        for row in cursor:
-            x = row[0]; y = row[1]
-            rFid = row[2]
-            rType = row[3]
-            rIsConcealed = row[4]
-            rOrigFid = row[5]
-            rLineDir = row[6]
-            if isFirst:
-                lastX = x; lastY = y
-                isFirst = False
-                arcs = []
-            if abs(x-lastX) < searchRadius and abs(y-lastY) < searchRadius:
-                arcs.append([rLineDir,rFid,rOrigFid,rType,rIsConcealed])
-            else:
-                nodes.append([lastX,lastY,arcs])
-                arcs = [[rLineDir,rFid,rOrigFid,rType,rIsConcealed]]
-                lastX = x; lastY = y
-        nodes.append([lastX,lastY,arcs])
-
-    addMsgAndPrint('  '+ str(len(nodes))+' distinct nodes' )
-    
-    addMsgAndPrint('  identifying node status' )
-    badRows = []
-    for un in nodes:
-        arcs = un[2]
-        numArcs = len(arcs)
-        arcNumbers = ''
-        arcTypes = ''
-        for anArc in arcs:
-            arcNumbers = arcNumbers+str(anArc[1])+','
-            if anArc[3] == None:
-                arcTypes = arcTypes+'-- | '
-            else:
-                if anArc[4] == 'Y':  # IsConcealed == Y
-                    arcTypes = arcTypes+anArc[3].lower()+'#CON | '
-                else:
-                    arcTypes = arcTypes+anArc[3].lower()+' | '
-        arcTypes = arcTypes[:-3]
-        arcNumbers = arcNumbers[:-1]
-        # figure out node status
-        ## some assumptions about Type values:
-        ##    the Type for 'map boundary' or its equivalent contains the string 'boundary'
-        ##    This code is not case sensitive--all Type values are here converted to lower case
-        if numArcs == 1:
-            if isFault(arcs[0][3]):
-                nodeStatus = 'OK dangling fault' 
-            else:
-                if arcs[0][4] == 'Y':
-                    nodeStatus = 'CHECK  dangling concealed contact'
-                else:
-                    nodeStatus = 'BAD DANGLE'
-        elif numArcs == 2:
-            if arcs[0][2] == arcs[1][2]:  # nodes belong to same arc, i.e., a loop
-                nodeStatus = 'OK loop'
-            elif arcTypes.count('#CON') == 1: # one arc is concealed, other is not
-                nodeStatus = 'BAD  pseudonode with 1 arc concealed, 1 not'
-            elif arcs[0][3] != arcs[1][3]:   # arc Type values don't match
-                if isFault(arcs[0][3]) and isFault(arcs[1][3]):
-                    nodeStatus = 'CHECK  pseudonode with change in fault type'
-                else:
-                    nodeStatus = 'BAD  pseudonode with mismatched arc Types'
-            else:  # we assume that this is a permissible pseudonode
-                nodeStatus = 'OK  pseudonode'
-        elif numArcs == 3:
-            if numberMapBoundaryArcs(arcTypes) == 2: # any arc joining map boundary is OK
-                nodeStatus = 'OK'
-            elif arcTypes.count('#CON') in (0,3): # either all arcs are concealed or none are
-                if arcs[0][3] != arcs[1][3] and arcs[0][3] != arcs[2][3] and arcs[1][3] != arcs[2][3]:
-                    nodeStatus = 'BAD  incompatible type values'
-                else:
-                    nodeStatus = 'OK'
-            elif arcTypes.count('#CON') == 1 and arcTypes.count('fault') >= 2:
-                if (arcs[0][4] == 'Y' and arcs[1][3] == arcs[2][3]) or (arcs[1][4] == 'Y' and arcs[0][3] == arcs[2][3]) or (arcs[2][4] == 'Y' and arcs[0][3] == arcs[1][3]):
-                    nodeStatus = 'OK' # concealed arc truncated by fault
-                else:
-                    nodeStatus = 'BAD  concealed line truncated by faults with mismatched Types'
-            else: 
-                nodeStatus = 'BAD  concealed line without unconcealed continuation'
-                addMsgAndPrint(arcTypes+ ' '+str(numberMapBoundaryArcs(arcTypes)))
-                ## this flags junctions where a concealed contact merges with a contact as BAD
-                ## maybe it shouldn't?
-        elif numArcs == 4:
-            arcs.sort() # first element is LineDir. so arcs are now in order around point
-            if arcTypes.count('#CON') == 0:
-                if arcs[0][3] == arcs[2][3] and arcs[1][3] == arcs[3][3] and ( isFault(arcs[0][3]) or isFault(arcs[1][3]) ):
-                    nodeStatus = 'BAD  fault with no offset'
-                else:                                                                   
-                    nodeStatus = 'BAD  4 arcs, none concealed'
-            elif arcTypes.count('#CON') in (3,4):
-                nodeStatus == 'BAD  4 arcs, too many concealed'
-            # must have two "contact", unconcealed, of same type, and
-            #  and two other lines of identical type, at least one of which is concealed
-            elif arcTypes.count('#CON') == 2:
-                if arcs[0][3] != arcs[2][3] or arcs[1][3] != arcs[3][3]:
-                    nodeStatus = 'BAD  4 arcs, incompatible Type values'
-                else:
-                    conNumber = concealedArcNumber(arcs)
-                    if conNumber == 3: nextNumber = 0
-                    else: nextNumber = conNumber+1
-                    if not isContact(arcs[nextNumber][3]):
-                        nodeStatus = 'BAD  4 arcs, crossing arc(s) must be contact'
-                    else: nodeStatus = 'OK'  # 4 arcs, contact crosses concealed concealed contact or fault'
-            else:  # one of the 4 joining arcs is concealed
-                if arcs[0][3] != arcs[2][3] or arcs[1][3] != arcs[3][3]:
-                    nodeStatus = 'BAD  4 arcs, incompatible Type values'
-                elif not isContact(arcs[0][3]) and not isContact(arcs[1][3]):
-                    nodeStatus = 'BAD  4 arcs, neither crossing line is a contact'
-                else:
-                    conNumber = concealedArcNumber(arcs)
-                    if conNumber == 3: nextNumber = 0
-                    else: nextNumber = conNumber+1
-                    if not isContact(arcs[nextNumber][3]):
-                        nodeStatus = 'BAD  crossing arc(s) must be contact'
-                    else:
-                        nodeStatus = 'OK'
-                        
-        else:  # more than 4 arcs 
-            nodeStatus = 'BAD too many lines' 
-        xy = (un[0],un[1])
-        thisRow = [xy,numArcs,arcNumbers,arcTypes,nodeStatus]
-        if nodeStatus.find('BAD') > -1 or nodeStatus.find('CHECK') > -1:
-            badRows.append(thisRow)
-
-    testAndDelete(badNodes)
-    arcpy.CreateFeatureclass_management(outFds,os.path.basename(badNodes),'POINT')
-    arcpy.AddField_management(badNodes,'NumArcs','SHORT')
-    arcpy.AddField_management(badNodes,'ArcNumbers','TEXT','#','#',100)
-    arcpy.AddField_management(badNodes,'NodeStatus','TEXT','#','#',70)
-    arcpy.AddField_management(badNodes,'ArcTypes','TEXT','#','#',300)
-    fields = ["SHAPE@XY","NumArcs","ArcNumbers","ArcTypes","NodeStatus"]
-    d = arcpy.da.InsertCursor(badNodes,fields)
-    for aRow in badRows:
-        try:
-            d.insertRow(aRow)
-        except:
-            addMsgAndPrint('Bad value(s) in row')
-            addMsgAndPrint(str(aRow))
-       
-    addMsgAndPrint('  '+ str(arcpy.GetCount_management(badNodes)) + ' bad or queried nodes' )
-
-    # cleanup
-    for fc in (fv1,fv1a,fv2):
-        testAndDelete(fc)
-    if not adjMapUnits:
-        testAndDelete(planCAF)
-
-    outHtml.write('<h3>Node topology</h3>\n')
-    outHtml.write('&nbsp; '+str(arcpy.GetCount_management(badNodes)) + ' bad or queried nodes<br>\n')
-    outHtml.write('&nbsp; '+os.path.basename(badNodes)+'<br>\n')
-    ##html_writeFreqTable(outHtml,badNodes,['NodeStatus'])  ## this doesn't work--not sure why
-
-
-######################################################
-inGdb = sys.argv[1]
-validateAllFdSets = sys.argv[2]
-someFdSets = sys.argv[3]
-validateLinesAndPolys = sys.argv[4]
-validateNodes = sys.argv[5]
-validateLineDirs = sys.argv[6]
-adjMapUnits = sys.argv[7]
-findDupPoints = sys.argv[8]
-smallFeatures = sys.argv[9]
-mapScaleString = sys.argv[10]
-tooShortArcMM = float(sys.argv[11])
-tooSmallAreaMM2 = float(sys.argv[12])
-tooSkinnyWidthMM = float(sys.argv[13])
-# values 11-13 used in smallFeaturesCheck
-forceExit = sys.argv[14]
+################################
 
 addMsgAndPrint(versionString)
+#### get inputs
+inFds = sys.argv[1]
+hKeyTestValue = sys.argv[2]
 
-if debug1:
-  addMsgAndPrint('Echoing inputs')
-  for n in range(1,len(sys.argv)):
-    addMsgAndPrint('  '+sys.argv[n])
-  
-if not arcpy.Exists(inGdb):
-    raise arcpy.ExecuteError
+inGdb = os.path.dirname(inFds)
 
-arcpy.env.workspace = inGdb
-aDataSets = arcpy.ListDatasets()
-allDataSets = []
-for aDs in aDataSets:
-    allDataSets.append(inGdb+'\\'+aDs)
-
-if validateAllFdSets == 'false' and someFdSets == '#':
-    inFdSets = [inGdb+'\\GeologicMap']
-elif validateAllFdSets == 'true':
-    inFdSets = allDataSets
-    if debug1: addMsgAndPrint('allFdSets = '+str(inFdSets))
+outWksp = inGdb[:-4]+'_Topology'
+if not os.path.exists(outWksp):
+    addMsgAndPrint('Making directory '+outWksp)
+    os.mkdir(outWksp)
 else:
-    inFdSets = someFdSets.split(';')
-    if debug1: addMsgAndPrint('someFdSets = '+str(inFdSets))
-    for fds in inFdSets:
-        if not arcpy.Exists(fds):
-            raise arcpy.ExecuteError
+    if not os.path.isdir(outWksp):
+        addMsgAndPrint('Oops, '+md+' exists but is a file')
+        forceExit()
 
+inCaf = getCaf(inFds)
+fdsToken = os.path.basename(inCaf).replace('ContactsAndFaults','')
+inMup = inCaf.replace('ContactsAndFaults','MapUnitPolys')
+zeroValue = 2 * arcpy.Describe(inCaf).spatialReference.XYTolerance
+hKeyTestValue = '2'
+DMU = inGdb+'/DescriptionOfMapUnits'
+outGdbName = os.path.basename(inGdb)[:-4]+'_TopologyCheck.gdb'
+outGdb = os.path.join(outWksp,outGdbName)
+outFdsName = os.path.basename(inFds)
+outFds = os.path.join(outGdb,outFdsName)
+addMsgAndPrint(' ')
+addMsgAndPrint('Writing to '+outGdb+'. Note that nodes within '+str(zeroValue)+' map units of each other are considered identical.')
+addMsgAndPrint(' ')
 
-fdsNotEval = []
-for fds in allDataSets:
-    if not fds in inFdSets:
-        fdsNotEval.append(fds)
+outHtml = open(os.path.join(outWksp,outFdsName+'.html'),'w')
+hKeyDict, sortedUnits = buildHKeyDict(DMU)
 
-outHtmlName = inGdb+'-TopologyReport.html'
-addMsgAndPrint('Writing output to '+outHtmlName)
-outHtml = open(outHtmlName,'w')
-writeHeader(outHtml,inGdb)
-
-outGdb = inGdb[:-4]+'_errors.gdb'
+### copy inputs to new gdb/feature dataset
+if not arcpy.Exists(outWksp):
+    os.mkdir(outWksp)
 if not arcpy.Exists(outGdb):
-    outFolder,outName = os.path.split(outGdb)
-    arcpy.CreateFileGDB_management(outFolder, outName)
+    arcpy.CreateFileGDB_management(outWksp,outGdbName)
+if not arcpy.Exists(outFds):
+    arcpy.CreateFeatureDataset_management(outGdb,outFdsName,inFds)
 
-if len(fdsNotEval) > 0:
-    notEvalString = ''
-    for fds in fdsNotEval:
-        notEvalString = notEvalString+os.path.basename(fds)+', '
-    notEvalString = notEvalString[:-2]
-    outHtml.write('Feature datasets not evaluated: '+notEvalString+'<br>\n')
-outHtml.write('Error feature classes (errors_<i>XXXX</i>) are in geodatabase '+outGdb+'<br>\n')  
+arcpy.env.workspace = outFds
+topologies = arcpy.ListDatasets('','Topology')
+for t in topologies:
+    testAndDelete(t)
+               
+for infc in (inCaf,inMup):
+    outfc = os.path.join(outFds,os.path.basename(infc))
+    testAndDelete(outfc)
+    arcpy.Copy_management(infc,outfc)
+    if infc == inCaf:
+        caf = outfc
+    else:
+        mup = outfc
 
-for fds in inFdSets:
-    addMsgAndPrint('****validating '+fds+'****')
-    fdsName = os.path.basename(fds)
-    outHtml.write('<h2>'+fdsName+' <i>feature dataset</i>'+'</h2>\n')
-    inFds = inGdb+'/'+fdsName
-    outFds = outGdb+'/'+fdsName
+### TOPOLOGY (no mup gaps or overlaps;
+#    no line overlaps, self-overlaps, or self-intersections; mup boundaries covered by CAF lines
+topoStuff = esriTopology(outFds,caf,mup)
 
-    caf = getCaf(inFds)
-    nameToken = os.path.basename(caf).replace('ContactsAndFaults','')
-    planCaf = outFds+'/'+nameToken+'PlanarizedCAF'
+### NODES
+planarizedCAF, arcEndPoints = planarizeAndGetArcEndPoints(outFds,caf,mup,fdsToken)
 
-    if not arcpy.Exists(outFds):
-        arcpy.CreateFeatureDataset_management(outGdb, fdsName, fds)
-    if validateLinesAndPolys == 'true':
-        addMsgAndPrint('Checking line and polygon topology')
-        validateCafTopology(inFds,outFds,outHtml)
-    else:
-        outHtml.write('<h3>Line and polygon topology not checked</h3>\n')
-    if validateNodes == 'true':
-        addMsgAndPrint('Checking nodes')
-        validateCafNodes(inFds,outFds,outHtml,planCaf)
-    else:
-        outHtml.write('<h3>Node topology not checked</h3>\n')
-    if validateLineDirs == 'true':
-        addMsgAndPrint('Checking for consistent fault directions')
-        lineDirections(inFds,outFds,outHtml)
-    else:
-        outHtml.write('<h3>Line directions not checked</h3>\n')
-    if adjMapUnits == 'true':
-        addMsgAndPrint('Making tables of map-unit adjacency')
-        badConcealed,internalContacts,idCaf = adjacentMapUnits(inFds,outFds,outHtml,validateCafTopology,planCaf)
-    else:
-        outHtml.write('<h3>MapUnit adjacency not checked</h3>\n')
-    if findDupPoints == 'true':
-        addMsgAndPrint('Finding duplicate point features')
-        findDupPts(inFds,outFds,outHtml)
-    else:
-        outHtml.write('<h3>No check for duplicate point features</h3>\n')
-    if smallFeatures == 'true':
-        addMsgAndPrint('Listing short arcs, small polys, and sliver polys')
-        smallFeaturesCheck(inFds,outFds,mapScaleString,outHtml,tooShortArcMM,tooSmallAreaMM2,tooSkinnyWidthMM)
-    else:
-        outHtml.write('<h3>No check for small polys and short lines</h3>\n')
+# sort arcEndPoints into list of nodes
+nodeList = getNodes(arcEndPoints)
+# assign nodes to various groups
+badNodes,faultFlipNodes,missingConcealedArcNodes,connectFIDs = processNodes(nodeList,hKeyDict)
+addMsgAndPrint('Bad nodes: '+str(len(badNodes)))
+addMsgAndPrint('Fault-flip nodes: '+str(len(faultFlipNodes)))
+addMsgAndPrint('Missing concealed-arc nodes: '+str(len(missingConcealedArcNodes)))
+addMsgAndPrint('ConnectFIDs: '+str(len(connectFIDs)))
+testAndDelete(arcEndPoints)
 
-    if adjMapUnits == 'true':
-        outHtml.write('<br><h3>Bad concealed contacts and faults</h3>\n')
-        if len(badConcealed) > 0:
-            outHtml.write('&nbsp; see feature class '+idCaf+'<br>\n')
-            contactListWrite(badConcealed,outHtml,'badConcealed')
-        else:
-            outHtml.write('&nbsp; no bad concealed contacts and faults')
-        outHtml.write('<br><h3>Internal Contacts</h3>\n')
-        if len(internalContacts) > 0:
-            outHtml.write('&nbsp; see feature class '+idCaf+'<br>\n')
-            contactListWrite(internalContacts,outHtml,'internalContacts')
-        else:
-            outHtml.write('&nbsp; no internal contacts')
+### MAKE OUTPUT FEATURE CLASSES
+badNodesFC = makeNodeFC(outFds,'errors_'+fdsToken+'_BadNodes')
+insertNodes(badNodesFC,badNodes)
+
+missingConcealedFC = makeNodeFCXY(outFds,fdsToken+'MissingConcealedCAF_nodes')
+insertNodesXY(missingConcealedFC,missingConcealedArcNodes)
+faultFlipFC = makeNodeFCXY(outFds,'errors_'+fdsToken+'_FaultFlipNodes') 
+insertNodesXY(faultFlipFC,faultFlipNodes)
+
+### UNPLANARIZE
+unplanarizedCAF = unplanarize(planarizedCAF,inCaf,connectFIDs)
+
+### ARC ADJACENCY
+badConcealed,internalContacts,concealedLinesDict,contactLinesDict,faultLinesDict = adjacencyTables(planarizedCAF,sortedUnits,outHtml)
+
+### DUPLICATE POINTS
+dupPoints = findDupPts(inFds,outFds)
+
+### WRITE OUTPUT
+addMsgAndPrint('Writing output')
+outHtml.write(htmlStart)
+outHtml.write('<h2>Topology Check</h2>\n')
+outHtml.write('<h2>'+os.path.basename(inGdb)+', <i>feature dataset</i> '+outFdsName+'</h2>\n')
+outHtml.write('File written by '+versionString+ ' at '+str(time.ctime())+ '<br>\n')
+outHtml.write('Input database: <b>'+inGdb+'</b><br>\n')
+outHtml.write('Output database: <b>'+outGdbName+'</b> within folder <b>'+outWksp+'</b>.<br>\n')
+outHtml.write('<blockquote><i>'+ValidateTopologyNote+'</blockquote></i>\n')
+
+outHtml.write('<h3>ESRI Line-Polygon Topology</h3>\n')
+for a in topoStuff:
+    outHtml.write(a+'<br>\n')
+
+outHtml.write('<h3>Node Topology</h3>\n')
+outHtml.write(str(len(badNodes))+' nodes that may have bad geometry<br>\n')
+outHtml.write(space4+' See <b>'+os.path.join(outFdsName,os.path.basename(badNodesFC))+'</b><br>\n')
+outHtml.write(str(len(faultFlipNodes))+' nodes where fault direction changes. These are likely to be errors<br>\n')
+outHtml.write(space4+' See <b>'+os.path.join(outFdsName,os.path.basename(faultFlipFC))+'</b><br>\n')
+outHtml.write(str(len(missingConcealedArcNodes))+' nodes where a concealed contact or fault continuation could be added<br>\n')
+outHtml.write(space4+' See <b>'+os.path.join(outFdsName,os.path.basename(missingConcealedFC))+'</b><br>\n')
+
+outHtml.write('<h3>MapUnits Adjacent to CAF Lines</h3>\n')
+outHtml.write('See feature class <b>'+os.path.join(outFdsName,os.path.basename(planarizedCAF))+'</b> for ContactsAndFaults arcs attributed with adjacent polygon information.<br>\n')
+outHtml.write('<i>In tables below, upper cell value is number of arcs. Lower cell value is cumulative arc length in map units.</i><br><br>\n')
+writeLineAdjacencyTable('Concealed contacts and faults',outHtml,concealedLinesDict,sortedUnits,'badConcealed')
+outHtml.write('<br>\n')
+writeLineAdjacencyTable('Contacts (not concealed)',outHtml,contactLinesDict,sortedUnits,'internalContacts')
+outHtml.write('<br>\n')
+writeLineAdjacencyTable('Faults (not concealed)',outHtml,faultLinesDict,sortedUnits,'')
+outHtml.write('<br><b>Bad concealed contacts and faults</b><br>\n')
+if len(badConcealed) > 0:
+    outHtml.write(space4+'See feature class <b>'+os.path.join(outFdsName,os.path.basename(planarizedCAF))+'</b><br>\n')
+    contactListWrite(badConcealed,outHtml,'badConcealed')
+else:
+    outHtml.write(space4+'No bad concealed contacts or faults')
+outHtml.write('<br><b>Internal Contacts</b><br>\n')
+if len(internalContacts) > 0:
+    outHtml.write(space4+'See feature class <b>'+os.path.join(outFdsName,os.path.basename(planarizedCAF))+'</b><br>\n')
+    contactListWrite(internalContacts,outHtml,'internalContacts')
+else:
+    outHtml.write(space4+'No internal contacts')
+
+outHtml.write('<h3>Duplicate Points</h3>\n')
+if len(dupPoints) == 0:
+    outHtml.write('No duplicate points found<br>\n')
+else:
+    for a in dupPoints:
+        outHtml.write(a+'<br>\n')
 
 outHtml.write(htmlEnd)
-outHtml.close()
-
-if forceExit == 'true':
-    addMsgAndPrint(' ')
-    addMsgAndPrint('COMPLETED SUCCESSFULLY, FORCING AN ERROR')
-    raise arcpy.ExecuteError
+outHtml.close() 
+addMsgAndPrint('DONE!')
 
