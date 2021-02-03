@@ -40,8 +40,11 @@ Significant assumptions:
     Also note that connectFIDs is calculated without reference to Symbol or Label fields, but
         that when arcs are unplanarized, arcs are dissolved on these fields also
 """
+# 2/3/21 - ET
+#   ran 2to3 on ArcMap version
 
-versionString = 'GeMS_TopologyCheck_Arc10.py, version of 2 February 2021'
+
+versionString = 'GeMS_TopologyCheck_Arc10.py, version of 3 February 2021'
 # see gems-tools version<=1.3 to get earlier TopologyCheck tool
 
 import arcpy, os, sys, math, os.path, operator, time
