@@ -42,7 +42,8 @@ Significant assumptions:
 """
 # 2/3/21 - ET
 #   ran 2to3 on ArcMap version
-
+#   fixed some other bugs from Python 2 syntax
+#   runs with no errors, but haven't checked validity of results
 
 versionString = 'GeMS_TopologyCheck_Arc10.py, version of 3 February 2021'
 # see gems-tools version<=1.3 to get earlier TopologyCheck tool
@@ -209,11 +210,14 @@ def buildHKeyDict(DMU):
     return hKeyDict, sortedUnits
 
 def youngestMapUnit(mapUnits,hKeyDict):
+    arcpy.AddMessage(f'mapUnits = {mapUnits}')
+    #arcpy.AddMessage(hKeyDict)
     # returns youngest map unit in list mapUnits
     ymu = mapUnits[0]
     for mu in mapUnits[1:]:
-        if hKeyDict[mu] < hKeyDict[ymu]:
-            ymu = mu
+        if not mu == "":
+            if hKeyDict[mu] < hKeyDict[ymu]:
+                ymu = mu
     return ymu
 
 def isCoveringUnit(mu,hKeyDict):
@@ -518,6 +522,7 @@ def unplanarize(cafp,caf,connectFIDs):
     addMsgAndPrint(str(numberOfRows(cafp))+' arcs in '+os.path.basename(cafp))
     addMsgAndPrint(str(numberOfRows(cafu))+' arcs in '+os.path.basename(cafu))
 
+    txtPath = os.path.join(outWksp, 'connectedFIDs.txt')
     outTxt = open('connectedFIDs.txt','w')
     connectFIDs.sort()
     for aline in connectFIDs:
@@ -688,9 +693,9 @@ def esriTopology(outFds,caf,mup):
     addMsgAndPrint('Checking topology of '+os.path.basename(outFds))
     # First delete any existing topology
     ourTop = os.path.basename(outFds)+'_topology'
-    testAndDelete(os.path.join(outFds, ourTop)
+    testAndDelete(os.path.join(outFds, ourTop))
     # create topology
-    addMsgAndPrint('  creating topology ' + ourTop)
+    addMsgAndPrint(f'  creating topology {ourTop}')
     arcpy.CreateTopology_management(outFds, ourTop)
     ourTop = os.path.join(outFds, ourTop)
     # add feature classes to topology
