@@ -44,8 +44,10 @@ Significant assumptions:
 #   ran 2to3 on ArcMap version
 #   fixed some other bugs from Python 2 syntax
 #   runs with no errors, but haven't checked validity of results
+# 2/4/21 - ET
+#   figured out hKeyDict comparison problem in youngestMapUnit. Tool runs but haven't checked results
 
-versionString = 'GeMS_TopologyCheck_Arc10.py, version of 3 February 2021'
+versionString = 'GeMS_TopologyCheck_Arc10.py, version of 4 February 2021'
 # see gems-tools version<=1.3 to get earlier TopologyCheck tool
 
 import arcpy, os, sys, math, os.path, operator, time
@@ -207,17 +209,31 @@ def buildHKeyDict(DMU):
     sortedUnits = []
     for i in hKeyUnits:
         sortedUnits.append(i[1])
+    
     return hKeyDict, sortedUnits
 
 def youngestMapUnit(mapUnits,hKeyDict):
-    arcpy.AddMessage(f'mapUnits = {mapUnits}')
+    #arcpy.AddMessage(f'mapUnits = {mapUnits}')
     #arcpy.AddMessage(hKeyDict)
     # returns youngest map unit in list mapUnits
     ymu = mapUnits[0]
     for mu in mapUnits[1:]:
-        if not mu == "":
-            if hKeyDict[mu] < hKeyDict[ymu]:
-                ymu = mu
+    # in Python 2.7 None is returned if the dictionary key is not found and 'None < str', evaluates to True. 
+    # Python 3 is not so forgiving, this produces a TypeError
+    # but the code below reproduces the Python 2.7 behavior by returning "" if the dictionary key is not found
+    # Because '' and None can be be keys in hKeyDict, mu_hkey = hKeyDict.get(mu, "") was not working, returning None. 
+        if hKeyDict[ymu] is None:
+            ymu_hkey = ''
+        else:
+            ymu_hkey = hKeyDict[ymu]
+            
+        if hKeyDict[mu] is None:
+            mu_hkey = ''
+        else:
+            mu_hkey = hKeyDict[mu]
+
+        if mu_hkey < ymu_hkey:
+            ymu = mu
     return ymu
 
 def isCoveringUnit(mu,hKeyDict):
