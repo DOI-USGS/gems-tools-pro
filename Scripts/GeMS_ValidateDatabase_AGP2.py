@@ -890,7 +890,7 @@ else:
     
     #mdTxtFile = workdir+'/'+os.path.basename(inGdb)+metadataSuffix
     mdTxtFile = os.path.join(workdir, os.path.basename(inGdb) + metadataSuffix)
-    mdErrFile = workdir+'/'+os.path.basename(inGdb)+metadataErrorsSuffix
+    mdErrFile = os.path.join(workdir, os.path.basename(inGdb) + metadataErrorsSuffix)
     mdXmlFile = mdTxtFile[:-3]+'xml'
 
     # delete errors gdb if it exists and make a new one
