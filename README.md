@@ -10,7 +10,7 @@ If you are looking for tools that work in ArcMap using Python 2.7, go to [gems-t
 
 ## Installation
 
-* Download the [latest release](https://github.com/usgs/gems-tools-arcmap/releases/latest).
+* Download the [latest release](https://github.com/usgs/gems-tools-pro/releases/latest).
 * Unzip the file to a folder of your choice. This will extract a single folder named `gems-tools-pro-` followed by the version number (e.g., `gems-tools-pro-2.1`).  *Automated version checking has not been implemented yet, but keeping the version number in the folder name will provide you with a quick way to compare your version with the latest at the repository.*
 * Open ArcGIS Pro and go to either the Contents or Catalog pane.
 * Under Project, right-click on Folders to add a folder connection. Navigate to the toolbox folder.
