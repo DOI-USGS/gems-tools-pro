@@ -7,6 +7,9 @@ from string import whitespace
 from GeMS_utilityFunctions import *
 
 versionString = 'GeMS_reID_Arc10.py, version of 2 September 2020'
+rawurl = 'https://raw.githubusercontent.com/usgs/gems-tools-pro/master/Scripts/GeMS_reID_Arc10.py'
+checkVersion(versionString, rawurl, 'gems-tools-pro')
+
 # modified to not work on a copy of the input database. Backup first!
 # 15 Sept 2016: modified to, by default, not reset DataSource_ID values
 # 26 April 2018: extended idRootDict to cover all classes defined in GeMS_Definion.py

@@ -26,7 +26,9 @@ import glob
 from GeMS_utilityFunctions import *
 from numbers import Number
 
-versionString = 'GeMS_TranslateToShape_Arc10.5.py, version of 27 June 2019'
+versionString = 'GeMS_TranslateToShape_AGP2.py, version of 18 July 2019'
+rawurl = 'https://raw.githubusercontent.com/usgs/gems-tools-pro/master/Scripts/GeMS_TranslateToShape_AGP2.py'
+checkVersion(versionString, rawurl, 'gems-tools-pro')
 
 debug = False
 

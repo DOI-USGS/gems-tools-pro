@@ -12,6 +12,8 @@ from GeMS_utilityFunctions import *
 # 17 July 2019: upgraded to python 3, renamed GeMS_SetSymbols_AGP2.py
 
 versionString = 'GeMS_SetSymbols_AGP2.py, version of 17 July 2019'
+rawurl = 'https://raw.githubusercontent.com/usgs/gems-tools-pro/master/Scripts/GeMS_SetSymbols_AGP2.py'
+checkVersion(versionString, rawurl, 'gems-tools-pro')
 
 EightfoldLineDict = {}
 TwofoldOrientPointDict = {}

@@ -28,6 +28,8 @@ from GeMS_utilityFunctions import *
 import copy       
 
 versionString = 'GeMS_CreateDatabase_AGP2.py, version of 2 February 2021'
+rawurl = 'https://raw.githubusercontent.com/usgs/gems-tools-pro/master/Scripts/GeMS_CreateDatabase_AGP2.py'
+checkVersion(versionString, rawurl, 'gems-tools-pro')
 
 debug = True
 

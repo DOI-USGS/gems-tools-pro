@@ -16,6 +16,8 @@
 import arcpy, sys, os
 
 versionString = 'mapOutline_AGP2.py, version of 23 July 2019'
+rawurl = 'https://raw.githubusercontent.com/usgs/gems-tools-pro/master/Scripts/mapOutline_AGP2.py'
+checkVersion(versionString, rawurl, 'gems-tools-pro')
 
 """
 INPUTS

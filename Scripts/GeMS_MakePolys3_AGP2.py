@@ -19,6 +19,9 @@ from GeMS_Definition import tableDict
 #     were made to edit_ChangedPolys
 
 versionString = 'GeMS_MakePolys3_AGP2.py, version of 15 January 2020'
+rawurl = 'https://raw.githubusercontent.com/usgs/gems-tools-pro/master/Scripts/GeMS_MakePolys3_AGP2.py'
+checkVersion(versionString, rawurl, 'gems-tools-pro')
+
 debug = False
 
 def checkMultiPts(multiPts, badPointList, badPolyList):

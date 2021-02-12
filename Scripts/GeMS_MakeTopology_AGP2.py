@@ -7,6 +7,8 @@ from GeMS_utilityFunctions import *
 #   only ran script through 2to3. No other changes necessary.
 
 versionString = 'GeMS_MakeTopology_AGP2.py, version of 6 June 2019'
+rawurl = 'https://raw.githubusercontent.com/usgs/gems-tools-pro/master/Scripts/GeMS_MakeTopology_AGP2.py'
+checkVersion(versionString, rawurl, 'gems-tools-pro')
 
 debug = False
 

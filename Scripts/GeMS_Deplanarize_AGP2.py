@@ -63,6 +63,9 @@ import arcpy, os.path, sys
 from GeMS_utilityFunctions import *
 
 versionString = 'GeMS_Deplanarize_AGP2.py, version of 20 May 2019'
+rawurl = 'https://raw.githubusercontent.com/usgs/gems-tools-pro/master/Scripts/GeMS_Deplanarize_AGP2.py'
+checkVersion(versionString, rawurl, 'gems-tools-pro')
+
 
 # globals
 debug1 = False

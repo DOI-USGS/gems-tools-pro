@@ -20,6 +20,8 @@ import arcpy, os.path, sys, math, shutil
 from GeMS_utilityFunctions import *
 
 versionString = 'GeMS_InclinationNumbers_Arc10.py, version of 21 May 2019'
+rawurl = 'https://raw.githubusercontent.com/usgs/gems-tools-pro/master/Scripts/GeMS_InclinationNumbers_Arc10.py'
+checkVersion(versionString, rawurl, 'gems-tools-pro')
 
 debug1 = True
 OPLName = 'OrientationPointLabels'

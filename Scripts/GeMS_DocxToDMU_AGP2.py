@@ -21,6 +21,9 @@ from GeMS_utilityFunctions import *
 from docxModified import *
 
 versionString = 'GeMS_DocxToDMU_AGP2.py, version of 1 May 2019'
+rawurl = 'https://raw.githubusercontent.com/usgs/gems-tools-pro/master/Scripts/GeMS_DocxToDMU_AGP2.py'
+checkVersion(versionString, rawurl, 'gems-tools-pro')
+
 debug = False
 
 manuscriptFile = sys.argv[1]

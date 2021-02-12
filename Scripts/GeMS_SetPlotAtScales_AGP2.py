@@ -6,6 +6,9 @@
 # Ran script through 2to3. Only incidental debugging required after.
 
 versionString = 'GeMS_SetPlotAtScales_AGP2.py, version of 10 June 2019'
+rawurl = 'https://raw.githubusercontent.com/usgs/gems-tools-pro/master/Scripts/GeMS_SetPlotAtScales_AGP2.py'
+checkVersion(versionString, rawurl, 'gems-tools-pro')
+
 
 import arcpy, os.path, sys
 from GeMS_utilityFunctions import *

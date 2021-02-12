@@ -23,7 +23,8 @@ from GeMS_utilityFunctions import *
 from GeMS_Definition import *
 
 versionString = 'GeMS_ValidateDatabase_AGP2.py, version of 27 January 2021'
-
+rawurl = 'https://raw.githubusercontent.com/usgs/gems-tools-pro/master/Scripts/GeMS_ValidateDatabase_AGP2.py'
+checkVersion(versionString, rawurl, 'gems-tools-pro')
 
 metadataSuffix = '-vFgdcMetadata.txt'
 metadataErrorsSuffix = '-vFgdcMetadataErrors.txt'

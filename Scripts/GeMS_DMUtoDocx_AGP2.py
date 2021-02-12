@@ -37,7 +37,10 @@ from GeMS_utilityFunctions import *
 import docx
 
 versionString = 'GeMS_DMUtoDocx_AGP2.py, version of 9 January 2020'
-addMsgAndPrint( versionString )
+rawurl = 'https://raw.githubusercontent.com/usgs/gems-tools-pro/master/Scripts/GeMS_DMUtoDocx_AGP2.py'
+checkVersion(versionString, rawurl, 'gems-tools-pro')
+
+#addMsgAndPrint( versionString )
 
 debug = False
 debug2 = False
