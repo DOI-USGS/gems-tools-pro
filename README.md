@@ -1,4 +1,4 @@
-[![GitHub tag (latest SemVer)](https://img.shields.io/github/v/release/usgs/gems-tools-pro)](https://github.com/usgs/gems-tools-pro/releases/latest) [![resources](https://img.shields.io/badge/gems-resources-orange)](https://github.com/usgs/gems-resources) [![Wiki](https://img.shields.io/badge/gems-wiki-orange)](https://github.com/usgs/gems-resources/wiki) [![pro](https://img.shields.io/badge/gems--tools-arcmap-orange)](https://github.com/usgs/gems-tools-arcmap) [![Gitter chat](https://badges.gitter.im/gitterHQ/gitter.png)](https://gitter.im/gems-schema/community) [![gems on USGS](https://img.shields.io/badge/gems-%40%20USGS-brightgreen)](https://ngmdb.usgs.gov/Info/standards/GeMS/) 
+[![GitHub tag (latest SemVer)](https://img.shields.io/github/v/release/usgs/gems-tools-pro)](https://github.com/usgs/gems-tools-pro/releases/latest) [![resources](https://img.shields.io/badge/gems-resources-orange)](https://github.com/usgs/gems-resources) [![Wiki](https://img.shields.io/badge/gems-wiki-orange)](https://github.com/usgs/gems-resources/wiki) [![pro](https://img.shields.io/badge/gems--tools-arcmap-orange)](https://github.com/usgs/gems-tools-arcmap) [![Gitter chat](https://badges.gitter.im/gitterHQ/gitter.png)](https://gitter.im/gems-schema/community) [![gems on USGS](https://img.shields.io/badge/gems-%40%20USGS-brightgreen)](https://ngmdb.usgs.gov/Info/standards/GeMS/)
 
 <img width="250" align="right" src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/1c/USGS_logo_green.svg/500px-USGS_logo_green.svg.png"/>
 
@@ -11,7 +11,7 @@ If you are looking for tools that work in ArcMap using Python 2.7, go to [gems-t
 ## Installation
 
 * Download the [latest release](https://github.com/usgs/gems-tools-pro/releases/latest).
-* Unzip the file to a folder of your choice. This will extract a single folder named `gems-tools-pro-` followed by the version number (e.g., `gems-tools-pro-2.1`).  *Automated version checking has not been implemented yet, but keeping the version number in the folder name will provide you with a quick way to compare your version with the latest at the repository.*
+* Unzip the file to a folder of your choice. This will extract a single folder named `gems-tools-pro-` followed by the version number (e.g., `gems-tools-pro-2.1`). 
 * Open ArcGIS Pro and go to either the Contents or Catalog pane.
 * Under Project, right-click on Folders to add a folder connection. Navigate to the toolbox folder.
 * Note that this only saves the folder connection with the current project file. If you want to have the toolbox handy for any project that you open up,
