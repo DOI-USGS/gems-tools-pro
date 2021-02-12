@@ -47,11 +47,13 @@ Significant assumptions:
 # 2/4/21 - ET
 #   figured out hKeyDict comparison problem in youngestMapUnit. Tool runs but haven't checked results
 
-versionString = 'GeMS_TopologyCheck_Arc10.py, version of 4 February 2021'
-# see gems-tools-pro version<=2.2.2 to get earlier TopologyCheck tool
-
 import arcpy, os, sys, math, os.path, operator, time
 from GeMS_utilityFunctions import *
+
+versionString = 'GeMS_TopologyCheck_Arc10.py, version of 4 February 2021'
+# see gems-tools-pro version<=2.2.2 to get earlier TopologyCheck tool
+rawurl = 'https://raw.githubusercontent.com/usgs/gems-tools-pro/master/Scripts/GeMS_TopologyCheck_AGP2.py'
+checkVersion(versionString, rawurl)
 
 htmlStart = """<html>\n
     <head>\n

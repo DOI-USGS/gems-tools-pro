@@ -3,6 +3,7 @@
 import arcpy, os.path, time
 editPrefixes = ('xxx','edit_','errors_','ed_')
 debug = False
+import requests
 
 # I. General utilities
 
@@ -210,4 +211,19 @@ def editSessionActive(gdb):
             # # # we have some other error going on, report it
             raise
     return edit_session
+    
+def checkVersion(vString, rawurl, gis):
+    # compares versionString of tool script to the current script at the repo
+    try:
+        page = requests.get(rawurl)
+        raw = page.text
+        if vString in raw:
+            pass
+        else:
+            repourl = 'https://github.com/usgs/{}/releases'.format(gis)
+            arcpy.AddWarning('You are using an obsolete version of this tool!\n' +
+                             'Please download the latest version from {}'.format(repourl))
+    except:
+        arcpy.AddWarning('Could not connect to Github to determine if this version of the tool is the most recent.\n')
+                            
 
