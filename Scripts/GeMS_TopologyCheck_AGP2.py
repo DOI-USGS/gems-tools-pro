@@ -50,10 +50,12 @@ Significant assumptions:
 import arcpy, os, sys, math, os.path, operator, time
 from GeMS_utilityFunctions import *
 
-versionString = 'GeMS_TopologyCheck_Arc10.py, version of 4 February 2021'
 # see gems-tools-pro version<=2.2.2 to get earlier TopologyCheck tool
+versionString = 'GeMS_TopologyCheck_Arc10.py, version of 4 February 2021'
 rawurl = 'https://raw.githubusercontent.com/usgs/gems-tools-pro/master/Scripts/GeMS_TopologyCheck_AGP2.py'
-checkVersion(versionString, rawurl)
+checkVersion(versionString, rawurl, 'gems-tools-pro')
+
+raise Exception("I know python!")
 
 htmlStart = """<html>\n
     <head>\n

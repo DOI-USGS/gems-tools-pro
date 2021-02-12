@@ -212,7 +212,7 @@ def editSessionActive(gdb):
             raise
     return edit_session
     
-def checkVersion(vString, rawurl, gis):
+def checkVersion(vString, rawurl, toolbox):
     # compares versionString of tool script to the current script at the repo
     try:
         page = requests.get(rawurl)
