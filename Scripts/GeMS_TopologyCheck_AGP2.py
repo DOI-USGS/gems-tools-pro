@@ -55,8 +55,6 @@ versionString = 'GeMS_TopologyCheck_Arc10.py, version of 4 February 2021'
 rawurl = 'https://raw.githubusercontent.com/usgs/gems-tools-pro/master/Scripts/GeMS_TopologyCheck_AGP2.py'
 checkVersion(versionString, rawurl, 'gems-tools-pro')
 
-raise Exception("I know python!")
-
 htmlStart = """<html>\n
     <head>\n
         <meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">\n
