@@ -220,7 +220,7 @@ def checkVersion(vString, rawurl, toolbox):
         if vString in raw:
             pass
         else:
-            repourl = 'https://github.com/usgs/{}/releases'.format(gis)
+            repourl = 'https://github.com/usgs/{}/releases'.format(toolbox)
             arcpy.AddWarning('You are using an obsolete version of this tool!\n' +
                              'Please download the latest version from {}'.format(repourl))
     except:
