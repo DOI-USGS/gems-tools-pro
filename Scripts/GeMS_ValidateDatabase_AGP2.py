@@ -18,6 +18,7 @@
 #    Added feature dataset SRF names to database inventory     - RH
 
 import arcpy, os, os.path, sys, time, glob
+import copy
 from arcpy import metadata as md
 from GeMS_utilityFunctions import *
 from GeMS_Definition import *
@@ -523,11 +524,13 @@ def checkFieldDefinitions(def_table, compare_table=None):
     # build dictionary of required fields 
     requiredFields = {}
     optionalFields = {}
-    requiredFieldDefs = tableDict[table]
+    requiredFieldDefs = copy.deepcopy(tableDict[def_table])
+    arcpy.AddMessage(f'requireFieldDefs {requiredFieldDefs}')
     if compare_table:
         # update the definition of the _ID field to include a 'CSX' prefix
         prefix = compare_table[:3]
         id_item = [n for n in requiredFieldDefs if n[0] == def_table + '_ID']
+        arcpy.AddMessage(f'id_item {id_item}')
         new_id = prefix + id_item[0][0]
         i = requiredFieldDefs.index(id_item[0])
         requiredFieldDefs[i][0] = new_id
@@ -563,6 +566,8 @@ def checkFieldDefinitions(def_table, compare_table=None):
     except:
         schemaErrorsMissingFields.append('<span class="table">'+compare_table+
                                      '</span> could not get field list. Fields not checked.')
+                                     
+    del requiredFieldDefs
 
 def notEmpty(x):
     # will fail on not-String values of x
@@ -610,7 +615,7 @@ def scanTable(table, fds=None):
         isExtension = False
         fieldDefs = tableDict[table]
         checkFieldDefinitions(table)
-    elif fds[:12] == 'CrossSection' and table[:3] == 'CS'+fds[12] and tableDict.has_key(table[3:]):
+    elif fds[:12] == 'CrossSection' and table[:3] == 'CS'+fds[12] and table[3:] in tableDict:
         isExtension = False
         fieldDefs = tableDict[table[3:]]
         checkFieldDefinitions(table[3:], table)
