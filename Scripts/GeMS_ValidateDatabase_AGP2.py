@@ -16,6 +16,7 @@
 # 15 January 2021: Added warning if SRF not in (NAD83, WGS84)
 #    Added reminder to document any schema extensions
 #    Added feature dataset SRF names to database inventory     - RH
+# 2/26/21: added copy.deepcopy to checkFieldDefinitions when building requiredFieldDefs
 
 import arcpy, os, os.path, sys, time, glob
 import copy
@@ -23,7 +24,7 @@ from arcpy import metadata as md
 from GeMS_utilityFunctions import *
 from GeMS_Definition import *
 
-versionString = 'GeMS_ValidateDatabase_AGP2.py, version of 27 January 2021'
+versionString = 'GeMS_ValidateDatabase_AGP2.py, version of 16 February 2021'
 rawurl = 'https://raw.githubusercontent.com/usgs/gems-tools-pro/master/Scripts/GeMS_ValidateDatabase_AGP2.py'
 checkVersion(versionString, rawurl, 'gems-tools-pro')
 
@@ -525,12 +526,10 @@ def checkFieldDefinitions(def_table, compare_table=None):
     requiredFields = {}
     optionalFields = {}
     requiredFieldDefs = copy.deepcopy(tableDict[def_table])
-    arcpy.AddMessage(f'requireFieldDefs {requiredFieldDefs}')
     if compare_table:
         # update the definition of the _ID field to include a 'CSX' prefix
         prefix = compare_table[:3]
         id_item = [n for n in requiredFieldDefs if n[0] == def_table + '_ID']
-        arcpy.AddMessage(f'id_item {id_item}')
         new_id = prefix + id_item[0][0]
         i = requiredFieldDefs.index(id_item[0])
         requiredFieldDefs[i][0] = new_id
