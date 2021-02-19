@@ -35,7 +35,7 @@ from openpyxl.styles import Font, PatternFill, Alignment
 import tempfile
 from GeMS_utilityFunctions import *
 
-versionString = "GeMS_GeolexCheck_AGP2.py, 1/12/2021"
+versionString = "GeMS_GeolexCheck_AGP2.py, 2/19/2021"
 rawurl = 'https://raw.githubusercontent.com/usgs/gems-tools-pro/master/Scripts/GeMS_GeolexCheck_AGP2.py'
 checkVersion(versionString, rawurl, 'gems-tools-pro')
 
