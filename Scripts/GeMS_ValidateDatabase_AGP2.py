@@ -24,7 +24,7 @@ from arcpy import metadata as md
 from GeMS_utilityFunctions import *
 from GeMS_Definition import *
 
-versionString = 'GeMS_ValidateDatabase_AGP2.py, version of 16 February 2021'
+versionString = 'GeMS_ValidateDatabase_AGP2.py, version of 25 February 2021'
 rawurl = 'https://raw.githubusercontent.com/usgs/gems-tools-pro/master/Scripts/GeMS_ValidateDatabase_AGP2.py'
 checkVersion(versionString, rawurl, 'gems-tools-pro')
 
