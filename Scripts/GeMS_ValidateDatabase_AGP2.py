@@ -299,7 +299,7 @@ def checkTopology(workdir, inGdb, outGdb, fd, MUP, CAF, level=2):
     nameToken = f'errors_{nameToken}Topology'
     
     for sfx in ('_point','_line','_poly'):
-        testAndDelete(os.path.join(outFd, nameToken+sfx)
+        testAndDelete(os.path.join(outFd, nameToken+sfx))
         
     # export topology errors
     addMsgAndPrint('    exporting topology errors')
