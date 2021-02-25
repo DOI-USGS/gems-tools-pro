@@ -247,63 +247,66 @@ def isFeatureDatasetAMap(fd):
         isMap = False
     return isMap,MUP,CAF
 
-def checkTopology(workdir,inGdb,outGdb,fd,MUP,CAF,level=2):
+def checkTopology(workdir, inGdb, outGdb, fd, MUP, CAF, level=2):
     # checks geologic-map topology of featureclasses MUP and CAF in feature dataset fd
     # results (# of errors - 1) are appended to global variable topologyErrors
     # inGdb. outGdb = full path.  fd, MUP, CAF = basename only
     # level is flag for how much topology to check -- level2 or level3
-    addMsgAndPrint('  checking topology of '+fd)
+    addMsgAndPrint(f'  checking topology of {fd}')
+    
     # make errors fd 
-    outFd = outGdb+'/'+fd
+    outFd = os.path.join(outGdb, fd)
     if not arcpy.Exists(outFd):
         arcpy.CreateFeatureDataset_management(outGdb, fd, inGdb+'/'+fd)
+        
     # delete any existing topology, CAF, MUP and copy MUP and CAF to errors fd
-
-    outCaf = outFd+'/'+CAF
-    outMup = outFd+'/'+MUP
-    outTop = outFd+'/'+fd+'_topology'
-    for i in outTop,outMup,outCaf:
-
+    outCaf = os.path.join(outFd, CAF)
+    outMup = os.path.join(outFd, MUP)
+    outTop = os.path.join(outFd, f'{fd}_topology')
+    for i in outTop, outMup, outCaf:
         testAndDelete(i)
-    arcpy.Copy_management(inGdb+'/'+fd+'/'+MUP,outMup)
-    arcpy.Copy_management(inGdb+'/'+fd+'/'+CAF,outCaf)
+    arcpy.Copy_management(os.path.join(inGdb, fd, MUP),outMup)
+    arcpy.Copy_management(os.path.join(inGdb, fd, CAF),outCaf)
 
     # create topology
     addMsgAndPrint('    creating '+outTop)
     arcpy.CreateTopology_management(outFd,os.path.basename(outTop))
+    
     # add feature classes to topology
     arcpy.AddFeatureClassToTopology_management(outTop, outCaf,1,1)
     arcpy.AddFeatureClassToTopology_management(outTop, outMup,2,2)
+    
     # add rules
     addMsgAndPrint('    adding level 2 rules to topology:')
     if arcpy.Exists(outMup):
         for aRule in ('Must Not Overlap (Area)','Must Not Have Gaps (Area)'):
-            addMsgAndPrint('      '+aRule)
+            addMsgAndPrint(f'      {aRule}')
             arcpy.AddRuleToTopology_management(outTop, aRule, outMup)
         addMsgAndPrint('      '+'Boundary Must Be Covered By (Area-Line)')
         arcpy.AddRuleToTopology_management(outTop,'Boundary Must Be Covered By (Area-Line)',outMup,'',outCaf)
     if level == 3:
         addMsgAndPrint('    adding level 3 rules to topology:')
         for aRule in ('Must Not Overlap (Line)','Must Not Self-Overlap (Line)','Must Not Self-Intersect (Line)'):
-            addMsgAndPrint('      '+aRule)
+            addMsgAndPrint(f'      {aRule}')
             arcpy.AddRuleToTopology_management(outTop, aRule, outCaf)
+            
     # validate topology
     addMsgAndPrint('    validating topology')
     arcpy.ValidateTopology_management(outTop)
     nameToken = os.path.basename(outCaf).replace('ContactsAndFaults','')
     if nameToken == '':
         nameToken = 'GeologicMap'
-    nameToken = 'errors_'+nameToken+'Topology'
+    nameToken = f'errors_{nameToken}Topology'
+    
     for sfx in ('_point','_line','_poly'):
-        testAndDelete(outFd+'/'+nameToken+sfx)
+        testAndDelete(os.path.join(outFd, nameToken+sfx)
+        
     # export topology errors
     addMsgAndPrint('    exporting topology errors')
-    arcpy.ExportTopologyErrors_management(outTop,outFd,nameToken)
+    arcpy.ExportTopologyErrors_management(outTop, outFd, nameToken)
     nErrs = 0
     for sfx in ('_point','_line','_poly'):
-        fc = outFd+'/'+nameToken+sfx
-        #addMsgAndPrint('    '+str(numberOfRows(fc))+' rows in '+os.path.basename(fc))
-        #topologyErrors.append(str(numberOfRows(fc))+' rows in '+os.path.basename(fc))
+        fc = os.path.join(outFd, nameToken+sfx)
         nErrs = nErrs +numberOfRows(fc)
         if numberOfRows(fc) == 0:
             testAndDelete(fc)
@@ -847,6 +850,7 @@ if sys.argv[2] != '#':
     workdir = sys.argv[2]
 else:
     workdir = os.path.dirname(inGdb)
+gdbName = os.path.basename(inGdb)
 refreshGeoMaterialDict = sys.argv[3]
 skipTopology = sys.argv[4]
 deleteExtraGlossaryDataSources = sys.argv[5]
@@ -887,22 +891,26 @@ else:
         arcpy.management.TableToDomain(inGdb+'/GeoMaterialDict', 'GeoMaterial', 'IndentedName', inGdb, 'GeoMaterials', '', 'REPLACE')
         ##   attach it to DMU field GeoMaterial
         arcpy.management.AssignDomainToField(inGdb+'/DescriptionOfMapUnits','GeoMaterial','GeoMaterials')                                                    
+
     # open output files
-    summaryName = os.path.basename(inGdb)+'-Validation.html'
-    summary = open(workdir+'/'+summaryName,'w', errors='xmlcharrefreplace')
-    errorsName = os.path.basename(inGdb)+'-ValidationErrors.html'
-    errors = open(workdir+'/'+errorsName,'w')
+    summaryName = f'{gdbName}-Validation.html'
+    sumFile = os.path.join(workdir, summaryName)
+    summary = open(sumFile,'w', errors='xmlcharrefreplace')
+    
+    errorsName = f'{gdbName}-ValidationErrors.html'
+    errorsFile = os.path.join(workdir, errorsName)
+    errors = open(errorsFile,'w')
     
     #mdTxtFile = workdir+'/'+os.path.basename(inGdb)+metadataSuffix
-    mdTxtFile = os.path.join(workdir, os.path.basename(inGdb) + metadataSuffix)
-    mdErrFile = os.path.join(workdir, os.path.basename(inGdb) + metadataErrorsSuffix)
+    mdTxtFile = os.path.join(workdir, gdbName + metadataSuffix)
+    mdErrFile = os.path.join(workdir, gdbName + metadataErrorsSuffix)
     mdXmlFile = mdTxtFile[:-3]+'xml'
 
     # delete errors gdb if it exists and make a new one
-    outErrorsGdb = inGdb[:-4]+'_Validation.gdb'
+    gdbVal = f'{gdbName[:-4]}_Validation.gdb'
+    outErrorsGdb = os.path.join(workdir, gdbVal)
     if not arcpy.Exists(outErrorsGdb):
-        outFolder,outName = os.path.split(outErrorsGdb)
-        arcpy.CreateFileGDB_management(outFolder, outName)
+        arcpy.CreateFileGDB_management(workdir, gdbVal)
 
     # level 2 compliance
     addMsgAndPrint('Looking at level 2 compliance')
@@ -910,7 +918,7 @@ else:
         if arcpy.Exists(tb):
             scanTable(tb)
         else:
-            schemaErrorsMissingElements.append('Table <span class="table">'+tb+'</span>')
+            schemaErrorsMissingElements.append(f'Table <span class="table">{tb}</span>')
     gMap_MapUnits = []
     if not arcpy.Exists('GeologicMap'):
         gMapSRF = ''
@@ -925,7 +933,7 @@ else:
         else: # is projected
             pcsd = srf.PCSName
         if pcsd.find('World_Geodetic_System_1984') < 0 and pcsd.find('NAD_1983') < 0:
-            SRFWarnings.append('Spatial reference framework is '+pcsd+'. Consider reprojecting this dataset to NAD83 or WGS84')                       
+            SRFWarnings.append(f'Spatial reference framework is {pcsd}. Consider reprojecting this dataset to NAD83 or WGS84')                       
         arcpy.env.workspace = 'GeologicMap'
         gMap_MapUnits = []
         for fc in requiredGeologicMapFeatureClasses:
@@ -933,11 +941,11 @@ else:
                 mapUnits = scanTable(fc)
                 appendValues(gMap_MapUnits,mapUnits)
             else:
-                schemaErrorsMissingElements.append('Feature class <span class="table">GeologicMap/'+fc+'</span>')
+                schemaErrorsMissingElements.append(f'Feature class <span class="table">GeologicMap/{fc}</span>')
         isMap,MUP,CAF = isFeatureDatasetAMap('GeologicMap')
         if isMap:
             if skipTopology == 'false':
-                nTopoErrors = checkTopology(workdir,inGdb,outErrorsGdb,'GeologicMap',MUP,CAF,2)
+                nTopoErrors = checkTopology(workdir, inGdb, outErrorsGdb, 'GeologicMap', MUP, CAF, 2)
                 if nTopoErrors > 0:
                     topologyErrors.append(str(nTopoErrors)+' Level 2 errors in <span class="table">GeologicMap</span>')
             else:
@@ -949,17 +957,17 @@ else:
     unused, missing, plainUnused  = matchRefs(dataSources_IDs, allDataSourcesRefs)
     appendValues(missingSourceIDs, missing)
     for d in getDuplicates(dataSources_IDs):
-        duplicatedSourceIDs.append('<span class="value">'+d+'</span>')
+        duplicatedSourceIDs.append(f'<span class="value">{d}</span>')
     
     unused, missing, plainUnused  = matchRefs(glossaryTerms, allGlossaryRefs)
     appendValues(missingGlossaryTerms, missing)
     for d in getDuplicates(glossaryTerms):
-        glossaryTermDuplicates.append('<span class="value">'+d+'</span>')
+        glossaryTermDuplicates.append(f'<span class="value">{d}</span>')
    
     unused, missing, plainUnused  = matchRefs(dmuMapUnits, allMapUnits)
     appendValues(missingDmuMapUnits, missing)
     for d in getDuplicates(dmuMapUnits):
-        dmuMapUnitsDuplicates.append('<span class="value">'+d+'</span>')
+        dmuMapUnitsDuplicates.append(f'<span class="value">{d}</span>')
 
     isLevel2, summary2, errors2 = writeOutputLevel2(errorsName)
 
@@ -982,7 +990,7 @@ else:
     for fd in fds:
         fdSRF = arcpy.Describe(fd).spatialReference.name
         if fdSRF != gMapSRF:
-            SRFWarnings.append('Spatial reference framework of '+fd+' does not match that of GeologicMap')
+            SRFWarnings.append(f'Spatial reference framework of {fd} does not match that of GeologicMap')
         arcpy.env.workspace = fd
         fcs = arcpy.ListFeatureClasses()
         findOtherStuff(inGdb+'/'+fd,fcs)
