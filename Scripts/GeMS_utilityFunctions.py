@@ -219,6 +219,7 @@ def checkVersion(vString, rawurl, toolbox):
         raw = page.text
         if vString in raw:
             pass
+            arcpy.AddMessage("This version of the tool is up to date")
         else:
             repourl = 'https://github.com/usgs/{}/releases'.format(toolbox)
             arcpy.AddWarning('You are using an obsolete version of this tool!\n' +

@@ -30,11 +30,11 @@ import sys
 import os
 from GeMS_utilityFunctions import * 
 
-versionString = 'GeMS_RelationshipClasses1_AGP2.py, version of 7 November 2019'
-rawurl = 'https://raw.githubusercontent.com/usgs/gems-tools-pro/master/Scripts/GeMS_RelationshipClasses1_AGP2.py'
+versionString = 'GeMS_RelationshipClasses1_AGP2.py, version of 3 March 2021'
+rawurl = 'https://raw.githubusercontent.com/usgs/gems-tools-pro/master/Scripts/GeMS_RelationshipClasses_AGP2.py'
 checkVersion(versionString, rawurl, 'gems-tools-pro')
 
-addMsgAndPrint(versionString)
+raise SystemError
 
 def fname_find(field_string, table):
     # finds a field name regardless of the case of the search string (field_string)
