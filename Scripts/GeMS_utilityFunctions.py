@@ -1,6 +1,6 @@
 # utility functions for scripts that work with GeMS geodatabase schema
 
-import arcpy, os.path, time
+import arcpy, os.path, time, glob
 editPrefixes = ('xxx','edit_','errors_','ed_')
 debug = False
 import requests
