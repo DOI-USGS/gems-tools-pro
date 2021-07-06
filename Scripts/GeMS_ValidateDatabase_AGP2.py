@@ -496,7 +496,7 @@ def checkMetadata(inGdb,txtFile,errFile,xmlFile):
         addMsgAndPrint('Failed to delete '+xmlFile)
         addMsgAndPrint('Delete it manually and re-run validation tool.')
     # run it through mp
-    command = f'{mp_path} -t {txtFile} -e {errFile} {xmlFile}'
+    command = f'"{mp_path}" -t "{txtFile}" -e "{errFile}" "{xmlFile}"'
     #command = 'mp -t '+txtFile+' -e '+errFile+' '+xmlFile
     os.system(command)
     mpErrors = open(errFile).readlines()
