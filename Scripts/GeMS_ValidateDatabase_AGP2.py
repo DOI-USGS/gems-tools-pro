@@ -17,6 +17,8 @@
 #    Added reminder to document any schema extensions
 #    Added feature dataset SRF names to database inventory     - RH
 # 2/26/21: added copy.deepcopy to checkFieldDefinitions when building requiredFieldDefs
+# 7/6/2: changed functions notEmpty and empty to evaluate str(x) instead of just x so that we could look for value of x.strip() when x is an integer.
+#        Will converting x to string ever return an unexpected value? - ET
 
 import arcpy, os, os.path, sys, time, glob
 import copy
@@ -24,7 +26,7 @@ from arcpy import metadata as md
 from GeMS_utilityFunctions import *
 from GeMS_Definition import *
 
-versionString = 'GeMS_ValidateDatabase_AGP2.py, version of 25 February 2021'
+versionString = 'GeMS_ValidateDatabase_AGP2.py, version of 6 July 2021'
 rawurl = 'https://raw.githubusercontent.com/usgs/gems-tools-pro/master/Scripts/GeMS_ValidateDatabase_AGP2.py'
 checkVersion(versionString, rawurl, 'gems-tools-pro')
 
@@ -572,8 +574,8 @@ def checkFieldDefinitions(def_table, compare_table=None):
     del requiredFieldDefs
 
 def notEmpty(x):
-    # will fail on not-String values of x
-    if x != None and x.strip() != '':
+    # will converting x to string ever return an unexpected value?
+    if x != None and str(x).strip() != '':
         return True
     else:
         return False
@@ -582,7 +584,7 @@ def empty(x):
     if x == None:
         return True
     try:
-        if x.strip() == '':
+        if str(x).strip() == '':
             return True
         else:
             return False
