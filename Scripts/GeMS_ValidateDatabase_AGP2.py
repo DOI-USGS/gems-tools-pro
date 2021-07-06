@@ -19,6 +19,7 @@
 # 2/26/21: added copy.deepcopy to checkFieldDefinitions when building requiredFieldDefs
 # 7/6/2: changed functions notEmpty and empty to evaluate str(x) instead of just x so that we could look for value of x.strip() when x is an integer.
 #        Will converting x to string ever return an unexpected value? - ET
+#      : added try/except block when checking for editor tracking because there's a chance the method didn't exist for pre 2.6 versions of AGPro -  ET
 
 import arcpy, os, os.path, sys, time, glob
 import copy
@@ -628,8 +629,13 @@ def scanTable(table, fds=None):
         isExtension = True
         schemaExtensions.append(dsc.dataType+' <span class="table">'+table+'</span>')
 ### check for edit tracking
-    if dsc.editorTrackingEnabled:
-        otherWarnings.append('Editor tracking is enabled on <span class="table">'+table+'</span>')
+    try:
+        if dsc.editorTrackingEnabled:
+            otherWarnings.append('Editor tracking is enabled on <span class="table">'+table+'</span>')
+    except:
+        warn_text = f'''Cannot determine if Editor Tracking is enabled on <span class="table">'{table}'</span>' or not;  
+                        probably due to an older version of ArcGIS Pro being used. Check for this manually.'''
+        otherWarnings.append(warn_text)
 ### assign fields to categories:
     fields = arcpy.ListFields(table)
     fieldNames = fieldNameList(table)
