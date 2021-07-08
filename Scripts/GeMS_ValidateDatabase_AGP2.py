@@ -20,16 +20,26 @@
 # 7/6/2: changed functions notEmpty and empty to evaluate str(x) instead of just x so that we could look for value of x.strip() when x is an integer.
 #        Will converting x to string ever return an unexpected value? - ET
 #      : added try/except block when checking for editor tracking because there's a chance the method didn't exist for pre 2.6 versions of AGPro -  ET
+# 7/8/21: user reported error from checkMetadata. First, the Resources folder and mp.exe path were not getting built properly when starting from
+#       : sys.argv[0] when the file GDB was placed inside the toolbox folder. Weird, yes, but the tool should handle it. __file__ and using path.dirname
+#       : is a more robust way to get the path of the script file and parent folders.
+#       : Second, spaces in paths were not getting handled correctly when calling mp.exe through os.system(command). Switched to subprocess.
 
 import arcpy, os, os.path, sys, time, glob
 import copy
 from arcpy import metadata as md
 from GeMS_utilityFunctions import *
 from GeMS_Definition import *
+import subprocess
 
-versionString = 'GeMS_ValidateDatabase_AGP2.py, version of 6 July 2021'
+versionString = 'GeMS_ValidateDatabase_AGP2.py, version of 8 July 2021'
 rawurl = 'https://raw.githubusercontent.com/usgs/gems-tools-pro/master/Scripts/GeMS_ValidateDatabase_AGP2.py'
 checkVersion(versionString, rawurl, 'gems-tools-pro')
+
+py_path = __file__
+scripts_path = os.path.dirname(py_path)
+toolbox_path = os.path.dirname(scripts_path)
+resources_path = os.path.join(toolbox_path, 'Resources')
 
 metadataSuffix = '-vFgdcMetadata.txt'
 metadataErrorsSuffix = '-vFgdcMetadataErrors.txt'
@@ -496,9 +506,8 @@ def checkMetadata(inGdb,txtFile,errFile,xmlFile):
         addMsgAndPrint('Failed to delete '+xmlFile)
         addMsgAndPrint('Delete it manually and re-run validation tool.')
     # run it through mp
-    command = f'"{mp_path}" -t "{txtFile}" -e "{errFile}" "{xmlFile}"'
-    #command = 'mp -t '+txtFile+' -e '+errFile+' '+xmlFile
-    os.system(command)
+    args = [mp_path, '-t', txtFile, '-e', errFile, xmlFile]
+    subprocess.call(args)
     mpErrors = open(errFile).readlines()
     for aline in mpErrors:
         if aline.split()[0] == 'Error':
@@ -863,8 +872,8 @@ refreshGeoMaterialDict = sys.argv[3]
 skipTopology = sys.argv[4]
 deleteExtraGlossaryDataSources = sys.argv[5]
 
-refgmd = os.path.join(os.path.dirname(sys.argv[0]), '..', 'Resources', 'GeMS_lib.gdb', 'GeoMaterialDict')
-mp_path = os.path.join(os.path.dirname(sys.argv[0]), '..', 'Resources', 'mp.exe')
+refgmd = os.path.join(resources_path, 'GeMS_lib.gdb', 'GeoMaterialDict')
+mp_path = os.path.join(resources_path, 'mp.exe')
 
 ##validate inputs
 
