@@ -20,7 +20,7 @@
 # 7/6/2: changed functions notEmpty and empty to evaluate str(x) instead of just x so that we could look for value of x.strip() when x is an integer.
 #        Will converting x to string ever return an unexpected value? - ET
 #      : added try/except block when checking for editor tracking because there's a chance the method didn't exist for pre 2.6 versions of AGPro -  ET
-# 7/8/21: user reported error from checkMetadata. First, the Resources folder and mp.exe path were not getting built properly when starting from
+# 7/8/21: user reported error from checkMetadata. First, the Resources folder and mp.exe paths were not getting built properly when starting from
 #       : sys.argv[0] when the file GDB was placed inside the toolbox folder. Weird, yes, but the tool should handle it. __file__ and using path.dirname
 #       : is a more robust way to get the path of the script file and parent folders.
 #       : Second, spaces in paths were not getting handled correctly when calling mp.exe through os.system(command). Switched to subprocess.
