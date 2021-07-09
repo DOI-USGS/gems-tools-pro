@@ -21,13 +21,12 @@ Usage: GeMS_AttributeByKeyValues.py <geodatabase> <file.txt> <force calculation>
      determine if existing values may be overwritten (True) or only null, 0, orgot
      otherwise empty values will be calculated (False)
      """
-
-versionString = 'GeMS_AttributeByKeyValues_AGP2.py, version of 30 May 2019'
-rawurl = 'https://raw.githubusercontent.com/usgs/gems-tools-pro/master/Scripts/GeMS_AttributeByKeyValues_AGP2.py'
-checkVersion(versionString, rawurl, 'gems-tools-pro')
-
 import arcpy, sys
 from GeMS_utilityFunctions import *
+
+versionString = 'GeMS_AttributeByKeyValues_AGP2.py, version of 9 July 2021'
+rawurl = 'https://raw.githubusercontent.com/usgs/gems-tools-pro/master/Scripts/GeMS_AttributeByKeyValues_AGP2.py'
+checkVersion(versionString, rawurl, 'gems-tools-pro')
 
 separator = '|'
 
