@@ -56,7 +56,7 @@ Arcade error: Field not found GlobalID,
 Script line: 1]
 ```
 
-In this case, the field ```GlobalID``` does exist. The workaround for now is to disable the attribute rule.
+even when the field, e.g.,  ```GlobalID``, does exist. The workaround for now is to disable the attribute rule.
 
 ## Acknowledgements
 GeMS Tools was originally written by in Python 2.7 by Ralph Haugerud, Evan Thoms, and others and ported to Python 3 by Evan Thoms.
