@@ -22,6 +22,7 @@ def fixTableStrings(fc):
             updateRowFlag = False
             row1 = [row[0]]
             for i, f in enumerate(row[1:]):
+                #addMsgAndPrint(" ")
                 updateFieldFlag = False
                 f0 = f
                 if f != None:
@@ -33,13 +34,13 @@ def fixTableStrings(fc):
                         updateFieldFlag = True
                     if updateFieldFlag:
                         updateRowFlag = True
-                        addMsgAndPrint(f" OID:{str(row[0])} field:{fields[i+1]} value:'{str(f0)}'")
+                        #addMsgAndPrint(f" OID:{str(row[0])} field:{fields[i+1]} value:'{str(f0)}'")
                 row1.append(f)
             if updateRowFlag:
                 try:
                     cursor.updateRow(row1)
                 except Exception as error:
-                    addMsgAndPrint(f'Failed to update row {str(row[0])}. {error}')
+                    arcpy.AddMessage(f'\u200B  Row {str(row[0])}. {error}')
     
 #########################
 
@@ -50,7 +51,7 @@ arcpy.env.workspace = db
 
 tables = arcpy.ListTables()
 for tb in tables:
-    addMsgAndPrint(' ')
+    addMsgAndPrint(".........")
     addMsgAndPrint(os.path.basename(tb))
     fixTableStrings(tb)
 
@@ -62,7 +63,7 @@ for ds in datasets:
         path = os.path.join(arcpy.env.workspace, ds, fc)
         try:
             fixTableStrings(path)
-        except:
-            addMsgAndPrint('  failed to fix strings')
+        except Exception as error:
+            addMsgAndPrint(error)
 
 addMsgAndPrint('DONE')
