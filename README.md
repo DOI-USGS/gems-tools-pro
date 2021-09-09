@@ -44,6 +44,20 @@ Suggestions for improvements and edited files submitted by [email](gems@usgs.gov
 
 * "DMU to .docx" requires the [python-docx](https://python-docx.readthedocs.io/en/latest/) third party package. **Do not try to install this package into your default arcgispro-py3 python environment**. Instead, install it into a [clone](https://pro.arcgis.com/en/pro-app/latest/arcpy/get-started/work-with-python-environments.htm#ESRI_SECTION1_175473E6EB0D46E0B195996EAE768C1D). Remember to activate this environment before running the tool.
 
+* Issue 11 describes a problem found when using the Fix Strings tools but may occur elsewhere as well; trying to update rows with an update cursor may throw an error if there is an attribute rule on the field with a message similar to:
+
+```
+Failed to evaluate Arcade expression. [
+Rule name: Calc _ID,
+Triggering event: Update,
+Class name: MapUnitLines,
+GlobalID: ,
+Arcade error: Field not found GlobalID,
+Script line: 1]
+```
+
+even when the field, e.g.,  ```GlobalID```, does exist. The workaround for now is to disable the attribute rule.
+
 ## Acknowledgements
 GeMS Tools was originally written by in Python 2.7 by Ralph Haugerud, Evan Thoms, and others and ported to Python 3 by Evan Thoms.
 
