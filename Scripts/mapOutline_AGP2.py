@@ -14,8 +14,9 @@
 #  Evan Thoms
 
 import arcpy, sys, os
+from GeMS_utilityFunctions import *
 
-versionString = 'mapOutline_AGP2.py, version of 23 July 2019'
+versionString = 'mapOutline_AGP2.py, version of 19 November 2021'
 rawurl = 'https://raw.githubusercontent.com/usgs/gems-tools-pro/master/Scripts/mapOutline_AGP2.py'
 checkVersion(versionString, rawurl, 'gems-tools-pro')
 
