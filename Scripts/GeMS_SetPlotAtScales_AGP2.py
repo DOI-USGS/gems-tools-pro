@@ -4,14 +4,15 @@
 
 # June 2019: updated to work with Python 3 in ArcGIS Pro. 
 # Ran script through 2to3. Only incidental debugging required after.
+# November 2021: reordered linew 9-14
+
+import arcpy, os.path, sys
+from GeMS_utilityFunctions import *
 
 versionString = 'GeMS_SetPlotAtScales_AGP2.py, version of 10 June 2019'
 rawurl = 'https://raw.githubusercontent.com/usgs/gems-tools-pro/master/Scripts/GeMS_SetPlotAtScales_AGP2.py'
 checkVersion(versionString, rawurl, 'gems-tools-pro')
 
-
-import arcpy, os.path, sys
-from GeMS_utilityFunctions import *
 
 # global dictionaries
 OPTypeDict = {}
