@@ -27,6 +27,7 @@ The documentation for these tools may not be complete or may be poorly formatted
 * Check out the [wiki](https://github.com/usgs/gems-resources/wiki) for help on these tools and extensive advice on using these tools to create, edit, and validate GeMS-style databases.
 * Documentation for the toolbox and all tools and  is also available in **GeMS_Tools_Arc10.docx** and **GeMS_Tools_Arc10.pdf** found in the `Docs` sub-folder — these are both somewhat out-of-date; check back for new versions.
 * If, when using a tool, it fails to run and produces an error message, first check that you have the latest release of the tool. If that is not the source of the problem, start a new issue at this repository (see the [Issues](https://github.com/usgs/gems-tools-pro/issues) tab above). Provide a screenshot of the error message if you can.
+* Explore the Jupyter Notebooks at the [notebooks](https://github.com/usgs/gems-tools-pro/tree/notebooks) branch of this repo.
 * If you have a question about how to build or attribute a GeMS-compliant database or the schema in general, please visit the [GeMS Gitter](https://gitter.im/gems-schema/community#) chat room. If you already have a GitHub account, you can sign in there with those credentials.
 
 ## Collaborate
