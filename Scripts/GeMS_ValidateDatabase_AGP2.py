@@ -24,6 +24,8 @@
 #       : sys.argv[0] when the file GDB was placed inside the toolbox folder. Weird, yes, but the tool should handle it. __file__ and using path.dirname
 #       : is a more robust way to get the path of the script file and parent folders.
 #       : Second, spaces in paths were not getting handled correctly when calling mp.exe through os.system(command). Switched to subprocess.
+# 1/27/22: added clause to parse DataSourceIDs that might take the form of 'DAS1 | DAS2 | DAS3', etc. That is, allows for multiple datasources
+#        to be related to a table row. in def ScanTable under 'for i in dataSourceIndices:'
 
 import arcpy, os, os.path, sys, time, glob
 import copy
@@ -32,7 +34,7 @@ from GeMS_utilityFunctions import *
 from GeMS_Definition import *
 import subprocess
 
-versionString = 'GeMS_ValidateDatabase_AGP2.py, version of 8 July 2021'
+versionString = 'GeMS_ValidateDatabase_AGP2.py, version of 27 January 2022'
 rawurl = 'https://raw.githubusercontent.com/usgs/gems-tools-pro/master/Scripts/GeMS_ValidateDatabase_AGP2.py'
 checkVersion(versionString, rawurl, 'gems-tools-pro')
 
@@ -620,7 +622,7 @@ def fixNull(x):
 def scanTable(table, fds=None):
     if fds is None:
         fds = ''
-    addMsgAndPrint('  scanning '+table)
+    addMsgAndPrint('  scanning ' + table)
     dsc = arcpy.Describe(table)
 ### check table and field definition against GeMS_Definitions
     if table == 'GeoMaterialDict':
@@ -753,12 +755,16 @@ def scanTable(table, fds=None):
                     xxft = [row[i],fieldNames[i],table]
                     if not xxft in allGlossaryRefs:
                         allGlossaryRefs.append(xxft)
+                        
             for i in dataSourceIndices:
                 xx = row[i]
                 if notEmpty(xx):
-                    xxft = [xx,fieldNames[i],table]
-                    if not xx in allDataSourcesRefs:
-                        allDataSourcesRefs.append(xxft)
+                    ids = [e.strip() for e in xx.split('|') if e.strip()]
+                    for xxref in ids:
+                        xxft = [xxref, fieldNames[i], table]
+                        if not xxref in allDataSourcesRefs:
+                            allDataSourcesRefs.append(xxft)
+                
             if mapUnitFieldIndex != [] and row[mapUnitFieldIndex[0]] != None:
                 for i in specialDmuFieldIndices:
                     xx = row[i]
