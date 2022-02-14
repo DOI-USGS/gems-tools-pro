@@ -28,6 +28,7 @@ versionString = 'GeMS_Definition.py, version of 4 May 2021'
 # 29 October 2020: Changed NoNulls to NullsOK for ObservedMapUnit in Stations per documentation - ET
 # 1 December 2020: Added ErrorMeasure to GeochronPoints, to conform with documentation - RH  
 # 4 May 2021: changed MapUnit in GenericPoints to NullsOk because standard says "Values of MapUnit should not be null, except for points that lie outside the extent of the MapUnitPolys feature class." and Chris Halstead was getting validate errors with that situation; points outside of polygons in map and cross section views. Left MapUnit as NoNulls for other point feature classes because they are more likely to be tied to a map unit and within the map area. - ET               
+# 2/14/22 StationsID had gone back to StationID! Re-changed this - ET
 
 # to think about: Maybe change all NoNulls to NullsOK?
 
@@ -82,7 +83,7 @@ startDict = {
 					['Label','String','NullsOK',IDLength],
 					['LocationConfidenceMeters','Single','NoNulls'],
 					['PlotAtScale','Single','NoNulls'],
-					['StationID','String','NullsOK',IDLength],
+					['StationsID','String','NullsOK',IDLength],
 					['MapUnit','String','NullsOK',mapUnitLength],
 					['LocationSourceID','String','NoNulls',IDLength],
 					['DataSourceID','String','NoNulls',IDLength],
@@ -95,7 +96,7 @@ startDict = {
 					['MaterialAnalyzed','String','NullsOK',defaultLength],
 					['LocationConfidenceMeters','Single','NoNulls'],
 					['PlotAtScale','Single','NoNulls'],
-					['StationID','String','NullsOK',IDLength],
+					['StationsID','String','NullsOK',IDLength],
 					['MapUnit','String','NoNulls',mapUnitLength],
 					['LocationSourceID','String','NoNulls',IDLength],
 					['DataSourceID','String','NoNulls',IDLength],
@@ -109,7 +110,7 @@ startDict = {
 					['IdentityConfidence','String','NoNulls',50],
 					['OrientationConfidenceDegrees','Single','NoNulls'],
 					['PlotAtScale','Single','NoNulls'],
-					['StationID','String','NullsOK',IDLength],
+					['StationsID','String','NullsOK',IDLength],
 					['MapUnit','String','NoNulls',mapUnitLength],
 					['LocationSourceID','String','NoNulls',IDLength],
 					['OrientationSourceID','String','NoNulls',IDLength],
@@ -128,7 +129,7 @@ startDict = {
 					['AgeMinusError','Single','NullsOK'],
 					['ErrorMeasure','String','NullsOK',defaultLength],
 					['AgeUnits','String','NoNulls',IDLength],
-					['StationID','String','NullsOK',IDLength],
+					['StationsID','String','NullsOK',IDLength],
 					['LocationSourceID','String','NoNulls',IDLength],
 					['AnalysisSourceID','String','NullsOK',IDLength],
 					['Notes','String','Optional',defaultLength]],
@@ -231,7 +232,7 @@ startDict = {
 					['DataSourceID','String','NoNulls',IDLength]],
 # optional feature classes not described in GeMS specification               
 		   'FossilPoints':     [['Type','String','NoNulls',defaultLength],
-					['StationID','String','NullsOK',IDLength],
+					['StationsID','String','NullsOK',IDLength],
 					['MapUnit','String','NoNulls',mapUnitLength],
 					['Label','String','NullsOK',IDLength],
 					['Symbol','String','NullsOK',defaultLength],
@@ -247,7 +248,7 @@ startDict = {
 					['FossilAgeSourceID','String','NullsOK',IDLength],
 					['Notes','String','NullsOK',defaultLength]], 
 		'PhotoPoints':         [['Type','String','NoNulls',defaultLength],
-					['StationID','String','NullsOK',IDLength],
+					['StationsID','String','NullsOK',IDLength],
 					['MapUnit','String','NoNulls',mapUnitLength],
 					['Label','String','NullsOK',IDLength],
 					['Symbol','String','NullsOK',defaultLength],
@@ -351,7 +352,7 @@ attribDict = {
     'ParagraphStyle':'Token that identifies formatting of paragraph(s) within traditional Description of Map Units that correspond to this table entry.',
     'PlotAtScale':'At what scale (or larger) should this observation or analysis be plotted? At smaller scales, it should not be plotted. Useful to prevent crowding of display at small scales and to display progressively more data at larger and larger scales. Value is scale denominator.',
     'Source':'Plain-text short description that identifies the data source.',
-    'StationID':'Foreign key to Stations point feature class.',
+    'StationsID':'Foreign key to Stations point feature class.',
     'Symbol':'Reference to a point marker, line symbol, or area-fill symbol that is used on the map graphic to denote the feature: perhaps a star for a K-Ar age locality, or a heavy black line for a fault.',
     'Term':'Plain-language word for a concept. Values must be unique within database as a whole.',
     'Type':'Classifier that specifies what kind of geologic feature is represented by a database element: that a certain line within feature class ContactsAndFaults is a contact, or thrust fault, or water boundary; or that a point in GeochronPoints represents a K-Ar date.',
@@ -383,7 +384,7 @@ entityDict = {
     'MapUnitPolys':'Polygons that record distribution of map units (including water, snowfields, glaciers, and unmapped area) on the particular map horizon. ',
     'MapUnitPoints':'Points that record distribution of map units of point-like extent on the particular map horizon. ',
     'MapUnitOverlayPolys':'Polygons that delineate underlying material, overlying material, or some other aspect of earth materials that is described in table DescriptionOfMapUnits, e.g., dike swarm, colluvium. On a map graphic, such polygons are commonly shown by a patterned overprint.', 
-    'OrientationPoints':'Point structure data (e.g., bedding attitudes, foliation attitudes, slip vectors measured at a point, etc.), one point per measurement. Multiple measurements at a single station (e.g., bedding and cleavage) should have the same StationID.',
+    'OrientationPoints':'Point structure data (e.g., bedding attitudes, foliation attitudes, slip vectors measured at a point, etc.), one point per measurement. Multiple measurements at a single station (e.g., bedding and cleavage) should have the same StationsID.',
     'OverlayPolys':'Polygons that delineate underlying material, overlying material, or some aspect of earth materials other than the geologic map unit, e.g., dike swarm, alteration zone. On a map graphic, such polygons are commonly shown by a patterned overprint.',
     'RepurposedSymbols':'Non-spatial table that identifies symbols from the FGDC Digital Cartographic Standard for Geologic Map Symbolization (FGDC-STD-013-2006) that are "repurposed" for this map.',
     'StandardLithology':'Non-spatial table for describing the lithologic constituents of geologic map units. Has 1 to many rows per map unit. May be used to extend and supplement the GeneralLithology terms and unstructured free text Description found in the DescriptionOfMapUnits table.',
