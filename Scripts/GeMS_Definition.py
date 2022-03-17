@@ -6,7 +6,8 @@
 #  Ralph Haugerud, 19 August 2016 
 # 
 
-versionString = 'GeMS_Definition.py, version of 4 May 2021'
+versionString = 'GeMS_Definition.py, version of 30 June 2021'
+
 # fixes errors in Station feature class definition
 # 16 Jan 2014: added ObservedMapUnit to Station feature class definition
 # 8 April 2016: Fixed ObservedMapUnit.  Put _ID field at end of each field list
@@ -26,8 +27,10 @@ versionString = 'GeMS_Definition.py, version of 4 May 2021'
 # 25 Sept 2020: Swapped Symbol and Label in ContactsAndFaults
 # 28 Sept 2020: Removed definitions of CSA feature classes, as this is handled in Create Database and in cross-section projection tools
 # 29 October 2020: Changed NoNulls to NullsOK for ObservedMapUnit in Stations per documentation - ET
-# 1 December 2020: Added ErrorMeasure to GeochronPoints, to conform with documentation - RH  
-# 4 May 2021: changed MapUnit in GenericPoints to NullsOk because standard says "Values of MapUnit should not be null, except for points that lie outside the extent of the MapUnitPolys feature class." and Chris Halstead was getting validate errors with that situation; points outside of polygons in map and cross section views. Left MapUnit as NoNulls for other point feature classes because they are more likely to be tied to a map unit and within the map area. - ET               
+# 1 December 2020: Added ErrorMeasure to GeochronPoints, to conform with documentation - RH
+# 4 May 2021: changed MapUnit in GenericPoints to NullsOk because standard says "Values of MapUnit should not be null, except for points that lie outside the extent of the MapUnitPolys feature class." and Chris Halstead was getting validate errors with that situation; points outside of polygons in map and cross section views. Left MapUnit as NoNulls for other point feature classes because they are more likely to be tied to a map unit and within the map area.
+# 2 June 2021: In Stations feature class, changed GPSX and GPSY to NullsOK. Removed MapX and MapY, to conform to published standard
+# 30 June 2021: In Stations, changed MapUnit to NullsOK. See Issue 71 and per documentation
 # 2/14/22 StationsID had gone back to StationID! Re-changed this - ET
 
 # to think about: Maybe change all NoNulls to NullsOK?
@@ -136,7 +139,7 @@ startDict = {
 		   'Stations':         [['FieldID','String','NoNulls',IDLength],
                                         ['LocationConfidenceMeters','Single','NoNulls'],
 					['ObservedMapUnit','String','NullsOK',mapUnitLength],
-					['MapUnit','String','NoNulls',mapUnitLength],
+					['MapUnit','String','NullsOK',mapUnitLength],
 					['Symbol','String','NullsOK',defaultLength],
 					['Label','String','NullsOK',IDLength],
 					['PlotAtScale','Single','NoNulls'],
@@ -146,11 +149,9 @@ startDict = {
 					['TimeDate','Date','NullsOK'],
 					['Observer','String','NullsOK',defaultLength],
 					['SignificantDimensionMeters','Single','NullsOK'],
-					['GPSX','Double','NoNulls'],
-					['GPSY','Double','NoNulls'],  
-					['PDOP','Single','NullsOK'],
-					['MapX','Double','NoNulls'],
-					['MapY','Double','NoNulls']],
+					['GPSX','Double','NullsOK'],
+					['GPSY','Double','NullsOK'],  
+					['PDOP','Single','NullsOK']],
 		   'GeologicLines':    [['Type','String','NoNulls',defaultLength],
                                         ['IsConcealed','String','NoNulls',booleanLength],
 					['LocationConfidenceMeters','Single','NoNulls'],
@@ -414,3 +415,5 @@ for table in tableDict.keys():
             fieldNullsOKDict[tableField] = True
         else:
             fieldNullsOKDict[tableField] = False
+        
+                
