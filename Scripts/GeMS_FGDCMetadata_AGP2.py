@@ -200,8 +200,8 @@ def term_dict(obj_dict, table, fields):
     else:
         return None
 
-def clear_children(element):
-    for child in element.getchildren():
+def clear_children(element, child_tag):
+    for child in element.findall(child_tag):
         element.remove(child)
 
 def extend_branch(node, xpath):
@@ -350,44 +350,34 @@ def add_attributes(fc_name, detailed_node):
         # MySpecialTable_ID, SurficialMapUnit, lowerBoundingAge
         # might not be used much, but is also inexpensive to implement and
         # is, at least partially, useful to catch _ID field names
-        try:
-            key = next(k for k in attribDict if field.endswith(k))
-            def_text = attribDict[key]
+        found_attrib = False
+        res = [key for key in attribDict if field.endswith(key)]
+        key = None
+        if res:
+            key = res[0]
+            def_text = attribDict[key] # assuming here that if res isn't empty, there is only one key!
             source_text = gems
-        except StopIteration:
-            if missing:
-                def_text = ''
-                source_text = ''
-            else:
-                def_text = 'MISSING'
-                source_text = 'MISSING'
-            key = None
-        except:
-            pass
+            found_attrib = True
+            del res
             
-        # check for user supplied attribute dictionary  
-        # these entries take the form of 
-        # 'name of attribute (field)': ['definition', 'definition source'] so index the value
+        # look for a key ending in the field name in myAttribDict
         try:
-            key = next(k for k in myAttribDict if field.endswith(k))
+            res = [key for key in myAttribDict if field.endswith(key)]
+        except:
+            res = None
+        if res:
+            key = res[0]
             def_text = myAttribDict[key][0]
             source_text = myAttribDict[key][1]
-        except StopIteration:
-            if missing:
-                def_text = ''
-                source_text = ''
-            else:
-                def_text = 'MISSING'
-                source_text = 'MISSING'
-            key = None 
-        except:
-            pass
-            
+            found_attrib = True
+            del res
+        
         # second, check for fields in an annotation feature class 
         # should be defined as ESRI and have unrepresentable domains
         if anno_bool:
             def_text = 'Value controls placement or representation of annotation'
             source_text = 'ESRI'
+            found_attrib = True
             
         # third, check for ESRI fields  
         # after anno_bool so fields like OBJECTID, SHAPE, etc. can get changed back from 
@@ -395,13 +385,21 @@ def add_attributes(fc_name, detailed_node):
         if field.lower() in esri_attribs:
             def_text = esri_attribs[field.lower()]
             source_text = 'ESRI'
+            found_attrib = True
         
-        # add warnings if no definition and source were found
-        if def_text in ['MISSING', '']:
+        # fourth, if the attribute has not been found
+        if found_attrib == False:
+            if missing:
+                def_text = 'MISSING'
+                source_text = 'MISSING'
+            else:
+                def_text = ''
+                source_text = ''
+                
+            # add warnings if no definition and source were found
             arcpy.AddWarning(f"Cannot find definition for {field} in {fc_name}")
-        if source_text in ['MISSING', '']:
             arcpy.AddWarning(f"Cannot find definition source for {field} in {fc_name}")        
-        
+            
         # append the nodes above before evaluating the value domain
         attrdef.text = def_text
         attrdefs.text = source_text
@@ -470,11 +468,10 @@ def add_attributes(fc_name, detailed_node):
                         else:
                             val_text = 'MISSING'
                             val_source = 'MISSING'
-                # add warnings if no domain description and source were found
-                if val_text in ['MISSING', '']:
-                    arcpy.AddWarning(f"Cannot find domain value definition for {field} in {fc_name}")
-                if val_source in ['MISSING', '']:
-                    arcpy.AddWarning(f"Cannot find domain value definition source for {field} in {fc_name}")                 
+                        
+                        # report the missing values
+                        arcpy.AddWarning(f"Cannot find domain value definition for {field} in {fc_name}")
+                        arcpy.AddWarning(f"Cannot find domain value definition source for {field} in {fc_name}")                 
                 
                 # build the nodes and append    
                 edom = etree.Element('edom')
@@ -527,20 +524,28 @@ def validate_online(md_record):
         # XML output to the API to be validated only to get a new error file,
         # just edit the error file to remove out-of-order warnings           
         err_name = f'{str(mr_xml.stem)}-errors.txt'
-        err_path = Path(db_dir) / err_name
+        err_path = db_dir / err_name
         req = requests.get(links['error_txt'])
         with open(err_path, 'wt') as f:
             for line in req.iter_lines():
                 if not b'appears in unexpected order within' in line:
                     f.write(f"{line.decode('utf-8')}\n")
+                    
+        # collect the text version of the metadata?
+        if text_bool:
+            text_name = f'{str(mr_xml.stem)}.txt'
+            text_path = db_dir / text_name
+            req = requests.get(links['txt'])
+            with open(text_path, 'wt') as f:
+                f.write(req.text)            
                 
         # print the error file contents to the geoprocessing window
         with open(err_path, 'r') as f:
             arcpy.AddMessage(f.read())
         
         # final report
-        arcpy.AddMessage(f"Validated xml and error file have been saved to {db_dir}")
-        arcpy.AddMessage("Open in xml or metadata editor to complete the record")
+        arcpy.AddMessage(f"Output files have been saved to {db_dir}")
+        arcpy.AddMessage(f"Open {mr_xml} in a xml or metadata editor to complete the record")
         
         # cleanup
         temp_path.unlink()
@@ -587,8 +592,7 @@ arcpy.AddMessage("Building dictionary of database contents")
 obj_dict = gdb_object_dict(str(db_path))
 
 # export embedded metadata? concert string to boolean
-arc_md = sys.argv[2]
-if arc_md.lower() in ['true', 'yes']:
+if sys.argv[2].lower() in ['true', 'yes']:
     arc_md = True
 else:
     arc_md = False
@@ -598,8 +602,10 @@ my_defs_path = Path(sys.argv[3])
 if my_defs_path.is_file():
     mod_name = my_defs_path.stem
     import importlib.util
-    spec = importlib.util.spec_from_file_location(mod_name, str(my_defs_path))
-    my_definitions = importlib.util.module_from_spec(spec)
+    spec = importlib.util.spec_from_file_location(mod_name, my_defs_path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules['my_definitions'] = module
+    spec.loader.exec_module(module)
     from my_definitions import *
     
     # try updating the GeMS dictionaries, but if the custom ones do not exist don't throw an
@@ -622,13 +628,17 @@ template_path = sys.argv[4]
 # what to do with data sources. 
 # True - remove any existing first
 sources_choice = {"save only DataSources" : 1,
-                  "save DataSources and embedded sources": 2,
-                  "save DataSources and template sources": 3,
-                  "save only template sources": 4,
-                  "save all sources": 5,
-                  "save embedded and template sources": 6}
-                
+                  "save only embedded sources": 2,
+                  "save only template sources": 3,
+                  "save DataSources and embedded sources": 4,
+                  "save DataSources and template sources": 5,
+                  "save embedded and template sources": 6,
+                  "save all sources": 7,
+                  "save no sources": 8}
+                  
 sources_param = sources_choice[sys.argv[5]]
+
+arcpy.AddMessage("sources_param = " + str(sources_param))
 
 # what to do with process steps, dataqual/lineage/procstep
 history_choices = {"clear all history": 1,
@@ -638,10 +648,18 @@ history_choices = {"clear all history": 1,
           
 history_param = history_choices[sys.argv[6]]
 
-if sys.argv[7] == 'leave blank':
+# convert the 'missing definitions' argument to boolean
+if 'MISSING' in sys.argv[7]:
     missing = True
 else:
     missing = False
+
+# convert text file choice to boolean
+# export embedded metadata? concert string to boolean
+if sys.argv[8].lower() in ['true', 'yes']:
+    text_bool = True
+else:
+    text_bool = False
 
 # dictionaries of some tables
 # term_dict returns [term]:[definition, sourceid]
@@ -674,7 +692,7 @@ deez_nodes = {
     'source_nodes': {      
         'lineage' : {
             'xpath': 'dataqual/lineage'},
-
+            
         'title' : {
             'xpath': 'srccite/citeinfo/title'},
 
@@ -683,7 +701,10 @@ deez_nodes = {
     
     'spatial_nodes': {
         'spdom': {
-            'xpath': 'idinfo/spdom'}, 
+            'xpath': 'idinfo/spdom'},
+            
+        'spdoinfo': {
+            'xpath': 'spdoinfo'},
 
         'spref': {
             'xpath': 'spref'}},
@@ -708,16 +729,19 @@ if arc_md:
     src_md.exportMetadata(str(mr_xml), 'FGDC_CSDGM')
     # make an lxml etree
     base_md = etree.parse(str(mr_xml)).getroot()
-    # sources_param 1 and 4 call for no embedded data sources
-    if sources_param in [1, 3, 4]:
-        extend_branch(base_md, deez_nodes['source_nodes']['lineage']['xpath'])
-        lineage = base_md.find(deez_nodes['source_nodes']['lineage']['xpath'])
-        base_md.remove(lineage)
-
+    
+    # sources_param 1, 3, 5, 8 call for no embedded data sources
+    if sources_param in [1, 3, 5, 8]:
+        extend_branch(base_md, 'dataqual/lineage')
+        base_lineage = base_md.find('.//lineage')
+        arcpy.AddMessage("removing sources - arc_md")
+        clear_children(base_lineage, 'srcinfo')
+    
     if history_param < 3:
-        proc_steps = template_lineage.findall('procstep')
-        for step in proc_steps:
-            template_lineage.remove(step)
+        extend_branch(base_md, 'dataqual/lineage')
+        base_lineage = base_md.find('.//lineage') 
+        clear_children(base_lineage, 'procstep')
+
 else:
     # we have to make a metadata document from scratch
     # make the root
@@ -793,16 +817,12 @@ for n in g_nodes:
 ##            onlink URL
 ##      srccitea DataSourceID
 extend_branch(base_md, deez_nodes['source_nodes']['lineage']['xpath'])
-if sources_param in [1, 2, 3, 5]: 
+if sources_param in [1, 4, 5, 7]: 
     if 'DataSources' in obj_dict:
         arcpy.AddMessage("Adding DataSources")
         source_nodes = deez_nodes['source_nodes']
         lineage = base_md.find(source_nodes['lineage']['xpath'])
         
-        # check to see what to do with existing sources
-        if sources_param:
-            clear_children(lineage)
-
         ds_path = obj_dict['DataSources']['catalogPath']
         fields = ['Source', 'URL', 'DataSources_ID']
         cursor = arcpy.da.SearchCursor(ds_path, fields)
@@ -831,7 +851,7 @@ if sources_param in [1, 2, 3, 5]:
             # add this srcinfo to the lineage node
             lineage.append(srcinfo)
     else:
-        print('There are no data sources to add')
+        arcpy.AddError('There are no data sources to add!')
 
 # add Entity Attributes
 arcpy.AddMessage("Adding metadata for the following feature classes:")
@@ -878,6 +898,7 @@ if Path(template_path).is_file():
 
     # adding the spatial node information gathered through this tool
     for elem in deez_nodes['spatial_nodes']:
+        check_path = deez_nodes['spatial_nodes'][elem]['xpath']
         # find the node in the automated metadata
         add_node = copy.deepcopy(base_md.find(check_path))
 
@@ -893,38 +914,39 @@ if Path(template_path).is_file():
         parent_node.append(add_node)
 
     # building sources depending on sources_param
-    extend_branch(template_root, source_nodes['lineage']['xpath'])
-    template_lineage = template_root.find(source_nodes['lineage']['xpath'])
+    extend_branch(template_root, deez_nodes['source_nodes']['lineage']['xpath'])
+    template_lineage = template_root.find(deez_nodes['source_nodes']['lineage']['xpath'])
     
     # choices 1 and 2 are equal to removing all template sources
-    if sources_param < 3:
+    if sources_param in [1, 2, 4, 8]:
         template_sources = template_lineage.findall('srcinfo')
         for elem in template_sources:
             template_lineage.remove(elem)
     
-    # all choices but 4 are equal to adding all base_md sources
+    # most source choices are equal to adding all base_md sources
     # whether these are from DataSources only, embedded only, or a combination
     # is determined above
-    if sources_param != 4:
-        basemd_lineage = base_md.find(source_nodes['lineage']['xpath'])
-        met_sources = list(basemd_lineage)
-        if len(met_sources) > 1:
-            for child in met_sources:
+    if sources_param in [1, 2, 4, 5, 6, 7]:
+        basemd_lineage = base_md.find(deez_nodes['source_nodes']['lineage']['xpath'])
+        base_sources = basemd_lineage.findall('srcinfo')
+        if len(base_sources) > 1:
+            for child in base_sources:
                 child_copy = copy.deepcopy(child)
                 template_lineage.append(child_copy)
 
     # add all entity attribute nodes
-    ea_nodes = [elem for elem in list(base_md.find('eainfo')) if elem.tag == 'detailed']
+    ea_nodes = base_md.find('eainfo').findall('detailed')
 
     # default for now will be to remove all detailed nodes and replace with those
     # generated from the attribute dictionaries
-    extend_branch(template_root, 'eainfo/detailed')
-    temp_detailed = template_root.findall('eainfo/detailed')
+    extend_branch(template_root, 'eainfo')
+    temp_eainfo = template_root.find('eainfo')
+    temp_detailed = temp_eainfo.findall('detailed')
     for elem in temp_detailed:
-        template_root.find('eainfo').remove(elem)
+        temp_eainfo.remove(elem)
 
     for elem in ea_nodes:
-        temp_detailed.append(copy.deepcopy(elem))
+        temp_eainfo.append(copy.deepcopy(elem))
     
     # history
     if history_param == 1:
