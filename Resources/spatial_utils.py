@@ -472,6 +472,7 @@ def get_layer(fname, feature_class=None):
         return gdb.GetLayerByName(feature_class)
     elif fname.endswith(".gpkg"):
         driver = ogr.GetDriverByName("GPKG")
+        global db
         db = driver.Open(fname, 0)
         return db.GetLayerByName(feature_class)
         

@@ -8,7 +8,7 @@ the schema, boilerplate information can be added from an optional template xml f
 spatial information nodes are built and inserted as a workaround for the bug in 
 ArcGIS Pro where spatial reference information is not exported into FGDC metadata, Entity-Attribute
 sections are filled-in based on dictionaries in GeMS_Definition.py and my_definitions.py, and extraneous
-process steps (created by ArcGIS everytime a geoprocessing step is performed) can be removed.
+process steps (created by ArcGIS every time a geoprocessing step is performed) can be removed.
 '''
 import arcpy # arcpy needed for da.Describe(gdb) and exporting metadata')
 import os
@@ -20,7 +20,6 @@ from osgeo import ogr  # only used in def max_bounding
 # to import adjacent python files as modules
 sys.path.append('../')
 import Resources.spatial_utils as su
-import re  # only used in def get_real_name
 import copy
 import requests
 
@@ -42,22 +41,6 @@ esri_attribs = {
 }
 
 ###### FUNCTIONS
-def get_real_name(table_name, lookup_name):
-    '''function to return the name of a field in an ogr datasource that matches a 
-    laundered version of a lookup name, eg, map_unit_polys is matched with MapUnits.
-    '''
-    for layer_name in ogr_list_fields(table_name):
-        if lookup_name == layer_name:
-            return layer_name
-        
-        if lookup_name.lower() == layer_name:
-            return layer_name
-
-        snake_name = re.sub(r'(?<!^)(?=[A-Z])', '_', lookup_name).lower()
-        snake_name = snake_name.replace('__', '_')
-        if layer_name == snake_name:
-            return layer_name
-
 def gdb_object_dict(gdb_path):
     '''Returns a dictionary of table_name: da.Describe_table_properties
        when used on a geodatabase. GDB's will have tables, feature classes, 
@@ -117,7 +100,8 @@ def max_bounding(db_path):
     west = []
     east = []
     for layer in ogr.Open(db_path):
-        if layer.GetGeomType() != 100:
+        #if layer.GetGeomType() != 100:
+        if layer.GetName() in ['MapUnitPolys', 'ContactsAndFaults']:
             bounding = su.get_bounding(str(db_path), layer.GetName())
             north.append(bounding.find('northbc').text)
             south.append(bounding.find('southbc').text)
@@ -573,19 +557,6 @@ def validate_online(md_record):
 # 
 # Enumerated domain values DO have value sources but those come from the Glossary
 
-# geopackage
-# gpkg_path = Path(r"C:\_AAA\gems\gitspace\notebooks\spref\gdb\finney_gpkg.gpkg")
-# obj_dict = gdb_object_dict(str(gpkg_path))
-
-# path to mp.exe
-# resources = Path(__file__).resolve().parent.parent / 'Resources'
-# mp = resources / 'mp.exe'
-# if not mp.is_file():
-    # arcpy.AddError(f"""Cannot find mp.exe. Download from https://geology.usgs.gov/tools/metadata/\n 
-    # and put in {resources}""")
-# else:
-    # print('found mp')
-
 # the database
 db_path = Path(sys.argv[1])
 arcpy.AddMessage("Building dictionary of database contents")
@@ -788,7 +759,7 @@ if base_md.find('spdoinfo') is None:
     base_md.insert(2, spdoinfo)
 
 if base_md.find('spref') is None:
-    arcpy.AddMessage("  spref")
+    arcpy.AddMessage("spref")
     spref_node = su.get_spref(str(db_path), 'MapUnitPolys')
     base_md.insert(3, spref_node)
 
