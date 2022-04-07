@@ -270,7 +270,7 @@ for fld in xslfields:
 if idField == '':
     idField = 'ORIG_ID'
     arcpy.AddField_management(tempXsLine,idField,'TEXT')
-    arcpy.CalculateField_management (tempXsLine, idField, '01','PYTHON') 
+    arcpy.CalculateField_management (tempXsLine, idField, '01','PYTHON3') 
 specialFields = [desc.OIDFieldName,desc.shapeFieldName,idField,'Shape_Length','Length']
 addMsgAndPrint('    deleting most fields')
 for nm in xslfields:
