@@ -1,5 +1,5 @@
 '''
-Projects all data in GeologicMap feature dataset (inFds) to cross-section plane
+Projects all data in GeologicMap feature dataset (in_fds) to cross-section plane
 Creates featureclasses with names prefixed by 'ed_'
 Output feature classes have all input FC attributes. In addition, point feature
   classes are given attribute:
@@ -13,8 +13,8 @@ If points are OrientationData, we also calculate attributes:
 
 Assumptions:
   Input FDS is GeologicMap
-  xsLine has only ONE LINE (one row in data table)
-  We don't project points that are beyond ends of xsLine,
+  xs_line has only ONE LINE (one row in data table)
+  We don't project points that are beyond ends of xs_line,
      even though to do so is often desirable
   We don't project feature classes whose names begin with
      the strings 'errors_'  or 'ed_'
@@ -31,22 +31,22 @@ rhaugerud@usgs.gov
 # Consider re-writing some sections to work with new Python modules, but none of the 
 # 'older' code causes any errors.
 
-import arcpy, sys, os.path, math
+import arcpy, sys, os, math
 from GeMS_Definition import tableDict
 from GeMS_utilityFunctions import *
 
 versionString = 'GeMS_ProjectCrossSectionData_Arc10.py, version of 10 June 2019'
-rawurl = 'https://raw.githubusercontent.com/usgs/gems-tools-pro/master/Scripts/GeMS_ProjectCrossSectionData_Arc10.py'
+rawurl = 'https://raw.githubusercontent.com/usgs/gems-tools-pro/master/Scripts/GeMS_ProjectCrossSectionData_AGP2.py'
 checkVersion(versionString, rawurl, 'gems-tools-pro')
 
 ##inputs
 #  gdb          geodatabase with GeologicMap feature dataset to be projected
-#  projectAll
+#  project_all
 #  fcToProject
 #  dem          
-#  xsLine       cross-section line: _single-line_ feature class or layer
-#  startQuadrant start quadrant (NE,SE,SW,NW)
-#  outFdsTag   output feature dataset. Input value is appended to 'CrossSection'
+#  xs_path       cross-section line: _single-line_ feature class or layer
+#  startQuadrant start quadrant (NE, SE, SW, NW)
+#  out_fds_tag   output feature dataset. Input value is appended to 'CrossSection'
 #  vertEx       vertical exaggeration; a number
 #  bufferDistance  a number
 #  forcExit
@@ -54,7 +54,7 @@ checkVersion(versionString, rawurl, 'gems-tools-pro')
 #  saveIntermediate (boolean)
 
 lineCrossingLength = 1000   # length (in map units) of vertical line drawn where arcs cross section line
-exemptedPrefixes = ('errors_','ed_')  # prefixes that flag a feature class as not to be projected
+exemptedPrefixes = ('errors_', 'ed_')  # prefixes that flag a feature class as not to be projected
 
 transDict =   { 'String': 'TEXT',
 		'Single': 'FLOAT',
@@ -72,26 +72,23 @@ def doProject(fc):
             doPrj = False
     return doPrj
 
-def shortName(obj):
-    return os.path.basename(obj)
-
 def wsName(obj):
     return os.path.dirname(obj)
 
 def cartesianToGeographic(angle):
     ctg = -90 - angle
     if ctg < 0:
-        ctg = ctg+360
+        ctg = ctg + 360
     return ctg
 
 def isAxial(ptType):
     m = False
-    for s in ('axis','lineation',' L'):
+    for s in ('axis', 'lineation', ' L'):
         if ptType.upper().find(s.upper()) > -1:
             m = True
     return m
 
-def obliq(theta1,theta2):
+def obliq(theta1, theta2):
     obl = abs(theta1-theta2)
     if obl > 180:
         obl = obl-180
@@ -99,7 +96,7 @@ def obliq(theta1,theta2):
         obl = 180 - obl
     return obl
 
-def azimuthDifference(a,b):
+def azimuthDifference(a, b):
     # a, b are two azimuths in clockwise geographic notation
     # azDiff is in range -180..180
     # if azDiff < 0, a is counterclockwise of b
@@ -112,51 +109,50 @@ def azimuthDifference(a,b):
     return azDiff
 
 def plotAzimuth(inclinationDirection, thetaXS, apparentInclination):
-    azDiff = azimuthDifference(thetaXS,inclinationDirection)
+    azDiff = azimuthDifference(thetaXS, inclinationDirection)
     if azDiff >= -90 and azDiff <= 90:
         return 270 + apparentInclination
     else:
         return 270 - apparentInclination
 
-def apparentPlunge(azi,inc,thetaXS):
-    obliquity = obliq(azi,thetaXS)  
+def apparentPlunge(azi, inc, thetaXS):
+    obliquity = obliq(azi, thetaXS)  
     appInc = math.degrees(math.atan(vertEx * math.tan(math.radians(inc)) * math.cos(math.radians(obliquity))))
-    return appInc,obliquity
+    return appInc, obliquity
 
-def apparentDip(azi,inc,thetaXS):
-    obliquity = obliq(azi,thetaXS) 
+def apparentDip(azi, inc, thetaXS):
+    obliquity = obliq(azi, thetaXS) 
     appInc = math.degrees(math.atan(vertEx * math.tan(math.radians(inc)) * math.sin(math.radians(obliquity))))
-    return appInc,obliquity
+    return appInc, obliquity
 
-def getIdField(fc):
-    idField = ''
+def getid_field(fc):
+    id_field = ''
     fcFields = arcpy.ListFields(fc)
     for fld in fcFields:
         if fld.name.find('_ID') > 0:
-            idField = fld.name
-    return idField
+            id_field = fld.name
+    return id_field
 
 #  copied from NCGMP09v1.1_CreateDatabase_Arc10.0.py, version of 20 September 2012
-def createFeatureClass(thisDB,featureDataSet,featureClass,shapeType,fieldDefs):
+def createFeatureClass(thisDB, featureDataSet, featureClass, shapeType, fieldDefs):
     try:
         arcpy.env.workspace = thisDB
-        arcpy.CreateFeatureclass_management(featureDataSet,featureClass,shapeType)
-        thisFC = thisDB+'/'+featureDataSet+'/'+featureClass
+        arcpy.CreateFeatureclass_management(featureDataSet, featureClass, shapeType)
+        thisFC = os.path.join(thisDB, featureDataSet, featureClass)
         for fDef in fieldDefs:
             try:
                 if fDef[1] == 'String':
-                    arcpy.AddField_management(thisFC,fDef[0],transDict[fDef[1]],'#','#',fDef[3],'#',transDict[fDef[2]])
+                    arcpy.AddField_management(thisFC, fDef[0], transDict[fDef[1]], '#', '#', fDef[3], '#', transDict[fDef[2]])
                 else:
-                    arcpy.AddField_management(thisFC,fDef[0],transDict[fDef[1]],'#','#','#','#',transDict[fDef[2]])
+                    arcpy.AddField_management(thisFC, fDef[0], transDict[fDef[1]], '#', '#', '#', '#', transDict[fDef[2]])
             except:
-                addMsgAndPrint('Failed to add field '+fDef[0]+' to feature class '+featureClass)
+                addMsgAndPrint('Failed to add field ' + fDef[0] + ' to feature class ' + featureClass)
                 addMsgAndPrint(arcpy.GetMessages(2))
     except:
         addMsgAndPrint(arcpy.GetMessages())
-        addMsgAndPrint('Failed to create feature class '+featureClass+' in dataset '+featureDataSet)
+        addMsgAndPrint('Failed to create feature class ' + featureClass + ' in dataset ' + featureDataSet)
 
-
-def locateEventTable(gdb,inFC,pts,dem,sDistance,eventProperties,zType,isLines = False):
+def locateEventTable(gdb, in_fc, pts, dem, sDistance, eventProperties, zType, isLines = False):
     desc = arcpy.Describe(pts)
 
     if not desc.hasZ:
@@ -166,37 +162,39 @@ def locateEventTable(gdb,inFC,pts,dem,sDistance,eventProperties,zType,isLines = 
     ## working around bug in LocateFeaturesAlongRoutes
     # add special field for duplicate detection
     dupDetectField = 'xDupDetect'
-    arcpy.AddField_management(pts,dupDetectField,'LONG')
+    arcpy.AddField_management(pts, dupDetectField, 'LONG')
+    
     # and calc this field = OBJECTID
-    OID = arcpy.Describe(pts).OIDFieldName
-    expr = '"!'+OID+'!"'
-    arcpy.CalculateField_management(pts,dupDetectField,expr,"PYTHON")
-    # locate linePts along route
+    OID = arcpy.Describe(pts).Oid_fieldName
+    expr = f"'{OID}'"
+    arcpy.management.CalculateField(pts, dupDetectField, expr, "PYTHON3")
+    
+    # locate line_pts along route
     addMsgAndPrint('      making event table')
-    eventTable = gdb+'/evTb_'+inFC
+    eventTable = os.path.join(gdb, f'evTb_{in_fc}')
     testAndDelete(eventTable)
-    arcpy.LocateFeaturesAlongRoutes_lr(pts,ZMline,idField,sDistance,eventTable,eventProperties)
+    arcpy.LocateFeaturesAlongRoutes_lr(pts, zm_line, id_field, sDistance, eventTable, eventProperties)
     nRows = numberOfRows(eventTable)
     nPts = numberOfRows(pts)
     if nRows > nPts and not isLines:  # if LocateFeaturesAlongRoutes has made duplicates  (A BUG!)
         addMsgAndPrint('      correcting for bug in LocateFeaturesAlongRoutes')
-        addMsgAndPrint('        '+str(nRows)+' rows in event table')
+        addMsgAndPrint(f'        {str(nRows)} rows in event table')
         addMsgAndPrint('        removing duplicate entries in event table')
         arcpy.DeleteIdentical_management(eventTable, dupDetectField)  
-        addMsgAndPrint('        '+str(numberOfRows(eventTable))+' rows in event table')
-    arcpy.DeleteField_management(eventTable,dupDetectField)
+        addMsgAndPrint(f'        {str(numberOfRows(eventTable))} rows in event table')
+    arcpy.DeleteField_management(eventTable, dupDetectField)
     return eventTable
 
 ###############################################################
-addMsgAndPrint('\n  '+versionString)
+addMsgAndPrint('\n  ' + versionString)
 
 gdb         = sys.argv[1]
-projectAll  = sys.argv[2]
+project_all  = sys.argv[2]
 fcToProject = sys.argv[3]
 dem         = sys.argv[4]
-xsLine      = sys.argv[5]
+xs_path      = sys.argv[5]
 startQuadrant = sys.argv[6]
-outFdsTag   = sys.argv[7]
+out_fds_tag   = sys.argv[7]
 vertEx      = float(sys.argv[8])
 bufferDistance = float(sys.argv[9])
 addLTYPE    = sys.argv[10]
@@ -207,218 +205,265 @@ saveIntermediate = sys.argv[13]
 ##for arg in sys.argv:
 ##    addMsgAndPrint(str(arg))
 
-if projectAll == 'true': projectAll = True
-else: projectAll = False
+if project_all == 'true':
+    project_all = True
+else: project_all = False
 
-if addLTYPE == 'true': addLTYPE = True
+if addLTYPE == 'true':
+    addLTYPE = True
 else: addLTYPE = False
 
-if forceExit == 'true': forceExit = True
+if forceExit == 'true': 
+    forceExit = True
 else: forceExit = False
 
-if saveIntermediate == 'true': saveIntermediate = True
+if saveIntermediate == 'true':
+    saveIntermediate = True
 else: saveIntermediate = False
 
-inFds = gdb+'/GeologicMap'
-outFds = gdb+'/CrossSection'+outFdsTag
+in_fds = os.path.join(gdb, 'GeologicMap')
+out_fds = os.path.join(gdb, f'CrossSection{out_fds_tag}')
 
-if arcpy.Exists(scratchws):
-    scratch = scratchws
-else:
-    scratch = outFds
-addMsgAndPrint('  Scratch directory is '+scratch)
+# if arcpy.Exists(scratchws):
+    # scratch = scratchws
+# else:
+    # scratch = out_fds
+# addMsgAndPrint(f'  Scratch directory is {scratch}')
 
 arcpy.env.overwriteOutput = True
 
 try:
     arcpy.CheckOutExtension('3D')
 except:
+    arcpy.AddError('Extension not found!')
     addMsgAndPrint('\nCannot check out 3D-analyst extension.')
     sys.exit()
 
-## Checking section line
+# get the basename of the cross line feature class if passed a path
+xs_name = os.path.basename(xs_path)
+
+# Checking section line
 addMsgAndPrint('  Checking section line')
-idField = getIdField(xsLine)
-##   does xsLine have 1-and-only-1 arc? if not, bail
-i = numberOfRows(xsLine)
+
+# does xs_path have 1-and-only-1 arc? if not, bail
+i = numberOfRows(xs_path)
 if i > 1:
-    addMsgAndPrint('OOPS! More than one arc in '+xsLine)
+    addMsgAndPrint(f'OOPS! More than one line in {xs_name} or selected', 2)
+    addMsgAndPrint('If your feature class has more than one line in it, select just one before running the tool')
     sys.exit()
 elif i == 0:
-    addMsgAndPrint('OOPS! Mo arcs in '+xsLine)
+    addMsgAndPrint(f'OOPS! No lines in {xs_name}', 2)
     sys.exit()
 
-## make output fds if it doesn't exist
-#  set output fds spatial reference to input fds spatial reference
-if not arcpy.Exists(outFds):
-    addMsgAndPrint('  Making feature data set '+shortName(outFds))
-    arcpy.CreateFeatureDataset_management(gdb,shortName(outFds),inFds)
+# create an 'UNKNOWN' spatial reference we can use for outputs
+SR = arcpy.FromWKT('POINT EMPTY').spatialReference
+SR_str = SR.exportToString()
+unknown = arcpy.SpatialReference()
+unknown.loadFromString(SR_str)
 
+# make output fds if it doesn't exist
+# set output fds spatial reference to unknown
+if not arcpy.Exists(out_fds):
+    addMsgAndPrint(f'  Making feature data set {os.path.basename(out_fds)}')
+    arcpy.CreateFeatureDataset_management(gdb, os.path.basename(out_fds), unknown)
+    
 addMsgAndPrint('  Prepping section line')
-## make copy of section line
-tempXsLine = arcpy.CreateScratchName('xx',outFdsTag+"xsLine",'FeatureClass',scratch)
-addMsgAndPrint('    copying '+shortName(xsLine)+' to xxxXsLine')
-#addMsgAndPrint(xsLine+' '+scratch)
-arcpy.FeatureClassToFeatureClass_conversion(xsLine,scratch,shortName(tempXsLine))
 
-desc = arcpy.Describe(tempXsLine)
-xslfields = fieldNameList(tempXsLine)
-idField = ''
-for fld in xslfields:
-    if fld.find('_ID') > 0:
-        idField = fld
-if idField == '':
-    idField = 'ORIG_ID'
-    arcpy.AddField_management(tempXsLine,idField,'TEXT')
-    arcpy.CalculateField_management (tempXsLine, idField, '01','PYTHON3') 
-specialFields = [desc.OIDFieldName,desc.shapeFieldName,idField,'Shape_Length','Length']
-addMsgAndPrint('    deleting most fields')
-for nm in xslfields:
-    if nm not in specialFields:
-        try:
-            arcpy.DeleteField_management(tempXsLine,nm)
-        except:
-            pass
-##   check for Z and M values
-desc = arcpy.Describe(tempXsLine)
+# make a copy of the cross section line feature class in memory
+addMsgAndPrint(f'    copying {xs_name} to memory/{xs_name}')
+arcpy.conversion.FeatureClassToFeatureClass(xs_path, r"memory", xs_name)
+
+# find the _ID field of the feature class to use as a route id
+temp_xs_line = os.path.join('memory', xs_name)
+temp_fields = [f.name for f in arcpy.ListFields(temp_xs_line)]
+check_field = f"{xs_name}_ID"
+id_field = next((f for f in temp_fields if f == check_field), None)
+
+# and if there isn't one, make one. I think the only reason we make a copy of the 
+# cross section line feature class is to be able to add a field and write a route_id
+# if necessary without restrictions.
+if id_field is None:
+    id_field = 'ROUTE_ID'
+    arcpy.AddField_management(temp_xs_line, check_field, 'TEXT')
+    arcpy.management.CalculateField(temp_xs_line, check_field, "'01'", 'PYTHON3') 
+    
+# desc = arcpy.Describe(temp_xs_line)
+# specialFields = [desc.Oid_fieldName, desc.shapeFieldName, id_field, 'Shape_Length', 'Length']
+# addMsgAndPrint('    deleting most fields')
+# for nm in xs_fields:
+    # if nm not in specialFields:
+        # try:
+            # arcpy.DeleteField_management(temp_xs_line, nm)
+        # except:
+            # pass
+            
+## check for Z and M values
+desc = arcpy.Describe(temp_xs_line)
 if desc.hasZ and desc.hasM:
-    ZMline = tempXsLine
+    zm_line = temp_xs_line
 else:
     #Add Z values
-    addMsgAndPrint('    getting elevation values for ' + shortName(tempXsLine))
-    Zline = arcpy.CreateScratchName('xx',outFdsTag+'_Z','FeatureClass',scratch)
-    arcpy.InterpolateShape_3d(dem, tempXsLine, Zline)
+    addMsgAndPrint(f'    getting elevation values for {xs_name}')
+    #z_line = arcpy.CreateScratchName('xx', f'{out_fds_tag}_Z', 'FeatureClass', scratch)
+    z_line = os.path.join("memory", f"{out_fds_tag}_z")
+    arcpy.InterpolateShape_3d(dem, temp_xs_line, z_line)
+    
     #Add M values
-    addMsgAndPrint('    measuring ' + shortName(Zline))
-    ZMline = arcpy.CreateScratchName('xx',outFdsTag+'_ZM','FeatureClass',scratch)
-    arcpy.CreateRoutes_lr(Zline, idField, ZMline, 'LENGTH', '#', '#', startQuadrant)
+    addMsgAndPrint(f'    measuring {os.path.basename(z_line)}')
+    #zm_line = arcpy.CreateScratchName('xx', f'{out_fds_tag}_ZM', 'FeatureClass', scratch)
+    zm_line = os.path.join("memory", f"{out_fds_tag}_zm")
+    arcpy.CreateRoutes_lr(z_line, id_field, zm_line, 'LENGTH', '#', '#', startQuadrant)
+    
 ## buffer line to get selection polygon
-addMsgAndPrint('    buffering '+shortName(tempXsLine)+' to get selection polygon')
-tempBuffer = arcpy.CreateScratchName('xx',outFdsTag+"xsBuffer",'FeatureClass',scratch)
-arcpy.Buffer_analysis(ZMline,tempBuffer,bufferDistance,'FULL','FLAT')
+addMsgAndPrint(f'    buffering {xs_name} to get selection polygon')
+#tempBuffer = arcpy.CreateScratchName('xx', out_fds_tag + "xsBuffer", 'FeatureClass', scratch)
+temp_buffer = os.path.join("memory", f"{out_fds_tag}_buffer")
+arcpy.Buffer_analysis(zm_line, temp_buffer, bufferDistance, 'FULL', 'FLAT')
+
+#sys.exit()
 
 ## get lists of feature classes to be projected
-lineFCs = []
-polyFCs = []
-pointFCs = []
-if projectAll:
+line_fcs = []
+poly_fcs = []
+point_fcs = []
+if project_all:
     oldws = arcpy.env.workspace
-    arcpy.env.workspace = gdb+'/GeologicMap'
-    linefc = arcpy.ListFeatureClasses('*','Line')
-    polyfc = arcpy.ListFeatureClasses('*','Polygon')
-    pointfc = arcpy.ListFeatureClasses('*','Point')
-    for fc in linefc:
-        if doProject(fc) and numberOfRows(fc) > 0: lineFCs.append(gdb+'/GeologicMap/'+fc)
+    arcpy.env.workspace = os.path.join(gdb, 'GeologicMap')
+    line_fc = arcpy.ListFeatureClasses('*', 'Line')
+    polyfc = arcpy.ListFeatureClasses('*', 'Polygon')
+    pointfc = arcpy.ListFeatureClasses('*', 'Point')
+    for fc in line_fc:
+        if doProject(fc) and numberOfRows(fc) > 0:
+            line_fcs.append(os.path.join(gdb, 'GeologicMap', fc))
     for fc in polyfc:
-        if doProject(fc) and numberOfRows(fc) > 0: polyFCs.append(gdb+'/GeologicMap/'+fc)
+        if doProject(fc) and numberOfRows(fc) > 0:
+            poly_fcs.append(os.path.join(gdb, 'GeologicMap', fc))
     for fc in pointfc:
-        if doProject(fc) and numberOfRows(fc) > 0: pointFCs.append(gdb+'/GeologicMap/'+fc)
+        if doProject(fc) and numberOfRows(fc) > 0:
+            point_fcs.append(os.path.join(gdb, 'GeologicMap', fc))
 else:
     featureClassesToProject = fcToProject.split(';')
     for fc in featureClassesToProject:
         desc = arcpy.Describe(fc)
-        if desc.shapeType == 'Polyline': lineFCs.append(fc)
-        if desc.shapeType == 'Polygon':  polyFCs.append(fc)
-        if desc.shapeType == 'Point':    pointFCs.append(fc)
+        if desc.shapeType == 'Polyline':
+            line_fcs.append(fc)
+        if desc.shapeType == 'Polygon': 
+            poly_fcs.append(fc)
+        if desc.shapeType == 'Point':
+            point_fcs.append(fc)
         
 addMsgAndPrint('\n  Projecting line feature classes:')
-for lineFC in lineFCs:
-    inFC = shortName(lineFC)
-    addMsgAndPrint('    '+inFC)
-    arcpy.env.workspace = wsName(lineFC)
-    if inFC == 'ContactsAndFaults':
+for line_fc in line_fcs:
+    in_fc = os.path.basename(line_fc)
+    addMsgAndPrint(f'    {in_fc}')
+    #arcpy.env.workspace = wsName(line_fc)
+    if in_fc == 'ContactsAndFaults':
         lineCrossingLength = -lineCrossingLength
-    # intersect inFC with ZMline to get points where arcs cross section line
-    linePts = scratch+'/xxxLinePts'+outFdsTag
-    arcpy.Intersect_analysis([inFC,ZMline],linePts,'ALL','#','POINT')
-    if numberOfRows(linePts) == 0:
-        addMsgAndPrint('      '+inFC+' does not intersect section line')
+        
+    # intersect in_fc with zm_line to get points where arcs cross section line
+    #line_pts = os.path.join(scratch, f'xxxline_pts{out_fds_tag}.shp')
+    line_pts = os.path.join("memory", f'line_pts{out_fds_tag}')
+    arcpy.analysis.Intersect([line_fc, zm_line], line_pts, 'ALL', '#', 'POINT')
+    if numberOfRows(line_pts) == 0:
+        addMsgAndPrint(f'      {in_fc} does not intersect section line')
     else:  # numberOfRows > 0
         eventProperties = 'rtID POINT M fmp' 
-        eventTable = locateEventTable(gdb,inFC,linePts,dem,10,eventProperties,'Z_MEAN',True)
+        eventTable = locateEventTable(gdb, in_fc, line_pts, dem, 10, eventProperties, 'Z_MEAN', True)
         addMsgAndPrint('      placing events on section line')
         eventLyr = 'xxxLineEvents'
-        arcpy.MakeRouteEventLayer_lr(ZMline,idField,eventTable,eventProperties,eventLyr)
-        outFC = 'ed_CS'+outFdsTag+shortName(inFC)
-        addMsgAndPrint('      creating feature class '+outFC+' in '+shortName(outFds))
+        arcpy.MakeRouteEventLayer_lr(zm_line, id_field, eventTable, eventProperties, eventLyr)
+        outFC = f'ed_{out_fds_tag}{os.path.basename(in_fc)}'
+        addMsgAndPrint(f'      creating feature class {outFC} in {os.path.basename(out_fds)}')
+        
         # make new feature class using old as template
-        testAndDelete(outFds+'/'+outFC)
-        arcpy.CreateFeatureclass_management(outFds,outFC,'POLYLINE',inFC,'DISABLED','SAME_AS_TEMPLATE') 
-        outFC = outFds+'/'+outFC
+        testAndDelete(os.path.join(out_fds, outFC))
+        arcpy.CreateFeatureclass_management(out_fds, outFC, 'POLYLINE', in_fc, 'DISABLED', 'SAME_AS_TEMPLATE', spatial_reference=unknown) 
+        outFC = os.path.join(out_fds, outFC)
         addMsgAndPrint('      moving and calculating attributes')
-        ## open search cursor on inFC, open insert cursor on outFC
+        
+        ## open search cursor on in_fc, open insert cursor on outFC
         inRows = arcpy.SearchCursor(eventLyr)
         outRows = arcpy.InsertCursor(outFC)
+        
         # get field names
         inFieldNames = fieldNameList(eventLyr)
         outFieldNames = fieldNameList(outFC)
+        
         # get fields to ignore
         ignoreFields = []
         desc = arcpy.Describe(eventLyr)
         ignoreFields.append(desc.ShapeFieldName)
-        ignoreFields.append(desc.OIDFieldName)
+        ignoreFields.append(desc.Oid_fieldName)
         for inRow in inRows:
             outRow = outRows.newRow()
+            
             # do shape
             X = inRow.M
             Y = inRow.Shape.firstPoint.Z
-            pnt1 = arcpy.Point(X,(Y-lineCrossingLength)*vertEx)
-            pnt2 = arcpy.Point(X,Y*vertEx)
-            pnt3 = arcpy.Point(X,(Y+lineCrossingLength)*vertEx)
-            lineArray = arcpy.Array([pnt1,pnt2,pnt3])
+            pnt1 = arcpy.Point(X, (Y-lineCrossingLength) * vertEx)
+            pnt2 = arcpy.Point(X, Y * vertEx)
+            pnt3 = arcpy.Point(X, (Y + lineCrossingLength) * vertEx)
+            lineArray = arcpy.Array([pnt1, pnt2, pnt3])
             outRow.Shape = lineArray
+            
             # transfer matching fields
             for field in inFieldNames:
                 if field in outFieldNames and not field in ignoreFields:
                     stuff = inRow.getValue(field)
-                    outRow.setValue(field,stuff)
+                    outRow.setValue(field, stuff)
             outRows.insertRow(outRow)
+            
         ## clean up
         if not saveIntermediate:
-          for f in eventTable,eventLyr,linePts:
+          for f in eventTable, eventLyr, line_pts:
             testAndDelete(f)
-        del inRows,outRows
+        del inRows, outRows
         
 addMsgAndPrint('\n  Projecting point feature classes:')
 ## for each input point feature class:
-for pointClass in pointFCs:
-    inFC = shortName(pointClass)
-    addMsgAndPrint('    '+inFC)
+for pointClass in point_fcs:
+    in_fc = os.path.basename(pointClass)
+    addMsgAndPrint(f'    {in_fc}')
     arcpy.env.workspace = wsName(pointClass)
+    
     # clip inputfc with selection polygon to make tempPoints
     addMsgAndPrint('      clipping with selection polygon')
-    tempPoints = scratch+'/xxx'+outFdsTag+inFC
-    arcpy.Clip_analysis(pointClass,tempBuffer,tempPoints)
+    tempPoints = os.path.join(scratch, f'xxx{out_fds_tag}{in_fc}.shp')
+    arcpy.Clip_analysis(pointClass, tempBuffer, tempPoints)
+    
     # check to see if nonZero number of rows and not in excluded feature classes
     nPts = numberOfRows(tempPoints)
-    addMsgAndPrint('      '+str(nPts)+' points within selection polygon')
+    addMsgAndPrint(f'      {str(nPts)} points within selection polygon')
     if nPts > 0:
         eventProperties = 'rtID POINT M fmp' 
-        eventTable = locateEventTable(gdb,inFC,tempPoints,dem,bufferDistance+200,eventProperties,'Z')
+        eventTable = locateEventTable(gdb, pointClass, tempPoints, dem, bufferDistance + 200, eventProperties, 'Z')
         addMsgAndPrint('      placing events on section line')
         eventLyr = 'xxxPtEvents'
-        arcpy.MakeRouteEventLayer_lr(ZMline,idField,eventTable,eventProperties,
-                                     eventLyr,'#','#','ANGLE_FIELD','TANGENT')
-        outFC = outFds+'/ed_CS'+outFdsTag+shortName(inFC)
-        outFCa = outFC+'a'
-        addMsgAndPrint('      copying event layer to '+shortName(outFCa))
-        arcpy.CopyFeatures_management(eventLyr,outFCa)   
+        arcpy.MakeRouteEventLayer_lr(zm_line, id_field, eventTable, eventProperties, 
+                                     eventLyr, '#', '#', 'ANGLE_FIELD', 'TANGENT')
+        outFC = os.path.join(out_fds, f'ed_{out_fds_tag}{os.path.basename(in_fc)}')
+        outFCa = f'{outFC}a'
+        addMsgAndPrint(f'      copying event layer to {os.path.basename(outFCa)}')
+        arcpy.CopyFeatures_management(eventLyr, outFCa)   
         addMsgAndPrint('      adding fields')
+        
         # add DistanceFromSection and LocalXsAzimuth
-        arcpy.AddField_management(outFCa,'DistanceFromSection','FLOAT')
-        arcpy.AddField_management(outFCa,'LocalCSAzimuth','FLOAT')
+        arcpy.AddField_management(outFCa, 'DistanceFromSection', 'FLOAT')
+        arcpy.AddField_management(outFCa, 'LocalCSAzimuth', 'FLOAT')
+        
         # set isOrientationData
         addMsgAndPrint('      checking for Azimuth and Inclination fields')
-        inFieldNames = fieldNameList(inFC)
+        inFieldNames = fieldNameList(pointClass)
         if 'Azimuth' in inFieldNames and 'Inclination' in inFieldNames:
             isOrientationData = True
-            arcpy.AddField_management(outFCa,'ApparentInclination','FLOAT')
-            arcpy.AddField_management(outFCa,'Obliquity','FLOAT')
-            arcpy.AddField_management(outFCa,'MapAzimuth','FLOAT')                           
+            arcpy.AddField_management(outFCa, 'ApparentInclination', 'FLOAT')
+            arcpy.AddField_management(outFCa, 'Obliquity', 'FLOAT')
+            arcpy.AddField_management(outFCa, 'MapAzimuth', 'FLOAT')                           
         else:
             isOrientationData = False
-        arcpy.CreateFeatureclass_management(outFds,shortName(outFC),'POINT',outFCa)
+        arcpy.CreateFeatureclass_management(out_fds, os.path.basename(outFC), 'POINT', outFCa, spatial_reference=unknown)
         addMsgAndPrint('      calculating shapes and attributes')
+        
         ## open update cursor on outFC
         cursor = arcpy.UpdateCursor(outFCa)
         outCursor = arcpy.InsertCursor(outFC)
@@ -426,99 +471,106 @@ for pointClass in pointFCs:
         ii = 0
         for row in cursor:
             # keep track of how many rows are processed
-            i = i+1
-            ii = ii+1
+            i = i + 1
+            ii = ii + 1
             ####addMsgAndPrint(str(i))
             if ii == 50:
-                addMsgAndPrint('       row '+str(i))
+                addMsgAndPrint('       row ' + str(i))
                 ii = 0
-            #   substitute M,Z for X,Y
+            #   substitute M, Z for X, Y
             try:
                 pntObj = arcpy.Point()
                 pntObj.X = row.M
                 if row.Z == None:
                     pntObj.Y = -999
-                    addMsgAndPrint('OBJECTID = '+str(row.OBJECTID)+' Z missing, assigned value of -999')
+                    addMsgAndPrint(f'OBJECTID = {str(row.OBJECTID)} Z missing, assigned value of -999')
                 else:
                     pntObj.Y = row.Z * vertEx
                 row.Shape = pntObj
             except:
-                addMsgAndPrint('Failed to make shape: OBJECTID = '+str(row.OBJECTID)+', M = '+str(row.M)+', Z = '+str(row.Z))
+                addMsgAndPrint(f'Failed to make shape: OBJECTID = {str(row.OBJECTID)}, M = {str(row.M)}, Z = {str(row.Z)}')
                 ## need to do something to flag rows that failed?
+                
             #   convert from cartesian  to geographic angle
-            ###addMsgAndPrint(str(pntObj.X)+'  '+str(pntObj.Y)+'  '+str(pntObj.Z))
+            ###addMsgAndPrint(str(pntObj.X) + '  ' + str(pntObj.Y) + '  ' + str(pntObj.Z))
             csAzi = cartesianToGeographic(row.LOC_ANGLE)
             row.LocalCSAzimuth = csAzi
             row.DistanceFromSection = row.Distance
             if isOrientationData:
                 row.MapAzimuth = row.Azimuth
                 if isAxial(row.Type):
-                    appInc,oblique = apparentPlunge(row.Azimuth,row.Inclination,csAzi)
+                    appInc, oblique = apparentPlunge(row.Azimuth, row.Inclination, csAzi)
                     inclinationDirection = row.Azimuth
                 else:
-                    appInc,oblique = apparentDip(row.Azimuth,row.Inclination,csAzi)
+                    appInc, oblique = apparentDip(row.Azimuth, row.Inclination, csAzi)
                     inclinationDirection = row.Azimuth + 90
                     if inclinationDirection > 360:
                         inclinationDirection = inclinationDirection - 360
-                plotAzi = plotAzimuth(inclinationDirection,csAzi,appInc)
-                row.Obliquity = round(oblique,2)
-                row.ApparentInclination = round(appInc,2)
-                row.Azimuth = round(plotAzi,2)
+                plotAzi = plotAzimuth(inclinationDirection, csAzi, appInc)
+                row.Obliquity = round(oblique, 2)
+                row.ApparentInclination = round(appInc, 2)
+                row.Azimuth = round(plotAzi, 2)
             ## print row data
             #fields = arcpy.ListFields(outFC)
             #for field in fields:
-            #    addMsgAndPrint(field.name+' = '+str(row.getValue(field.name)))
+            #    addMsgAndPrint(field.name + ' = ' + str(row.getValue(field.name)))
 
             #cursor.updateRow(row)
             ##  update cursor (line above) doesn't always work, so build a new FC instead:     
             outCursor.insertRow(row)
             
-        for fld in 'Distance','LOC_ANGLE','rtID':
-            arcpy.DeleteField_management (outFC,fld)
+        for fld in 'Distance', 'LOC_ANGLE', 'rtID':
+            arcpy.DeleteField_management (outFC, fld)
         del row
         del cursor
         ## clean up
         if not saveIntermediate:
-          for f in (tempPoints,eventTable,eventLyr,outFCa):
+          for f in (tempPoints, eventTable, eventLyr, outFCa):
               testAndDelete(f)
 
-
 addMsgAndPrint('\n  Projecting polygon feature classes:')
-for polyFC in polyFCs:
-    inFC = shortName(polyFC)
-    addMsgAndPrint('    '+inFC)
+for polyFC in poly_fcs:
+    in_fc = os.path.basename(polyFC)
+    addMsgAndPrint('    ' + in_fc)
     arcpy.env.workspace = wsName(polyFC)
+    
     # locate features along routes
     addMsgAndPrint('      making event table')
-    eventTable = gdb+'/evTb_'+inFC
+    eventTable = os.path.join(gdb, f'evTb_{in_fc}')
     addMsgAndPrint(eventTable)
     testAndDelete(eventTable)
     eventProperties = 'rtID LINE FromM ToM' 
-    arcpy.LocateFeaturesAlongRoutes_lr(inFC,ZMline,idField,'#',eventTable,eventProperties) 
+    arcpy.LocateFeaturesAlongRoutes_lr(polyFC, zm_line, id_field, '#', eventTable, eventProperties) 
     addMsgAndPrint('      placing events on section line')
     eventLyr = 'xxxPolyEvents'
-    arcpy.MakeRouteEventLayer_lr(ZMline,idField,eventTable,eventProperties,eventLyr)
-    outFC = 'ed_CS'+outFdsTag+shortName(inFC)
-    addMsgAndPrint('      creating feature class '+outFC+' in '+shortName(outFds))
+    
+    #make route event layer
+    arcpy.MakeRouteEventLayer_lr(zm_line, id_field, eventTable, eventProperties, eventLyr)
+    outFC = f'ed_{out_fds_tag}{os.path.basename(in_fc)}'
+    addMsgAndPrint(f'      creating feature class {outFC} in {os.path.basename(out_fds)}')
+    
     # make new feature class using old as template
-    testAndDelete(outFds+'/'+outFC)
-    addMsgAndPrint(outFds+' '+outFC+' '+inFC)
+    testAndDelete(os.path.join(out_fds, outFC))
+    addMsgAndPrint(f'{out_fds} {outFC} {in_fc}')
     try:
-        arcpy.CreateFeatureclass_management(outFds,outFC,'POLYLINE',inFC,'DISABLED','SAME_AS_TEMPLATE')
+        arcpy.CreateFeatureclass_management(out_fds, outFC, 'POLYLINE', polyFC, 'DISABLED', 'SAME_AS_TEMPLATE', spatial_reference=unknown)
     except:
-        addMsgAndPrint('Failed to create copy of '+inFC+'. Maybe this feature class has a join?')
+        addMsgAndPrint(f'Failed to create copy of {in_fc}. Maybe this feature class has a join?')
         raise arcpy.ExecuteError
-    outFC = outFds+'/'+outFC
+    outFC = os.path.join(out_fds, outFC)
     addMsgAndPrint('      moving and calculating attributes')
+    
     # get field names
     inFieldNames = fieldNameList(eventLyr)
     outFieldNames = fieldNameList(outFC)
+    
     # get fields to ignore
     ignoreFields = []
     desc = arcpy.Describe(eventLyr)
     ignoreFields.append(desc.ShapeFieldName)
-    ignoreFields.append(desc.OIDFieldName)
-    ## open search cursor on inFC, open insert cursor on outFC
+    ignoreFields.append(desc.Oid_fieldName)
+    
+    ## open search cursor on in_fc, open insert cursor on outFC
     inRows = arcpy.SearchCursor(eventLyr)
     outRows = arcpy.InsertCursor(outFC)
     for inRow in inRows:
@@ -537,44 +589,44 @@ for polyFC in polyFCs:
                 newArray.add(pnt)
                 pnt = next(array)
             newLine.add(newArray)
-            a = a+1
+            a = a + 1
         outRow.Shape = newLine
         # transfer matching fields
         for field in inFieldNames:
             if field in outFieldNames and not field in ignoreFields:
                 stuff = inRow.getValue(field)
-                outRow.setValue(field,stuff)
+                outRow.setValue(field, stuff)
         outRows.insertRow(outRow)
     ## clean up
     if not saveIntermediate:
-      for f in eventTable,eventLyr:
+      for f in eventTable, eventLyr:
         testAndDelete(f)
-    del inRows,outRows
+    del inRows, outRows
     
 arcpy.CheckInExtension('3D')
 if not saveIntermediate:
   addMsgAndPrint('\n  Deleting intermediate data sets')
-  for fc in tempXsLine,ZMline,Zline,tempBuffer:
+  for fc in temp_xs_line, zm_line, z_line, tempBuffer:
       testAndDelete(fc)
 
-# make NCGMP09 cross-section feature classes if they are not present in output FDS
-for fc in ('MapUnitPolys','ContactsAndFaults','OrientationPoints'):
-    fclass = 'CS' + outFdsTag + fc
-    if not arcpy.Exists(outFds+'/'+fclass):
-        addMsgAndPrint('  Making empty feature class '+fclass)
+# make GeMS cross-section feature classes if they are not present in output FDS
+for fc in ('MapUnitPolys', 'ContactsAndFaults', 'OrientationPoints'):
+    fclass = f'{out_fds_tag}{fc}'
+    if not arcpy.Exists(os.path.join(out_fds, fclass)):
+        addMsgAndPrint(f'  Making empty feature class {fclass}')
         fieldDefs = tableDict[fc]
-        fieldDefs[0][0] = fclass+'_ID'
+        fieldDefs[0][0] = f'{fclass}_ID'
         if fc == 'MapUnitPolys':
             shp = 'POLYGON'
         elif fc == 'ContactsAndFaults':
             shp = 'POLYLINE'
             if addLTYPE: 
-                fieldDefs.append(['LTYPE','String','NullsOK',50])
+                fieldDefs.append(['LTYPE', 'String', 'NullsOK', 50])
         elif fc == 'OrientationPoints':
             shp = 'POINT'
             if addLTYPE:
-                fieldDefs.append(['PTTYPE','String','NullsOK',50]) 
-        createFeatureClass(gdb,shortName(outFds),fclass,shp,fieldDefs)
+                fieldDefs.append(['PTTYPE', 'String', 'NullsOK', 50]) 
+        createFeatureClass(gdb, os.path.basename(out_fds), fclass, shp, fieldDefs)
 
 addMsgAndPrint('\n \nFinished successfully.')
 if forceExit:
