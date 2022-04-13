@@ -227,4 +227,55 @@ def checkVersion(vString, rawurl, toolbox):
     except:
         arcpy.AddWarning('Could not connect to Github to determine if this version of the tool is the most recent.\n')
                             
-
+def gdb_object_dict(gdb_path):
+    '''Returns a dictionary of table_name: da.Describe_table_properties
+       when used on a geodatabase. GDB's will have tables, feature classes, 
+       and feature datasets listed under GDB['children']. But feature 
+       datasets will also have a 'children' key with their own children. 
+       gdb_object_dict() finds ALL children, regardless of how they are nested,
+       and puts the information into a dictionary value retrieved by the name 
+       of the table.
+       Works on geodatabases and geopackages!
+       da.Describe is pretty fast (faster for gpkg, why?) and verbose
+    '''
+    desc = arcpy.da.Describe(gdb_path)
+    if desc['children']:
+        children = {child['name']:child for child in desc['children']}
+        for child, v in children.items():
+            # adding an entry for the feature dataset the item is in, if there is one
+            v['feature_dataset'] = ''
+            if children[child]['children']:
+                fd = children[child]['name'] 
+                more_children = {n['name']:n for n in children[child]['children']}
+                for k, v in more_children.items():
+                    v['feature_dataset'] = fd
+                children = {**children, **more_children}
+                
+    # delete entries for feature datasets if any were found
+    children = {k:v for (k, v) in children.items() if not children[k]['dataType'] == 'FeatureDataset'}
+    
+    # and sanitize names that come from geopackages that start with "main."
+    # trying to modify the children dictionary in-place wasn't producing expected results
+    # we'll build a new dictionary with modified names
+    if gdb_path.endswith('.gpkg'):
+        new_dict = {}
+        for child in children:
+            if "." in child:
+                new_name = child.split(".")[-1]
+                new_dict[new_name] = children[child]
+    else:
+        new_dict = children
+        
+    # adding an entry for 'concatenated type' that will concatenate
+    # featureType, shapeType, and dataType. eg
+    # Simple Polygon FeatureClass
+    # Simple Polyline FeatureClass
+    # Annotation Polygon FeatureClass
+    # this will go into Entity_Type_Definition
+    for k,v in new_dict.items():
+        if v['dataType'] == 'Table':
+            v['concat_type'] = 'Nonspatial Table'
+        if v['dataType'] == 'FeatureClass':
+            v['concat_type'] = f"{v['featureType']} {v['shapeType']} {v['dataType']}"
+            
+    return new_dict
