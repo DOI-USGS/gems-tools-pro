@@ -664,8 +664,15 @@ def scanTable(table, fds=None):
         idIndex = fieldNames.index(idField)
     else:
         hasIdField = False
-        if isExtension:
-            schemaErrorsMissingFields.append('<span class="table">'+table+'</span> lacks an _ID field')
+        # we don't care that ArcGIS-controlled tables do not have _ID fields. What is the point?
+        # Attachment tables are one kind but add others here as necessary
+        # not the best logic to depend on the name, but there is no table type that identifies
+        # these kinds of tables. 
+        if not '__ATTACH' in table:
+            if isExtension:
+                schemaErrorsMissingFields.append('<span class="table">'+table+'</span> lacks an _ID field')
+        else:
+            pass
     #Term field
     if table == 'Glossary' and 'Term' in fieldNames:
         hasTermField = True
