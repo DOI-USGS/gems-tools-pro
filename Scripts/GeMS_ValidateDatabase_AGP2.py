@@ -26,6 +26,8 @@
 #       : Second, spaces in paths were not getting handled correctly when calling mp.exe through os.system(command). Switched to subprocess.
 # 1/27/22: added clause to parse DataSourceIDs that might take the form of 'DAS1 | DAS2 | DAS3', etc. That is, allows for multiple datasources
 #        to be related to a table row. in def ScanTable under 'for i in dataSourceIndices:'
+# 4/18/22: fixed problems related to failing to find a field called 'OBJECTID'. Instead, we now find the name where field.type == 'OID'. Object ID fields can
+#         take a few names; FID (possibly only shapefiles?), OBJECTID_ID, ATTACHMENTID, etc. Issue 20 at repo.
 
 import arcpy, os, os.path, sys, time, glob
 import copy
@@ -34,7 +36,7 @@ from GeMS_utilityFunctions import *
 from GeMS_Definition import *
 import subprocess
 
-versionString = 'GeMS_ValidateDatabase_AGP2.py, version of 27 January 2022'
+versionString = 'GeMS_ValidateDatabase_AGP2.py, version of 18 April 2022'
 rawurl = 'https://raw.githubusercontent.com/usgs/gems-tools-pro/master/Scripts/GeMS_ValidateDatabase_AGP2.py'
 checkVersion(versionString, rawurl, 'gems-tools-pro')
 
@@ -677,6 +679,13 @@ def scanTable(table, fds=None):
     mapUnitFieldIndex = []
     geoMaterialFieldIndex = []
     specialDmuFieldIndices = []
+    
+    # find objectid field, which might not be called OBJECTID
+    # have also seen FID, OBJECTID_1, ATTACHMENTID
+    oid_name = [f.name for f in fields if f.type == 'OID'][0]
+    objIdIndex = fieldNames.index(oid_name)
+    
+    # continue cataloging the field names
     for f in fieldNames:
         # dataSource fields
         if f.find('SourceID') > -1:
@@ -688,8 +697,7 @@ def scanTable(table, fds=None):
         if f == 'MapUnit':
             mapUnitFieldIndex.append(fieldNames.index(f))
         fUpper = f.upper()
-        if fUpper == 'OBJECTID':
-            objIdIndex = fieldNames.index(f)
+
         # GeoMaterial fields
         if f == 'GeoMaterial':
             geoMaterialFieldIndex.append(fieldNames.index(f))
@@ -738,10 +746,10 @@ def scanTable(table, fds=None):
                 xx = row[i]
                 if empty(xx) or isBadNull(xx):
                     missingRequiredValues.append('<span class="table">'+table+'</span>, field <span class="field">'+
-                                                 fieldNames[i]+'</span>, ObjectID '+str(row[objIdIndex]))
+                                                 fieldNames[i]+'</span>, '+fieldNames[objIdIndex]+' '+str(row[objIdIndex]))
             for i in stringFieldIndices:
                 xx = row[i]
-                oxxft = '<span class="table">'+table+'</span>, field <span class="field">'+fieldNames[i]+'</span>, ObjectID '+str(row[objIdIndex])
+                oxxft = '<span class="table">'+table+'</span>, field <span class="field">'+fieldNames[i]+'</span>, '+fieldNames[objIdIndex]+' '+str(row[objIdIndex])
                 if i not in noNullsFieldIndices and xx != None and (xx.strip() == '' or xx.lower()=='<null>'):
                     zeroLengthStrings.append(oxxft)
                 if xx != None and xx.strip() != '' and xx.strip() != xx:
@@ -781,8 +789,11 @@ def tableToHtml(table, html):
     html.write('<table class="ess-tables">\n')
     # write header row
     html.write('<thead>\n  <tr>\n')
-    fieldNames = ['OBJECTID']
-    html.write('<th>OBJECTID</th>\n')
+    
+    # initialize a list on the objectid field
+    fieldNames = [f.name for f in fields if f.type == 'OID']
+    
+    html.write(f'<th>{fieldNames[0]}</th>\n')
     for field in fields:
         if not field.name in standardFields:
             if field.name.find('_ID') > 1:
