@@ -31,11 +31,15 @@ rhaugerud@usgs.gov
 # Consider re-writing some sections to work with new Python modules, but none of the 
 # 'older' code causes any errors.
 
+# extensive edits in March and April 2022 - ET. Updated to data access cursors, new f string formatting, 
+# management of intermediate feature classes in the Default.gdb (which might be problem if the script is ever run
+# from the console or another script).
+
 import arcpy, sys, os, math
 from GeMS_Definition import tableDict
 from GeMS_utilityFunctions import *
 
-versionString = 'GeMS_ProjectCrossSectionData_Arc10.py, version of 10 June 2019'
+versionString = 'GeMS_ProjectCrossSectionData_Arc10.py, version of 20 April 2022'
 rawurl = 'https://raw.githubusercontent.com/usgs/gems-tools-pro/master/Scripts/GeMS_ProjectCrossSectionData_AGP2.py'
 checkVersion(versionString, rawurl, 'gems-tools-pro')
 
@@ -46,7 +50,7 @@ checkVersion(versionString, rawurl, 'gems-tools-pro')
 #  dem          
 #  xs_path       cross-section line: _single-line_ feature class or layer
 #  startQuadrant start quadrant (NE, SE, SW, NW)
-#  token   output feature dataset. Input value is appended to 'CrossSection'
+#  token   output feature dataset. Input value is appended to 'CrossSection', pre-prended (CS{token})to feature classes.
 #  vertEx       vertical exaggeration; a number
 #  buffer_distance  a number
 #  forcExit
@@ -57,23 +61,13 @@ lineCrossingLength = 500   # length (in map units) of vertical line drawn where 
 exemptedPrefixes = ('errors_', 'ed_')  # prefixes that flag a feature class as not to be projected
 
 transDict =   { 'String': 'TEXT',
-		'Single': 'FLOAT',
-		'Double': 'DOUBLE',
+            'Single': 'FLOAT',
+            'Double': 'DOUBLE',
 	    	'NoNulls':'NON_NULLABLE',
     		'NullsOK':'NULLABLE',
     		'Date'  : 'DATE'  }
 
 ##### UTILITY FUNCTIONS ############################
-
-def doProject(fc):
-    doPrj = True
-    for exPfx in exemptedPrefixes:
-        if fc.find(exPfx) == 0:
-            doPrj = False
-    return doPrj
-
-def wsName(obj):
-    return os.path.dirname(obj)
 
 def cartesianToGeographic(angle):
     ctg = -90 - angle
@@ -124,14 +118,6 @@ def apparentDip(azi, inc, thetaXS):
     obliquity = obliq(azi, thetaXS) 
     appInc = math.degrees(math.atan(vertEx * math.tan(math.radians(inc)) * math.sin(math.radians(obliquity))))
     return appInc, obliquity
-
-def getid_field(fc):
-    id_field = ''
-    fcFields = arcpy.ListFields(fc)
-    for fld in fcFields:
-        if fld.name.find('_ID') > 0:
-            id_field = fld.name
-    return id_field
 
 #  copied from NCGMP09v1.1_CreateDatabase_Arc10.0.py, version of 20 September 2012
 def createFeatureClass(thisDB, featureDataSet, featureClass, shapeType, fieldDefs):
@@ -211,9 +197,8 @@ token   = sys.argv[7]
 vertEx      = float(sys.argv[8])
 buffer_distance = float(sys.argv[9])
 addLTYPE    = sys.argv[10]
-forceExit   = sys.argv[11]
-scratchws   = sys.argv[12]
-saveIntermediate = sys.argv[13]
+scratchws   = sys.argv[11]
+saveIntermediate = sys.argv[12]
 
 if project_all == 'true':
     project_all = True
@@ -234,22 +219,27 @@ else: saveIntermediate = False
 if arcpy.Exists(scratchws):
     scratch = scratchws
 else:
-    scratch = arcpy.mp.ArcGISProject().defaultGeodatabase
+    scratch = arcpy.mp.ArcGISProject("CURRENT").defaultGeodatabase
 addMsgAndPrint(f'  scratch directory is {scratch}')
 
 try:
     arcpy.CheckOutExtension('3D')
 except:
     arcpy.AddError('Extension not found!')
-    addMsgAndPrint('\nCannot check out 3D-analyst extension.')
+    addMsgAndPrint('Cannot check out 3D-analyst extension.')
     sys.exit()
 
-# get the object dictionary of the GeologicMap feature dataset
-# never have to Describe or use ListFields from here on
+# use da.Describe on feature dataset to get a dictionary of everything in it
 in_fds = os.path.join(gdb, 'GeologicMap')
 addMsgAndPrint(f'building a dictionary of the contents of {in_fds}')
-
 fd_dict = gdb_object_dict(in_fds)
+
+# remove any feature classes from dictionary beginning with the exemptedPrefixes
+# use list(dict.keys() in the for loop instead of k in fd_dict
+# because you can't change the size of a dictionary during iteration
+for k in list(fd_dict.keys()):
+    if any(k.startswith(pref) for pref in exemptedPrefixes):
+        del fd_dict[k]
 
 new_fd = f'CrossSection{token}'
 out_fds = os.path.join(gdb, new_fd)
@@ -259,9 +249,10 @@ arcpy.env.overwriteOutput = True
 xs_name = os.path.basename(xs_path)
 
 # Checking section line
-addMsgAndPrint('  checking section line')
+addMsgAndPrint('checking section line')
 
 # does xs_path have 1-and-only-1 arc? if not, bail
+# can this be added to the validation class?
 i = numberOfRows(xs_path)
 if i > 1:
     addMsgAndPrint(f'more than one line in {xs_name} or selected', 2)
@@ -280,15 +271,15 @@ unknown.loadFromString(SR_str)
 # make output fds if it doesn't exist
 # set output fds spatial reference to unknown
 if not arcpy.Exists(out_fds):
-    addMsgAndPrint(f'  making feature data set {os.path.basename(out_fds)} in {gdb}')
+    addMsgAndPrint(f'making feature data set {os.path.basename(out_fds)} in {gdb}')
     arcpy.CreateFeatureDataset_management(gdb, os.path.basename(out_fds), unknown)
     
 # make a feature dataset in Default/Scratch gdb
 # delete if one already exists. This makes name management easier
-xs_sr = spatial_ref = arcpy.Describe(xs_path).spatialReference
+xs_sr = arcpy.da.Describe(xs_path)['spatialReference']
 scratch_fd = os.path.join(scratch, new_fd)
 if arcpy.Exists(scratch_fd):
-    addMsgAndPrint(f'  making intermediate feature data set {os.path.basename(scratch_fd)} in {scratch}')
+    addMsgAndPrint(f'making intermediate feature data set {os.path.basename(scratch_fd)} in {scratch}')
     arcpy.CreateFeatureDataset_management(scratch, os.path.basename(scratch_fd), xs_sr)
     
 addMsgAndPrint('  Prepping section line')
@@ -298,7 +289,7 @@ addMsgAndPrint('  Prepping section line')
 # in Default worked fine.
 # I think the only reason we make a copy of the cross section line feature class
 # is to be able to add a field and write a route_id if necessary without restrictions.
-addMsgAndPrint(f'    copying {xs_name} to {scratch_fd}')
+addMsgAndPrint(f'copying {xs_name} to {scratch_fd}')
 arcpy.conversion.FeatureClassToFeatureClass(xs_path, scratch_fd, xs_name)
 
 # find the _ID field of the feature class to use as a route id
@@ -314,52 +305,54 @@ if id_field is None or id_exists == False:
     arcpy.AddField_management(temp_xs_line, id_field, 'TEXT')
     arcpy.management.CalculateField(temp_xs_line, check_field, "'01'", 'PYTHON3')    
       
-## check for Z and M values
-xs_dict = fd_dict[xs_name]
-if xs_dict['hasZ'] and xs_dict['hasM']:
+# check for Z and M values
+desc = arcpy.da.Describe(xs_path)358
+hasZ = desc['hasZ']
+hasM = desc['hasM']
+    
+if hasZ and hasM:
     zm_line = temp_xs_line
     addMsgAndPrint(f'cross section in {zm_line} already has M and Z values')
 else:
-    #Add Z values
-    addMsgAndPrint(f'    getting elevation values for cross section in {xs_name}')
-    z_line = os.path.join(scratch_fd, f"{token}_z")
+    # add Z values
+    addMsgAndPrint(f'getting elevation values for cross section in CS{xs_name}')
+    z_line = os.path.join(scratch_fd, f"CS{token}_z")
     arcpy.InterpolateShape_3d(dem, temp_xs_line, z_line)
     
-    #Add M values
-    addMsgAndPrint(f'    measuring {os.path.basename(z_line)}')
-    zm_line = os.path.join(scratch_fd, f"{token}_zm")
+    # add M values
+    addMsgAndPrint(f'measuring {os.path.basename(z_line)}')
+    zm_line = os.path.join(scratch_fd, f"CS{token}_zm")
     arcpy.CreateRoutes_lr(z_line, id_field, zm_line, 'LENGTH', '#', '#', startQuadrant)
     
-    addMsgAndPrint(f"Z and M attributed version of cross section line {token}")
+    addMsgAndPrint(f"Z and M attributed version of cross section line CS{token}")
     addMsgAndPrint(f"has been save to {zm_line}")
-   
+
 # get lists of feature classes to be projected
 line_fcs = []
 poly_fcs = []
 point_fcs = []
 if project_all:
-    line_fcs = [v['baseName'] for v in fd_dict.values() if v['shapeType'] == 'Polyline' and v['baseName'] != xs_name]
-    poly_fcs = [v['baseName'] for v in fd_dict.values() if v['shapeType'] == 'Polygon' and v['featureType'] != 'Annotation']
-    point_fcs = [v['baseName'] for v in fd_dict.values() if v['shapeType'] == 'Point']
+    line_fcs = [v['catalogPath'] for v in fd_dict.values() if v['shapeType'] == 'Polyline' and v['baseName'] != xs_name]
+    poly_fcs = [v['catalogPath'] for v in fd_dict.values() if v['shapeType'] == 'Polygon' and v['featureType'] != 'Annotation']
+    point_fcs = [v['catalogPath'] for v in fd_dict.values() if v['shapeType'] == 'Point']
 else:
     featureClassesToProject = fcToProject.split(';') 
     for fc in featureClassesToProject:
+        desc = arcpy.da.Describe(fc)
         fc_name = os.path.basename(fc)
-        if fd_dict[fc_name]['shapeType'] == 'Polyline':
-            line_fcs.append(fc_name)
-        if fd_dict[fc_name]['shapeType'] == 'Polygon' and fd_dict[fc_name]['featureType'] != 'Annotation':
-            poly_fcs.append(fc_name) 
-        if fd_dict[fc_name]['shapeType'] == 'Point':
-            point_fcs.append(fc_name)
-        
-addMsgAndPrint('\n  projecting line feature classes:')
-for fc_name in line_fcs:
-    fc_path = fd_dict[fc_name]['catalogPath']
-    addMsgAndPrint(f'    {fc_path}')
+        if desc['shapeType'] == 'Polyline':
+            line_fcs.append(desc['catalogPath'])
+        if desc['shapeType'] == 'Polygon' and desc['featureType'] != 'Annotation':
+            poly_fcs.append(desc['catalogPath']) 
+        if desc['shapeType'] == 'Point':
+            point_fcs.append(desc['catalogPath'])
 
-    if fc_name == 'ContactsAndFaults':
-        lineCrossingLength = -lineCrossingLength
-        
+if line_fcs:
+    addMsgAndPrint('projecting line feature classes:')
+for fc_path in line_fcs:
+    fc_name = os.path.basename(fc_path)
+    addMsgAndPrint(f'    {fc_path}')
+  
     # 1) intersect fc_name with zm_line to get points where arcs cross section line
     intersect_pts = os.path.join(scratch_fd, f'{fc_name}_intersections')
     arcpy.analysis.Intersect([zm_line, fc_path], intersect_pts, 'ALL', None, 'POINT')    
@@ -383,7 +376,7 @@ for fc_name in line_fcs:
         arcpy.management.CopyFeatures(event_lyr, loc_lines)   
         
         # 5) make new feature class in output feature dataset using old as template
-        out_name = f'{token}_{fc_name}'
+        out_name = f'CS{token}{fc_name}'
         out_path = os.path.join(out_fds, out_name)
         addMsgAndPrint(f'      creating feature class {out_name} in {os.path.basename(out_fds)}')
         testAndDelete(out_path)
@@ -404,35 +397,32 @@ for fc_name in line_fcs:
         oid_i = in_rows.fields.index(oid_name)
         
         for in_row in in_rows:
-            #try:
-            # do the shape
-            geom = in_row[-1]
-            pnt = geom[0]     
-            X = pnt.M
-            Y = pnt.Z
-            pnt1 = arcpy.Point(X, (Y - lineCrossingLength) * vertEx)
-            pnt2 = arcpy.Point(X, Y * vertEx)
-            pnt3 = arcpy.Point(X, (Y + lineCrossingLength) * vertEx)
-            line_array = arcpy.Array([pnt1, pnt2, pnt3])
+            try:
+                # do the shape
+                geom = in_row[-1]
+                pnt = geom[0]     
+                X = pnt.M
+                Y = pnt.Z
+                array = []
+                array.append((X, Y * vertEx))
+                array.append((X, (Y + lineCrossingLength) * vertEx))
+                vals = list(in_row).copy()
+                vals[-1] = array
+                out_rows.insertRow(vals)
+            except:
+                addMsgAndPrint(f"could not create feature from objectid {in_row[oid_i]} in {loc_lines}", 1)
             
-            # insert new row with attributes of original and newly created
-            # line_array as the geometry for SHAPE@
-            vals = list(in_row).copy()
-            vals[-1] = arcpy.Polyline(line_array)
-            out_rows.insertRow(vals)
-            # except:
-                # addMsgAndPrint(f"could not create feature from objectid {in_row[oid_i]} in {loc_lines}", 1)
-            
-addMsgAndPrint('\n  projecting point feature classes:')
+
 # buffer line to get selection polygon
 if point_fcs:
-    addMsgAndPrint(f'    buffering {xs_name} to get selection polygon')
-    temp_buffer = os.path.join(scratch_fd, f"{token}_buffer")
+    addMsgAndPrint('projecting point feature classes:')
+    addMsgAndPrint(f'buffering {xs_name} to get selection polygon')
+    temp_buffer = os.path.join(scratch_fd, f"CS{token}_buffer")
     arcpy.Buffer_analysis(zm_line, temp_buffer, buffer_distance, 'FULL', 'FLAT')
 
 # for each input point feature class:
-for fc_name in point_fcs:
-    fc_path = fd_dict[fc_name]['catalogPath']
+for fc_path in point_fcs:
+    fc_name = os.path.basename
     addMsgAndPrint(f'    {fc_path}')
     
     # 1) clip inputfc with selection polygon to make clip_points
@@ -485,7 +475,7 @@ for fc_name in point_fcs:
             isOrientationData = False
             
         # 6) create empty feature class, with unknown SR, in the original gdb
-        out_name = f'{token}_{fc_name}'
+        out_name = f'CS{token}{fc_name}'
         out_path = os.path.join(out_fds, out_name)
         addMsgAndPrint(f'      creating feature class {out_path} in {out_fds}')
         arcpy.management.CreateFeatureclass(out_fds, out_name, 'POINT', loc_points, spatial_reference=unknown)
@@ -550,9 +540,10 @@ for fc_name in point_fcs:
         if not saveIntermediate:
             testAndDelete(scratch_fd)
 
-addMsgAndPrint('\n  projecting polygon feature classes:')
-for fc_name in poly_fcs:
-    fc_path = fd_dict[fc_name]['catalogPath']
+
+for fc_path in poly_fcs:
+    addMsgAndPrint('projecting polygon feature classes:')
+    fc_name = os.path.basename
     addMsgAndPrint(f'{fc_name}')
     
     # 1) locate features along routes
@@ -578,7 +569,7 @@ for fc_name in poly_fcs:
         arcpy.management.CopyFeatures(event_lyr, loc_polys)   
         
         # 4) create empty feature class, with unknown SR, in the original gdb
-        out_name = f'{token}_{fc_name}'
+        out_name = f'CS{token}{fc_name}'
         out_fc = os.path.join(out_fds, out_name)
         addMsgAndPrint(f'      creating feature class {out_name} in {out_fds}')
         testAndDelete(out_fc)
@@ -620,18 +611,17 @@ for fc_name in poly_fcs:
                 out_rows.insertRow(vals)
             except:
                 addMsgAndPrint(f"could not create feature from objectid {in_row[oid_i]} in {loc_polys}", 1)
-sys.exit()
 
 arcpy.CheckInExtension('3D')
 if not saveIntermediate:
-    addMsgAndPrint('\n  deleting intermediate data sets')
+    addMsgAndPrint('deleting intermediate data sets')
     testAndDelete(scratch_fd)
 else:
-    addMsgAndPrint(f'intermdeiate data saved in {scratch_fd}')
+    addMsgAndPrint(f'intermediate data saved in {scratch_fd}')
     
 # make GeMS cross-section feature classes if they are not present in output FDS
 for fc in ('MapUnitPolys', 'ContactsAndFaults', 'OrientationPoints'):
-    fclass = f'{token}_{fc}'
+    fclass = f'CS{token}{fc}'
     if not arcpy.Exists(os.path.join(out_fds, fclass)):
         addMsgAndPrint(f'  making empty feature class {fclass}')
         fieldDefs = tableDict[fc]
@@ -648,7 +638,7 @@ for fc in ('MapUnitPolys', 'ContactsAndFaults', 'OrientationPoints'):
                 fieldDefs.append(['PTTYPE', 'String', 'NullsOK', 50]) 
         createFeatureClass(gdb, os.path.basename(out_fds), fclass, shp, fieldDefs)
 
-addMsgAndPrint('\n \nfinished successfully.')
+addMsgAndPrint('finished successfully.')
 if forceExit:
     addMsgAndPrint('forcing exit by raising ExecuteError')
     raise arcpy.ExecuteError
