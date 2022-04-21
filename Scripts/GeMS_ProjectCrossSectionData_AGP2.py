@@ -196,17 +196,12 @@ startQuadrant = sys.argv[6]
 token   = sys.argv[7]
 vertEx      = float(sys.argv[8])
 buffer_distance = float(sys.argv[9])
-addLTYPE    = sys.argv[10]
-scratchws   = sys.argv[11]
-saveIntermediate = sys.argv[12]
+scratchws   = sys.argv[10]
+saveIntermediate = sys.argv[11]
 
 if project_all == 'true':
     project_all = True
 else: project_all = False
-
-if addLTYPE == 'true':
-    addLTYPE = True
-else: addLTYPE = False
 
 if forceExit == 'true': 
     forceExit = True
@@ -618,25 +613,6 @@ if not saveIntermediate:
 else:
     addMsgAndPrint(f'intermediate data saved in {scratch_fd}')
     
-# make GeMS cross-section feature classes if they are not present in output FDS
-for fc in ('MapUnitPolys', 'ContactsAndFaults', 'OrientationPoints'):
-    fclass = f'CS{token}{fc}'
-    if not arcpy.Exists(os.path.join(out_fds, fclass)):
-        addMsgAndPrint(f'  making empty feature class {fclass}')
-        fieldDefs = tableDict[fc]
-        fieldDefs[0][0] = f'{fclass}_ID'
-        if fc == 'MapUnitPolys':
-            shp = 'POLYGON'
-        elif fc == 'ContactsAndFaults':
-            shp = 'POLYLINE'
-            if addLTYPE: 
-                fieldDefs.append(['LTYPE', 'String', 'NullsOK', 50])
-        elif fc == 'OrientationPoints':
-            shp = 'POINT'
-            if addLTYPE:
-                fieldDefs.append(['PTTYPE', 'String', 'NullsOK', 50]) 
-        createFeatureClass(gdb, os.path.basename(out_fds), fclass, shp, fieldDefs)
-
 addMsgAndPrint('finished successfully.')
 if forceExit:
     addMsgAndPrint('forcing exit by raising ExecuteError')
