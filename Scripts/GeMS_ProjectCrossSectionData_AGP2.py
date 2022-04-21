@@ -306,7 +306,7 @@ if id_field is None or id_exists == False:
     arcpy.management.CalculateField(temp_xs_line, check_field, "'01'", 'PYTHON3')    
       
 # check for Z and M values
-desc = arcpy.da.Describe(xs_path)358
+desc = arcpy.da.Describe(xs_path)
 hasZ = desc['hasZ']
 hasM = desc['hasM']
     
@@ -422,7 +422,7 @@ if point_fcs:
 
 # for each input point feature class:
 for fc_path in point_fcs:
-    fc_name = os.path.basename
+    fc_name = os.path.basename(fc_path)
     addMsgAndPrint(f'    {fc_path}')
     
     # 1) clip inputfc with selection polygon to make clip_points
@@ -540,15 +540,14 @@ for fc_path in point_fcs:
         if not saveIntermediate:
             testAndDelete(scratch_fd)
 
-
 for fc_path in poly_fcs:
     addMsgAndPrint('projecting polygon feature classes:')
-    fc_name = os.path.basename
+    fc_name = os.path.basename(fc_path)
     addMsgAndPrint(f'{fc_name}')
     
     # 1) locate features along routes
     addMsgAndPrint('      making event table')
-    event_tbl = os.path.join(os.path.join(scratchws, f'{fc_name}_evtble'))
+    event_tbl = os.path.join(os.path.join(scratch, f'{fc_name}_evtble'))
     addMsgAndPrint(event_tbl)
     testAndDelete(event_tbl)
     event_props = 'rkey LINE FromM ToM' 
