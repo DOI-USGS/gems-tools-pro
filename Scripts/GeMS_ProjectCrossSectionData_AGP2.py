@@ -216,28 +216,6 @@ height = 0 if sys.argv[14] in nulls else int(sys.argv[14])
 depth = 0 if sys.argv[15] in nulls else int(sys.argv[15])
 x_int = 0 if sys.argv[16] in nulls else int(sys.argv[16])
 y_int = 0 if sys.argv[17] in nulls else int(sys.argv[17])
-
-# redefine variables
-# if project_all in [True, 'True', 'true']:
-    # project_all = True
-# else: project_all = False
-
-# if buffer_distance in nulls:
-    # buffer_distance = 1000
-
-# if saveIntermediate == 'true':
-    # saveIntermediate = True
-# else: saveIntermediate = False
-
-# if add_profile in [True, 'True', 'true']:
-    # add_profile = True
-# else:
-    # add_profile = False
-   
-# if add_frame in [True, 'True', 'true']:
-    # add_frame = True
-# else:
-    # add_frame = False
        
 try:
     arcpy.CheckOutExtension('3D')
@@ -391,7 +369,7 @@ for fc_path in line_fcs:
         arcpy.management.CopyFeatures(event_lyr, loc_lines)   
         
         # 5) make new feature class in output feature dataset using old as template
-        out_name = f'CS{token}{fc_name}'
+        out_name = f'CS{token}_{fc_name}'
         out_path = os.path.join(out_fds, out_name)
         addMsgAndPrint(f'creating feature class {out_name} in {os.path.basename(out_fds)}')
         testAndDelete(out_path)
@@ -490,7 +468,7 @@ for fc_path in point_fcs:
             isOrientationData = False
             
         # 6) create empty feature class, with unknown SR, in the original gdb
-        out_name = f'CS{token}{fc_name}'
+        out_name = f'CS{token}_{fc_name}'
         out_path = os.path.join(out_fds, out_name)
         addMsgAndPrint(f'      creating feature class {out_path} in {out_fds}')
         arcpy.management.CreateFeatureclass(out_fds, out_name, 'POINT', loc_points, spatial_reference=unknown)
@@ -583,7 +561,7 @@ for fc_path in poly_fcs:
         arcpy.management.CopyFeatures(event_lyr, loc_polys)   
         
         # 4) create empty feature class, with unknown SR, in the original gdb
-        out_name = f'CS{token}{fc_name}'
+        out_name = f'CS{token}_{fc_name}'
         out_fc = os.path.join(out_fds, out_name)
         addMsgAndPrint(f'      creating feature class {out_name} in {out_fds}')
         testAndDelete(out_fc)
@@ -632,15 +610,19 @@ if add_profile:
     profile_path = os.path.join(out_fds, profile_name)
     testAndDelete(profile_path)
     arcpy.management.CreateFeatureclass(out_fds, profile_name, 'POLYLINE', zm_line, spatial_reference=unknown)
+    arcpy.management.AlterField(profile_path, id_field, id_field.replace('_ID', 'ID'))
+    arcpy.management.AddField(profile_path, f'{profile_name}_ID', 'TEXT', field_length=50, field_is_nullable='NON_NULLABLE')
   
     fld_obj = arcpy.ListFields(zm_line)
     flds = [f.name for f in fld_obj if f.type != 'Geometry']
     flds.append('SHAPE@')
+    n = in_rows.flds.index
     in_rows = arcpy.da.SearchCursor(zm_line, flds)
     out_rows = arcpy.da.InsertCursor(profile_path, flds)
 
     oid_name = [f.name for f in fld_obj if f.type == 'OID'][0]
-    oid_i = in_rows.fields.index(oid_name)
+    oid_i = n(oid_name)
+    id_i = n(f'{profile_name}_ID')
     
     for in_row in in_rows:
         vals = list(in_row).copy()
@@ -653,6 +635,7 @@ if add_profile:
                 array.append((X, Y * vert_ex))
 
             vals[-1] = array
+            vals[id_i] = f'{token}SP_{str(in_row[oid_i]})
             out_rows.insertRow(vals)
         except:
             addMsgAndPrint(f"could not create feature from objectid {in_row[oid_i]} in {loc_lines}", 1)
@@ -668,15 +651,15 @@ if add_frame:
         Yright = line.lastPoint.Z 
     
     # make a new feature class and add a label field
-    frame_name = f'CS{token}_frame'
+    frame_name = f'CS{token}_Frame'
     frame_path = os.path.join(out_fds, frame_name)
     testAndDelete(frame_path)
     arcpy.management.CreateFeatureclass(out_fds, frame_name, 'POLYLINE', spatial_reference=unknown)
     arcpy.management.AddField(frame_path, 'type', 'TEXT', field_length=100)
     arcpy.management.AddField(frame_path, 'label', 'TEXT', field_length=100)
-    
+    arcpy.management.AddField(frame_path, f'{frame_name}_ID', 'TEXT', field_length=50)
     in_rows = arcpy.da.SearchCursor(zm_line, 'SHAPE@')
-    out_rows = arcpy.da.InsertCursor(frame_path, ['type', 'label', 'SHAPE@'])
+    out_rows = arcpy.da.InsertCursor(frame_path, ['type', 'label', 'SHAPE@', f'{frame_name}_ID'])
     
     # build the frame
     array = []
@@ -692,8 +675,9 @@ if add_frame:
     top_right_y = height * vert_ex
     array.append((Xmax, top_right_y))
     
-    out_rows.insertRow(['frame', '', array])
+    out_rows.insertRow(['frame', '', array, 'FRM1' ])
     
+    i = 1
     # if a y tick interval was included,
     # build ticks
     if y_int != 0:
@@ -706,11 +690,13 @@ if add_frame:
             # left side
             pnt1 = (Xmin, y_ve)
             pnt2 = (Xmin - 250, y_ve)
-            out_rows.insertRow(['elevation tick', str(y), [pnt1, pnt2]])
+            i = i + 1
+            out_rows.insertRow(['elevation tick', str(y), [pnt1, pnt2], f'FRM{i}])
             # right side
             pnt1 = (Xmax, y_ve)
             pnt2 = (Xmax + 250, y_ve)
-            out_rows.insertRow(['elevation tick', str(y), [pnt1, pnt2]])
+            i = i + 1
+            out_rows.insertRow(['elevation tick', str(y), [pnt1, pnt2], f'FRM{i}])
             
     # if a x tick interval was included
     # build ticks
@@ -724,7 +710,8 @@ if add_frame:
         for x in x_list:
             pnt1 = (x, y)
             pnt2 = (x, y - 250)
-            out_rows.insertRow(['distance tick', str(x), [pnt1, pnt2]])
+            i = i + 1
+            out_rows.insertRow(['distance tick', str(x), [pnt1, pnt2], f'FRM{i}])
     
 arcpy.CheckInExtension('3D')
 if not saveIntermediate:
