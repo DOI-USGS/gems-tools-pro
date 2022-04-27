@@ -283,7 +283,7 @@ id_exists = field_none(copy_xs_path, check_field)
 
 # and if there isn't one, make one. 
 if id_field is None or id_exists == False:
-    id_field = 'ROUTE_ID'
+    id_field = 'ROUTEID'
     arcpy.AddField_management(temp_xs_line, id_field, 'TEXT')
     arcpy.management.CalculateField(copy_xs_path, check_field, "'01'", 'PYTHON3')    
       
@@ -373,7 +373,8 @@ for fc_path in line_fcs:
         out_path = os.path.join(out_fds, out_name)
         addMsgAndPrint(f'creating feature class {out_name} in {os.path.basename(out_fds)}')
         testAndDelete(out_path)
-        arcpy.management.CreateFeatureclass(out_fds, out_name, 'POLYLINE', loc_lines, 'DISABLED', 'SAME_AS_TEMPLATE', spatial_reference=unknown) 
+        arcpy.management.CreateFeatureclass(out_fds, out_name, 'POLYLINE', loc_lines, 'DISABLED', 'SAME_AS_TEMPLATE', spatial_reference=unknown)
+        arcpy.management
         addMsgAndPrint('moving and calculating attributes')
         
         # 6) open search cursor on located events, open insert cursor on out_fc
@@ -404,6 +405,9 @@ for fc_path in line_fcs:
                 out_rows.insertRow(vals)
             except:
                 addMsgAndPrint(f"could not create feature from objectid {in_row[oid_i]} in {loc_lines}", 1)
+        
+        #new_name = id_field.replace('_ID', 'ID')
+        #arcpy.management.AlterField(profile_path, id_field, new_name, new_name)
             
 
 # buffer line to get selection polygon
@@ -610,35 +614,47 @@ if add_profile:
     profile_path = os.path.join(out_fds, profile_name)
     testAndDelete(profile_path)
     arcpy.management.CreateFeatureclass(out_fds, profile_name, 'POLYLINE', zm_line, spatial_reference=unknown)
-    arcpy.management.AlterField(profile_path, id_field, id_field.replace('_ID', 'ID'))
     arcpy.management.AddField(profile_path, f'{profile_name}_ID', 'TEXT', field_length=50, field_is_nullable='NON_NULLABLE')
   
+    # list of fields comes originally from zm_line
     fld_obj = arcpy.ListFields(zm_line)
     flds = [f.name for f in fld_obj if f.type != 'Geometry']
     flds.append('SHAPE@')
-    n = in_rows.flds.index
+    
+    # search cursor on zm_line with zm_line list of fields
     in_rows = arcpy.da.SearchCursor(zm_line, flds)
+    
+    # extend list of fields to include the new _ID field in the output
+    # this is now at the end of the list, index = -1
+    flds.append(f'{profile_name}_ID')
     out_rows = arcpy.da.InsertCursor(profile_path, flds)
+    n = out_rows.fields.index
 
     oid_name = [f.name for f in fld_obj if f.type == 'OID'][0]
     oid_i = n(oid_name)
     id_i = n(f'{profile_name}_ID')
+    shp_i = n('SHAPE@')
     
     for in_row in in_rows:
         vals = list(in_row).copy()
+        # extend more index to make room for _ID value
+        vals.append('')
         array = []
-        try:
-            line = in_row[-1]
-            for pnt in line[0]:     
-                X = pnt.M
-                Y = pnt.Z
-                array.append((X, Y * vert_ex))
+        #try:
+        line = in_row[-1]
+        for pnt in line[0]:     
+            X = pnt.M
+            Y = pnt.Z
+            array.append((X, Y * vert_ex))
 
-            vals[-1] = array
-            vals[id_i] = f'{token}SP_{str(in_row[oid_i]})
-            out_rows.insertRow(vals)
-        except:
-            addMsgAndPrint(f"could not create feature from objectid {in_row[oid_i]} in {loc_lines}", 1)
+        vals[shp_i] = array
+        vals[-1] = f'{token}SP{str(in_row[oid_i])}'
+        out_rows.insertRow(vals)
+        # except:
+            # addMsgAndPrint(f"could not create feature from objectid {in_row[oid_i]} in {loc_lines}", 1)
+    
+    new_name = id_field.replace('_ID', 'ID')
+    arcpy.management.AlterField(profile_path, id_field, new_name, new_name)
 
 if add_frame:
     addMsgAndPrint('creating cross section frame')
@@ -658,6 +674,7 @@ if add_frame:
     arcpy.management.AddField(frame_path, 'type', 'TEXT', field_length=100)
     arcpy.management.AddField(frame_path, 'label', 'TEXT', field_length=100)
     arcpy.management.AddField(frame_path, f'{frame_name}_ID', 'TEXT', field_length=50)
+    id_pref = f'{token}FM'
     in_rows = arcpy.da.SearchCursor(zm_line, 'SHAPE@')
     out_rows = arcpy.da.InsertCursor(frame_path, ['type', 'label', 'SHAPE@', f'{frame_name}_ID'])
     
@@ -675,7 +692,7 @@ if add_frame:
     top_right_y = height * vert_ex
     array.append((Xmax, top_right_y))
     
-    out_rows.insertRow(['frame', '', array, 'FRM1' ])
+    out_rows.insertRow(['frame', '', array, f'{id_pref}1'])
     
     i = 1
     # if a y tick interval was included,
@@ -691,19 +708,19 @@ if add_frame:
             pnt1 = (Xmin, y_ve)
             pnt2 = (Xmin - 250, y_ve)
             i = i + 1
-            out_rows.insertRow(['elevation tick', str(y), [pnt1, pnt2], f'FRM{i}])
+            out_rows.insertRow(['elevation tick', str(y), [pnt1, pnt2], f'{id_pref}{i}'])
             # right side
             pnt1 = (Xmax, y_ve)
             pnt2 = (Xmax + 250, y_ve)
             i = i + 1
-            out_rows.insertRow(['elevation tick', str(y), [pnt1, pnt2], f'FRM{i}])
+            out_rows.insertRow(['elevation tick', str(y), [pnt1, pnt2], f'{id_pref}{i}'])
             
     # if a x tick interval was included
     # build ticks
     if x_int != 0:
         tickmin = round2int(Xmin, x_int)
         tickmax = round2int(Xmax, x_int)
-        x_list = range(tickmin, tickmax + 1, x_int)
+        x_list = range(tickmin, tickmax, x_int)
         y = bottom_left_y
         
         # build along bottom of the frame
@@ -711,7 +728,7 @@ if add_frame:
             pnt1 = (x, y)
             pnt2 = (x, y - 250)
             i = i + 1
-            out_rows.insertRow(['distance tick', str(x), [pnt1, pnt2], f'FRM{i}])
+            out_rows.insertRow(['distance tick', str(x), [pnt1, pnt2], f'{id_pref}{i}'])
     
 arcpy.CheckInExtension('3D')
 if not saveIntermediate:
