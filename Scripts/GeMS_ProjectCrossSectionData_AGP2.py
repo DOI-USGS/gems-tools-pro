@@ -66,6 +66,41 @@ transDict =   { 'String': 'TEXT',
 	    	'NoNulls':'NON_NULLABLE',
     		'NullsOK':'NULLABLE',
     		'Date'  : 'DATE'  }
+            
+# idRootDict comes from GeMS_relID_AGP2.py
+idRootDict = {
+        'CartographicLines':'CAL',
+        'ContactsAndFaults':'CAF',
+        'CMULines':'CMULIN',
+        'CMUMapUnitPolys':'CMUMUP',
+        'CMUPoints':'CMUPNT',
+        'CMUText':'CMUTXT',
+        'DataSources':'DAS',
+        'DataSourcePolys':'DSP',
+        'DescriptionOfMapUnits':'DMU',
+        'ExtendedAttributes':'EXA',
+        'FossilPoints':'FSP',
+        'GenericPoints':'GNP',
+        'GenericSamples':'GNS',
+        'GeochemPoints':'GCM',
+        'GeochronPoints':'GCR',
+        'GeologicEvents':'GEE',
+        'GeologicLines':'GEL',
+        'Glossary':'GLO',
+        'IsoValueLines':'IVL',
+        'MapUnitPoints':'MPT',
+        'MapUnitPolys':'MUP',
+        'MapUnitOverlayPolys':'MUO',
+        'MiscellaneousMapInformation':'MMI',
+        'OrientationPoints':'ORP',
+        'OtherLines':'OTL',
+        'OverlayPolys':'OVP',
+        'PhotoPoints':'PHP',
+        'RepurposedSymbols':'RPS',
+        'Stations':'STA',
+        'StandardLithology':'STL',
+        'MapUnitPointAnno24k':'ANO'
+               }
 
 ##### UTILITY FUNCTIONS ############################
 
@@ -184,6 +219,40 @@ def field_none(fc, field):
 
 def round2int(x, base):
     return base * round(x/base)
+   
+def alter_id(fc_name, field_names, xs_fc_path):
+    # when a map fc has been translated to a xs fc,
+    # it still carries the original GeMS primary _ID field, which
+    # needs to be changed to a GeMS foreign key that just ends in ID
+    # orig_name needs to be {feature class}_ID
+    test_id = f'{fc_name}_ID'
+    if test_id in field_names:
+        new_name = orig_name.replace('_ID', 'ID')
+        arcpy.management.AlterField(xs_fc_path, orig_name, new_name, new_name)
+   
+def add_id(out_name, field_names, out_path, fc_name):
+    # add a suitable _ID primary field and work out
+    # a prefix to prepend to _ID values
+    id_name = f'{out_name}_id'
+    if not id_name in field_names:
+        arcpy.management.AddField(out_path, id_name, 'TEXT', field_length=50)
+        
+    if fc_name in idRootDict:
+        pref = f'CS{token}{idRootDict[fc_name]}'
+    else:
+        letters = []
+        for s in out_name:
+            if s.isalpha():
+                if s.isupper():
+                    letters.append(s)
+
+        if letters:
+            pref = "".join(letters)
+        else:
+            pref = out_name[len(token) + 1: len(token) + 4]
+        
+    return id_name, pref
+        
     
 ###############################################################
 addMsgAndPrint(f'{versionString}')
@@ -284,7 +353,7 @@ id_exists = field_none(copy_xs_path, check_field)
 # and if there isn't one, make one. 
 if id_field is None or id_exists == False:
     id_field = 'ROUTEID'
-    arcpy.AddField_management(temp_xs_line, id_field, 'TEXT')
+    arcpy.AddField_management(copy_xs_line, id_field, 'TEXT')
     arcpy.management.CalculateField(copy_xs_path, check_field, "'01'", 'PYTHON3')    
       
 # check for Z and M values
@@ -339,77 +408,100 @@ else:
             poly_fcs.append(desc['catalogPath']) 
         if desc['shapeType'] == 'Point':
             point_fcs.append(desc['catalogPath'])
-
+### LINES
 if line_fcs:
     addMsgAndPrint('projecting line feature classes:')
 for fc_path in line_fcs:
     fc_name = os.path.basename(fc_path)
     addMsgAndPrint(f'{fc_path}')
   
-    # 1) intersect fc_name with zm_line to get points where arcs cross section line
+    # intersect fc_name with zm_line to get points where arcs cross section line
     intersect_pts = os.path.join(scratch_fd, f'CS{token}{fc_name}_intersections')
     arcpy.analysis.Intersect([zm_line, fc_path], intersect_pts, 'ALL', None, 'POINT')    
 
     if numberOfRows(intersect_pts) == 0:
         addMsgAndPrint(f'{fc_name} does not intersect section line')
     else:
-        # 2) locate the points on the cross section route
+        # locate the points on the cross section route
         event_props = 'rkey POINT M fmp' 
         event_tbl = locateevent_tbl(intersect_pts, 10, event_props, 'Z_MEAN', True)
         
-        # 3) create event layer from the events table
+        # create event layer from the events table
         addMsgAndPrint('placing events on section line')
         event_lyr = f'CS{token}{fc_name}_events'
         arcpy.lr.MakeRouteEventLayer(zm_line, id_field, event_tbl, event_props, event_lyr)
         
-        # 4) save a copy to the scratch feature 
+        # save a copy to the scratch feature 
         # this is still in SR of the original fc
         loc_lines = os.path.join(scratch_fd, f'CS{token}{fc_name}_located')
         addMsgAndPrint(f'copying point event layer')
         arcpy.management.CopyFeatures(event_lyr, loc_lines)   
         
-        # 5) make new feature class in output feature dataset using old as template
+        # make new feature class in output feature dataset using old as template
         out_name = f'CS{token}_{fc_name}'
         out_path = os.path.join(out_fds, out_name)
         addMsgAndPrint(f'creating feature class {out_name} in {os.path.basename(out_fds)}')
         testAndDelete(out_path)
         arcpy.management.CreateFeatureclass(out_fds, out_name, 'POLYLINE', loc_lines, 'DISABLED', 'SAME_AS_TEMPLATE', spatial_reference=unknown)
-        arcpy.management
-        addMsgAndPrint('moving and calculating attributes')
         
-        # 6) open search cursor on located events, open insert cursor on out_fc
+        # open search cursor on located events, open insert cursor on out_path
         # get a list of all fields from the original feature class that do not have the 
         # property required = True. Except that we do want to interrogate and then write
         # to the shape field so add that back on.
         fld_obj = arcpy.ListFields(loc_lines)
         flds = [f.name for f in fld_obj if f.type != 'Geometry']
         flds.append('SHAPE@')
-        in_rows = arcpy.da.SearchCursor(loc_lines, flds)
-        out_rows = arcpy.da.InsertCursor(out_path, flds)
+        
+        # add a GeMS-style primary key named {out_name}_ID
+        out_name, field_names, out_path, fc_name
+        gems_id, id_pref = add_id(out_name, flds, out_path, fc_name)
 
+        # prepare the cursors
+        # for in_rows, use flds as listed based on the template feature class
+        in_rows = arcpy.da.SearchCursor(loc_lines, flds)
+        
+        # but for out_rows, append a {out_name}_ID field
+        flds.append(gems_id)
+        out_rows = arcpy.da.InsertCursor(out_path, flds)
+        
+        # get the index of the objectid field
         oid_name = [f.name for f in fld_obj if f.type == 'OID'][0]
         oid_i = in_rows.fields.index(oid_name)
         
+        # initialize an integer counter for appending to the gems-style prefix 
+        # returned by add_id above
+        i = 0
+        addMsgAndPrint('creating new features and moving attributes')
         for in_row in in_rows:
+            i = i + 1
+            # do the shape
+            geom = in_row[-1]
+            pnt = geom[0]     
+            X = pnt.M
+            Y = pnt.Z
+            array = []
+            array.append((X, Y * vert_ex))
+            array.append((X, (Y + lineCrossingLength) * vert_ex))
+            vals = list(in_row).copy()
+            
+            # gems_id was added to flds before insert cursor on out_path
+            # so extend vals one more index to make room for the _ID value
+            vals.append('')
+            
+            # SHAPE@ token is second to last item
+            vals[-2] = array
+            
+            # {out_name}_ID is last item
+            vals[-1] = f'{id_pref}{i}'
             try:
-                # do the shape
-                geom = in_row[-1]
-                pnt = geom[0]     
-                X = pnt.M
-                Y = pnt.Z
-                array = []
-                array.append((X, Y * vert_ex))
-                array.append((X, (Y + lineCrossingLength) * vert_ex))
-                vals = list(in_row).copy()
-                vals[-1] = array
                 out_rows.insertRow(vals)
             except:
                 addMsgAndPrint(f"could not create feature from objectid {in_row[oid_i]} in {loc_lines}", 1)
-        
-        #new_name = id_field.replace('_ID', 'ID')
-        #arcpy.management.AlterField(profile_path, id_field, new_name, new_name)
-            
+                
+        # change _ID field to ID field
+        alter_id(fc_name, flds, out_path)
 
+### POINTS
 # buffer line to get selection polygon
 if point_fcs:
     addMsgAndPrint('projecting point feature classes:')
@@ -422,35 +514,35 @@ for fc_path in point_fcs:
     fc_name = os.path.basename(fc_path)
     addMsgAndPrint(f'    {fc_path}')
     
-    # 1) clip inputfc with selection polygon to make clip_points
-    addMsgAndPrint('      clipping with selection polygon')
+    # clip inputfc with selection polygon to make clip_points
+    addMsgAndPrint('clipping with selection polygon')
     clip_points = os.path.join(scratch_fd, f'{fc_name}_{str(int(buffer_distance))}')
     testAndDelete(clip_points)
     arcpy.analysis.Clip(fc_path, temp_buffer, clip_points)
     
     # check to see if nonZero number of rows and not in excluded feature classes
     nPts = numberOfRows(clip_points)
-    addMsgAndPrint(f'      {str(nPts)} points within selection polygon')
+    addMsgAndPrint(f'{str(nPts)} points within selection polygon')
     if nPts > 0:
-        # 2) locate the set of clipped points on the cross section line
+        # locate the set of clipped points on the cross section line
         event_props = 'rkey POINT M fmp' 
         event_tbl = locateevent_tbl(clip_points, buffer_distance + 200, event_props, 'Z')
         
-        # 3) make an event layer from the event table. "Snaps" points tangentially to the 
+        # make an event layer from the event table. "Snaps" points tangentially to the 
         # line of cross section.
-        addMsgAndPrint('      placing events on section line')
+        addMsgAndPrint('placing events on section line')
         event_lyr = f'CS{token}{fc_name}_events'
         arcpy.lr.MakeRouteEventLayer(zm_line, id_field, event_tbl, event_props, 
                                      event_lyr, '#', '#', 'ANGLE_FIELD', 'TANGENT')
         
-        # 4) save a copy to the scratch feature 
+        # save a copy to the scratch feature 
         # this is still in SR of the original fc
         loc_points = os.path.join(scratch_fd, f'CS{token}{fc_name}_located')
-        addMsgAndPrint(f'      copying event layer to {loc_points}')
+        addMsgAndPrint(f'copying event layer ')
         arcpy.management.CopyFeatures(event_lyr, loc_points)   
-        addMsgAndPrint('      adding fields')
+        addMsgAndPrint('adding fields')
         
-        # 5) add fields
+        # add fields
         # add DistanceFromSection and LocalXsAzimuth
         arcpy.AddField_management(loc_points, 'DistanceFromSection', 'FLOAT')
         arcpy.AddField_management(loc_points, 'LocalCSAzimuth', 'FLOAT')
@@ -460,9 +552,9 @@ for fc_path in point_fcs:
         fld_obj = arcpy.ListFields(loc_points)
         flds = [f.name for f in fld_obj if f.type != 'Geometry']
         flds.append('SHAPE@')
-        
+              
         # set isOrientationData
-        addMsgAndPrint('      checking for Azimuth and Inclination fields')
+        addMsgAndPrint('checking for Azimuth and Inclination fields')
         if 'Azimuth' in flds and 'Inclination' in iflds:
             isOrientationData = True
             for n in ('ApparentInclination', 'Obliquity', 'MapAzimuth'):
@@ -471,15 +563,22 @@ for fc_path in point_fcs:
         else:
             isOrientationData = False
             
-        # 6) create empty feature class, with unknown SR, in the original gdb
+        # create empty feature class, with unknown SR, in the original gdb
         out_name = f'CS{token}_{fc_name}'
         out_path = os.path.join(out_fds, out_name)
-        addMsgAndPrint(f'      creating feature class {out_path} in {out_fds}')
+        addMsgAndPrint(f'creating feature class {out_path} in {out_fds}')
         arcpy.management.CreateFeatureclass(out_fds, out_name, 'POINT', loc_points, spatial_reference=unknown)
         
-        # 7) swap M for X and Z for Y and other attribute calculations
-        addMsgAndPrint('      calculating shapes and attributes')
+        # add a GeMS-style primary key named {out_name}_ID
+        out_name, field_names, out_path, fc_name
+        gems_id, id_pref = add_id(out_name, flds, out_path, fc_name)
+        
+        # prepare cursors
+        # for in_rows, use flds as listed based on the template feature class
         in_rows = arcpy.da.SearchCursor(loc_points, flds)
+       
+        # but for out_rows, append a {out_name}_ID field
+        flds.append(gems_id)
         out_rows = arcpy.da.InsertCursor(out_path, flds)
         
         # the objectid field might not always be named OBJECTID
@@ -489,61 +588,69 @@ for fc_path in point_fcs:
         oid_name = [f.name for f in fld_obj if f.type == 'OID'][0]
         oid_i = n(oid_name)
 
+        addMsgAndPrint('creating new features and moving attributes')
+        # initialize an integer counter for appending to the gems-style prefix 
+        # returned by add_id above
+        i = 0
         for in_row in in_rows:
-            try:
-                # get a list of the values from the located points feature class
-                vals = list(in_row).copy()
-                
-                # create the new shape
-                geom = in_row[-1]
-                pnt = geom[0]     
-                X = pnt.M
-                if pnt.Z is None:
-                    Y = -999
+            i = i + 1
+            # get a list of the values from the located points feature class
+            vals = list(in_row).copy()
+            
+            # gems_id was added to flds before insert cursor on out_path
+            # so extend vals one more index to make room for the _ID value
+            vals.append('')            
+            
+            # create the new shape
+            geom = in_row[-1]
+            pnt = geom[0]     
+            X = pnt.M
+            if pnt.Z is None:
+                Y = -999
+            else:
+                Y = pnt.Z * vert_ex
+            new_pnt = arcpy.Point(X, Y)
+            
+            # SHAPE@ token is second to last item
+            vals[-2] = new_pnt
+              
+            # convert from cartesian to geographic angle
+            csAzi = cartesianToGeographic(in_row[n('LOC_ANGLE')])
+            vals[n('LocalCSAzimuth')] = csAzi
+            vals[n('DistanceFromSection')] = in_row[n('Distance')]
+            if isOrientationData:
+                vals[n('MapAzimuth')] = in_row[n('Azimuth')]
+                if isAxial(in_row[n('Type')]):
+                    appInc, oblique = apparentPlunge(in_row[n('Azimuth')], in_row[n('Inclination')], csAzi)
+                    inclinationDirection = in_row[n('Azimuth')]
                 else:
-                    Y = pnt.Z * vert_ex
-                new_pnt = arcpy.Point(X, Y)
-                vals[-1] = new_pnt
-                  
-                # convert from cartesian to geographic angle
-                csAzi = cartesianToGeographic(in_row[n('LOC_ANGLE')])
-                vals[n('LocalCSAzimuth')] = csAzi
-                vals[n('DistanceFromSection')] = in_row[n('Distance')]
-                if isOrientationData:
-                    vals[n('MapAzimuth')] = in_row[n('Azimuth')]
-                    if isAxial(in_row[n('Type')]):
-                        appInc, oblique = apparentPlunge(in_row[n('Azimuth')], in_row[n('Inclination')], csAzi)
-                        inclinationDirection = in_row[n('Azimuth')]
-                    else:
-                        appInc, oblique = apparentDip(in_row[n('Azimuth')], in_row[n('Inclination')], csAzi)
-                        inclinationDirection = in_row[n('Azimuth')] + 90
-                        if inclinationDirection > 360:
-                            inclinationDirection = inclinationDirection - 360
-                    plotAzi = plotAzimuth(inclinationDirection, csAzi, appInc)
-                    rowObliquity = round(oblique, 2)
-                    vals[n('ApparentInclination')] = round(appInc, 2)
-                    vals[n('Azimuth')] = round(plotAzi, 2)
-       
+                    appInc, oblique = apparentDip(in_row[n('Azimuth')], in_row[n('Inclination')], csAzi)
+                    inclinationDirection = in_row[n('Azimuth')] + 90
+                    if inclinationDirection > 360:
+                        inclinationDirection = inclinationDirection - 360
+                plotAzi = plotAzimuth(inclinationDirection, csAzi, appInc)
+                rowObliquity = round(oblique, 2)
+                vals[n('ApparentInclination')] = round(appInc, 2)
+                vals[n('Azimuth')] = round(plotAzi, 2)
+                
+            # {out_name}_ID is last item   
+            vals[-1] = f'{id_pref}{str(i)}'
+            try:
                 out_rows.insertRow(vals)
             except:
                 addMsgAndPrint(f"could not create feature from objectid {in_row[oid_i]} in {loc_points}", 1)
         
-        # cleanup
-        for fld in 'Distance', 'LOC_ANGLE', 'rtID':
-            arcpy.management.DeleteField(out_path, fld)
-        del in_row, in_rows, out_rows
-        
-        # clean up
-        if not saveIntermediate:
-            testAndDelete(scratch_fd)
-
+        # change _ID field to ID field
+        alter_id(fc_name, flds, out_path)
+              
+### POLYGONS
 for fc_path in poly_fcs:
     addMsgAndPrint('projecting polygon feature classes:')
     fc_name = os.path.basename(fc_path)
     addMsgAndPrint(f'{fc_name}')
     
-    # 1) locate features along routes
-    addMsgAndPrint('      making event table')
+    # locate features along routes
+    addMsgAndPrint('making event table')
     event_tbl = os.path.join(os.path.join(scratch, f'{fc_name}_evtble'))
     addMsgAndPrint(event_tbl)
     testAndDelete(event_tbl)
@@ -551,62 +658,71 @@ for fc_path in poly_fcs:
     arcpy.lr.LocateFeaturesAlongRoutes(fc_path, zm_line, id_field, '#', event_tbl, event_props)
     
     if numberOfRows(event_tbl) == 0:
-        addMsgAndPrint(f'      {fc_name} does not intersect section line')
+        addMsgAndPrint(f'{fc_name} does not intersect section line')
     else:
-        addMsgAndPrint('      placing events on section line')
-        # 2) make route event layer
+        addMsgAndPrint('placing events on section line')
+        # make route event layer
         event_lyr = f'CS{token}{fc_name}_events'
         arcpy.lr.MakeRouteEventLayer(zm_line, id_field, event_tbl, event_props, event_lyr)
         
-        # 3) save a copy to the scratch feature dataset
+        # save a copy to the scratch feature dataset
         # this is still in SR of the original fc
         loc_polys = os.path.join(scratch_fd, f'CS{token}{fc_name}_located')
-        addMsgAndPrint(f'      copying event layer to {loc_polys}')
+        addMsgAndPrint(f'copying event layer to {loc_polys}')
         arcpy.management.CopyFeatures(event_lyr, loc_polys)   
         
-        # 4) create empty feature class, with unknown SR, in the original gdb
+        # create empty feature class, with unknown SR, in the original gdb
         out_name = f'CS{token}_{fc_name}'
-        out_fc = os.path.join(out_fds, out_name)
-        addMsgAndPrint(f'      creating feature class {out_name} in {out_fds}')
-        testAndDelete(out_fc)
+        out_path = os.path.join(out_fds, out_name)
+        addMsgAndPrint(f'creating feature class {out_name} in {out_fds}')
+        testAndDelete(out_path)
         arcpy.management.CreateFeatureclass(out_fds, out_name, 'POLYLINE', loc_polys, 'DISABLED', 'SAME_AS_TEMPLATE', spatial_reference=unknown)
-
-        # 5) create the new features 
-        addMsgAndPrint('      moving and calculating attributes')
         
+        # add a GeMS-style primary key named {out_name}_ID
+        out_name, field_names, out_path, fc_name
+        gems_id, id_pref = add_id(out_name, flds, out_path, fc_name)
+              
         # get field names
         # but exclude Shape and shape_length
         fld_obj = arcpy.ListFields(loc_polys)
         flds = [f.name for f in fld_obj if f.type != 'Geometry' and f.name.lower() != 'shape_length']
         flds.append('SHAPE@')
-        in_rows = arcpy.da.SearchCursor(loc_polys, flds)
-        outRows = arcpy.da.InsertCursor(out_fc, flds)
         
-        ## open search cursor on loc_polys, open insert cursor on out_fc
+        # prepare cursors
+        # for in_rows, use flds as listed based on the template feature class
         in_rows = arcpy.da.SearchCursor(loc_polys, flds)
-        out_rows = arcpy.da.InsertCursor(out_fc, flds)
         
-        # the objectid field might not always be named OBJECTID
-        # get the right name by interrogating the field type
-        # and then find the index of that name in the list of fields
-        n = in_rows.fields.index
+        # but for out_rows, append a {out_name}_ID field
+        flds.append(gems_id)
+        outRows = arcpy.da.InsertCursor(out_path, flds)
+        
+        # get the index of the objectid field
         oid_name = [f.name for f in fld_obj if f.type == 'OID'][0]
-        oid_i = n(oid_name)
+        oid_i = in_rows.fields.index(oid_name)
+        
+        addMsgAndPrint('creating new features and moving attributes')
+        # initialize an integer counter for appending to the gems-style prefix 
+        # returned by add_id above
+        i = 0
         for in_row in in_rows:
+            i = i + 1
+            vals = list(in_row).copy()
+            vals.append('')
+            # flip shape
+            array = []
+            for part in in_row[-1]:
+                for pnt in part:
+                    X = pnt.M
+                    Y = pnt.Z * vert_ex
+                    array.append((X,Y))
+            vals[-2] = array
+            vals[-1] = f'{id_pref}{str(i)}'
             try:
-                vals = list(in_row).copy()
-                # flip shape
-                array = []
-                for part in in_row[-1]:
-                    for pnt in part:
-                        X = pnt.M
-                        Y = pnt.Z * vert_ex
-                        array.append((X,Y))
-                vals[-1] = array       
                 out_rows.insertRow(vals)
             except:
                 addMsgAndPrint(f"could not create feature from objectid {in_row[oid_i]} in {loc_polys}", 1)
-
+                
+        alter_id(fc_name, flds, out_path)
 #EXTRAS
 if add_profile:
     addMsgAndPrint('creating surface profile')
@@ -628,16 +744,15 @@ if add_profile:
     # this is now at the end of the list, index = -1
     flds.append(f'{profile_name}_ID')
     out_rows = arcpy.da.InsertCursor(profile_path, flds)
-    n = out_rows.fields.index
 
     oid_name = [f.name for f in fld_obj if f.type == 'OID'][0]
-    oid_i = n(oid_name)
-    id_i = n(f'{profile_name}_ID')
-    shp_i = n('SHAPE@')
+    oid_i = out_rows.fields.index(oid_name)
     
+    i = 0
     for in_row in in_rows:
+        i = i + 1
         vals = list(in_row).copy()
-        # extend more index to make room for _ID value
+        # extend vals by one more element to make room for _ID value
         vals.append('')
         array = []
         #try:
@@ -648,7 +763,7 @@ if add_profile:
             array.append((X, Y * vert_ex))
 
         vals[shp_i] = array
-        vals[-1] = f'{token}SP{str(in_row[oid_i])}'
+        vals[-1] = f'{token}SP{str(i)}'
         out_rows.insertRow(vals)
         # except:
             # addMsgAndPrint(f"could not create feature from objectid {in_row[oid_i]} in {loc_lines}", 1)
