@@ -395,7 +395,7 @@ def add_attributes(fc_name, detailed_node):
         if key in unrepresentableDomainDict:
             attrdomv = etree.Element('attrdomv')
             udom = etree.Element('udom')
-            udom.text = unrepresentableDomainDict[key]
+            udom.text = str(unrepresentableDomainDict[key])
             attrdomv.append(udom)
             attr.append(attrdomv)
 
@@ -415,7 +415,7 @@ def add_attributes(fc_name, detailed_node):
             rdom = etree.Element('rdom')
             for i, n in [['rdomin', 0], ['rdomax', 1], ['attrunit', 2]]:
                 range_attr = etree.Element(n)
-                range_attr.text = rangeDomainDict[key][i]
+                range_attr.text = str(rangeDomainDict[key][i])
                 rdom.append(range_attr)
             attrdomv.append(rdom)
             attr.append(attrdomv)
@@ -460,7 +460,7 @@ def add_attributes(fc_name, detailed_node):
                 # build the nodes and append    
                 edom = etree.Element('edom')
                 edomv = etree.Element('edomv')
-                edomv.text = val
+                edomv.text = str(val)
                 edomvd = etree.Element('edomvd')
                 edomvd.text = val_text
                 edomvds = etree.Element('edomvds')
