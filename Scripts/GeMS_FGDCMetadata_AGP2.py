@@ -261,7 +261,7 @@ def add_entity(fc_name, elem_dict):
     else:
         #print('not found')
         # add logging here for report if a description cannot be found
-        arcpy.AddWarning(f"No definition found for {fc_name}!")
+        arcpy.AddWarning(f"No definition found for {fc_name}")
         if missing:
             desc = ''
             desc_source = ''
@@ -395,7 +395,7 @@ def add_attributes(fc_name, detailed_node):
         if key in unrepresentableDomainDict:
             attrdomv = etree.Element('attrdomv')
             udom = etree.Element('udom')
-            udom.text = str(unrepresentableDomainDict[key])
+            udom.text = unrepresentableDomainDict[key]
             attrdomv.append(udom)
             attr.append(attrdomv)
 
@@ -413,9 +413,9 @@ def add_attributes(fc_name, detailed_node):
             arcpy.AddMessage("        Range value domain definition found")
             attrdomv = etree.Element('attrdomv')
             rdom = etree.Element('rdom')
-            for i, n in [['rdomin', 0], ['rdomax', 1], ['attrunit', 2]]:
+            for n, i in [['rdomin', 0], ['rdomax', 1], ['attrunit', 2]]:
                 range_attr = etree.Element(n)
-                range_attr.text = str(rangeDomainDict[key][i])
+                range_attr.text = rangeDomainDict[key][i]
                 rdom.append(range_attr)
             attrdomv.append(rdom)
             attr.append(attrdomv)
@@ -609,8 +609,6 @@ sources_choice = {"save only DataSources" : 1,
                   
 sources_param = sources_choice[sys.argv[5]]
 
-arcpy.AddMessage("sources_param = " + str(sources_param))
-
 # what to do with process steps, dataqual/lineage/procstep
 history_choices = {"clear all history": 1,
                    "save only template history": 2,
@@ -742,7 +740,12 @@ try:
         spdom.append(bounding)
         base_md.find('idinfo').append(spdom)
 except Exception as error:
+    e = '''Could not calculate a bounding box. 
+    Set environment variable PROJ_LIB to location of proj.db and try again.
+    See the ArcGIS Pro wiki for more information - https://github.com/usgs/gems-tools-pro/wiki/GeMS-Tools-Documentation#BuildMetadata'''
+    arcpy.AddError(e)
     arcpy.AddError(error)
+    sys.exit()
 
 # collect the feature classes and inspect the sdtsterm
 if base_md.find('spdoinfo') is None:
@@ -760,7 +763,13 @@ if base_md.find('spdoinfo') is None:
 
 if base_md.find('spref') is None:
     arcpy.AddMessage("spref")
-    spref_node = su.get_spref(str(db_path), 'MapUnitPolys')
+    try:
+        spref_node = su.get_spref(str(db_path), 'MapUnitPolys')
+    except Exception as e:
+        arcpy.AddError('''Could not determine the coordinate system of MapUnitPolys.
+        Check in ArcCatalog that it is valid''')
+        arcpy.AddError(e)
+        sys.exit()
     base_md.insert(3, spref_node)
 
 # add the rest of the gems_nodes
