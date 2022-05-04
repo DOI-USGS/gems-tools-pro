@@ -444,8 +444,8 @@ else:
     gdb_name = os.path.basename(gdb)
     ows = os.path.abspath(sys.argv[2])
     
-    arcpy.env.QualifiedFieldNames = False
-    arcpy.env.overwriteoutput = True
+    arcpy.env.qualifiedFieldNames = False
+    arcpy.env.overwriteOutput = True
 
     # fix the new workspace name so it is guaranteed to be novel, no overwrite
     newgdb = os.path.join(ows, 'xx{}'.format(gdb_name))
