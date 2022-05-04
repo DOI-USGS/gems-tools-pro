@@ -11,9 +11,9 @@
 #   different DMU documents may still contain formatting or objects which throw errors. 
 
 import os
-xx = os.sys.path
-for x in xx:
-    print(x)
+# xx = os.sys.path
+# for x in xx:
+    # print(x)
     #addMsgAndPrint(x)
 
 import sys, copy, arcpy
