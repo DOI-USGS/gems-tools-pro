@@ -12,9 +12,9 @@ Arguments
     
 """
 # 4 June 2019: Edited to work with Python 3 in ArcGIS Pro - Evan Thoms
-#   This version uses the new docx module for Python 3, which is not included
+#   This version uses the docx module for Python 3, which is not included
 #   in the miniconda distribution of python with ArcGIS Pro.
-#   included in the \Scripts folder. No need to install 
+#   But it is included in the \Scripts folder of the toolbox. No need to install 
 #
 #   Doesn't do all of the HTML conversion that Ralph's original does. So far it checks for:
 #   <br> - line break/paragraph
@@ -25,18 +25,15 @@ Arguments
 #   <span  style="font-family: FGDCGeoAge"> write the enclosed text in FGDCGeoAge font, unit labels
 #   also checks for non-printing line breaks if text with paragraphs is pasted from Word.
 
-
 import sys, arcpy
 import re
 from pathlib import Path
 from GeMS_utilityFunctions import *
 import docx
 
-versionString = 'GeMS_DMUtoDocx_AGP2.py, version of 9 January 2020'
+versionString = 'GeMS_DMUtoDocx_AGP2.py, version of 5 May 2022'
 rawurl = 'https://raw.githubusercontent.com/usgs/gems-tools-pro/master/Scripts/GeMS_DMUtoDocx_AGP2.py'
 checkVersion(versionString, rawurl, 'gems-tools-pro')
-
-#addMsgAndPrint( versionString )
 
 debug = False
 debug2 = False
@@ -48,8 +45,8 @@ endTags = []
 tags = ['b','p','i','g','ul','sup','sub']
 # bold, italic, group, unordered list, supercript, subscript
 for tag in tags:
-    startTags.append(r'<{}>'.format(tag))
-    endTags.append(r'</{}>'.format(tag))
+    startTags.append(f'<{tag}>')
+    endTags.append(f'</{tag}>')
     
 # span elements are special in that they contain attributes
 # with this version, we'll only look for spans that are changing
