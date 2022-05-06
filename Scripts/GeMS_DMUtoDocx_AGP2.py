@@ -12,23 +12,19 @@ Arguments
     
 """
 # 4 June 2019: Edited to work with Python 3 in ArcGIS Pro - Evan Thoms
-#   This version uses the new docx module for Python 3
-#   https://python-docx.readthedocs.io/en/latest/
-#   Install by opening the ArcGIS Pro Python Command Prompt so that you are starting in
-#   the arcgispro-py3 conda environment.
-#   Run 'conda install -c conda-forge python-docx'
+#   This version uses the new docx module for Python 3, which is not included
+#   in the miniconda distribution of python with ArcGIS Pro.
+#   included in the \Scripts folder. No need to install 
 #
 #   Doesn't do all of the HTML conversion that Ralph's original does. So far it checks for:
 #   <br> - line break/paragraph
 #   <p> - paragraph, closing tag is not required and ignored if present
 #   <b> - bold
 #   <i> - italic
-#   <sup> or <sub> super or subscript
+#   <sup> or <sub> super or subscri
 #   <span  style="font-family: FGDCGeoAge"> write the enclosed text in FGDCGeoAge font, unit labels
 #   also checks for non-printing line breaks if text with paragraphs is pasted from Word.
-#
-#   Consider updating with an HTML parse like BeautifulSoup. Although, it wasn't clear to me if bs4 is a 
-#   solution for parsing text that is mostly un-formatted text with a few tags thrown in.
+
 
 import sys, arcpy
 import re
@@ -61,21 +57,56 @@ for tag in tags:
 startTags.append('<span style="font-family: FGDCGeoAge">')
 endTags.append('</span>')
 
+# with style_dict and keys equal to clean(value), we will try to allow
+# for variations in how paragraph styles are named.
+# the keys come from the input DMU table and are matched up against the styleID
+# of the style found inside DMUtemplate.docx
+style_dict = {"dmuheading1" : "DMU-Heading1",
+              "heading1" : "DMU-Heading1",
+              "dmuheading2" : "DMU-Heading2",
+              "heading2" : "DMU-Heading2",
+              "dmuheading3" : "DMU-Heading3",
+              "heading3" : "DMU-Heading3",
+              "dmuheading4" : "DMU-Heading4",
+              "heading4" : "DMU-Heading4",
+              "dmuheading5" : "DMU-Heading5",
+              "heading5" : "DMU-Heading5",
+              "dmuunit11stafterheading" : "DMUUnit11stafterheading",
+              "1stunitafterheading" : "DMUUnit11stafterheading",
+              "dmuunit1" : "DMUUnit1",
+              "dmu1" : "DMUUnit1",
+              "unit1" : "DMUUnit1",
+              "dmuunit2" : "DMUUnit2",
+              "dmu2" : "DMUUnit2",
+              "unit2" : "DMUUnit2",
+              "dmuunit3" : "DMUUnit3",
+              "dmu3" : "DMUUnit3",
+              "unit3" : "DMUUnit3",
+              "dmuunit4" : "DMUUnit4",
+              "dmu4" : "DMUUnit4",
+              "unit4" : "DMUUnit4",
+              "dmuunit5" : "DMUUnit5",
+              "dmu5" : "DMUUnit5",
+              "unit5" : "DMUUnit5",
+              "dmuunit1char" : "DMUUnit1Char",
+              "dmuparagraph" : "DMUParagraph",
+              "dmuunitlabeltype style" : "DMUUnitLabeltypestyle",
+              "dmuunitnameagetypestyle" : "DMUUnitNameAgetypestyle",
+              "dmuheadnote" : "DMUHeadnote", # can't actually find this style in styles.xml, but it
+                                             # shows up in the styles dialog in Word ??
+              "headnote" : "DMUHeadnote",
+              "dmuheadnote1line" : "DMUHeadnote-1Line",
+              "dmuheadnotemorethan1line" : "DMUHeadnote-MoreThan1Line"}
+
 def isNotBlank(thing):
     if thing != '' and thing != None:
         return True
     else:
         return False
-    
-def isKnownStyle(pStyle):
-    for n in ['DMUHeadnote', 'DMU-Heading', 'DMUUnit']:
-        if n in pStyle:
-            return True
-        else:
-            return False
 
 def notNullText(txt):
-    if txt == '#null' or txt == None or txt == '#Null' or txt == '#' or txt == '' or len(txt.split()) == 0:
+    if txt in ['#null', '#Null', '<null>', '#', '', None] or len(txt.split()) == 0:
+    #if txt == '#null' or txt == None or txt == '#Null' or txt == '#' or txt == '' or len(txt.split()) == 0:
         return False
     else:
         return True
@@ -146,8 +177,14 @@ def add_formatting(paragraph, ptext):
                 paragraph.add_run(untagged_text)
     else:
         paragraph.add_run(ptext)
+       
+def clean(val):
+    for c in ["-", "—", " ", ",", "(", ")"]:
+        val = val.replace(c, '')
+    return val.lower()
 
 gdb = sys.argv[1]
+dmu = Path(gdb) / "DescriptionOfMapUnits"
 outdir = Path(sys.argv[2])
 outname = sys.argv[3]
 if outname.lower()[-5:] != '.docx':
@@ -189,7 +226,7 @@ addMsgAndPrint('Getting DMU rows and creating output paragraphs')
 fields = ['mapunit', 'label', 'name', 'age', 'description', 'paragraphstyle', 'hierarchykey']
 #          0          1        2       3      4              5                 6
 sqlclause = (None, "ORDER by HierarchyKey ASC")
-dmuRows = arcpy.da.SearchCursor('DescriptionOfMapUnits', fields, sql_clause=sqlclause)
+dmuRows = arcpy.da.SearchCursor(str(dmu), fields, sql_clause=sqlclause)
 
 # look for the case where we are making just a list of map units regardless of what 
 # the title row of the table may be.
@@ -205,28 +242,30 @@ if row[2].lower in ['description of map units', 'list of map units']:
     row = dmuRows.next()
 
 # check the first row for a headnote and add it only if we are building a full DMU
-if row[5] == 'DMUHeadnote' and not isLMU:
+if clean(row[5]) == 'dmuheadnote' and not isLMU:
     headnote = document.add_paragraph(row[4], 'DMUHeadnote')
     row = dmuRows.next()
 
 while row:
 #for row in dmuRows:
     addMsgAndPrint('  {}: {}'.format(row[6], row[5]))
-    if row[5].find('DMU-Heading') > -1:  # is a heading
-        header_pr = document.add_paragraph(style=row[5])
+    #arcpy.AddMessage(clean(row[5]))
+    k = clean(row[5])
+    if 'heading' in row[5].lower():  # is a heading
+        header_pr = document.add_paragraph(style=style_dict[k])
         add_formatting(header_pr, row[2])
         if notNullText(row[4]):  # heading has headnote. Append heading as a paragraph
             headnote = document.add_paragraph(style='DMUHeadnote')
             add_formatting(headnote, row[4])
-            #document.add_paragraph(row[4], 'DMUHeadnote')
+        lastParaWasHeading = True
                 
-    elif row[5].find('DMUUnit') > -1:  # is a unit
+    elif 'Unit' in style_dict[k]:  # is a unit
         # add an empty paragraph using ParagraphStyle
         unit = document.add_paragraph()
         if lastParaWasHeading:
             unit.style = 'DMUUnit11stafterheading'
         else:
-            unit.style = row[5]
+            unit.style = style_dict[k]
         
         # start this paragraph by adding the mapunit abbreviation, name, and age runs
         if not useMapUnitForUnitLabl and notNullText(row[1]):  
@@ -234,7 +273,7 @@ while row:
         elif useMapUnitForUnitLabl and notNullText(row[0]):
             abbrv = row[0]
         abbrv = '{}\t'.format(abbrv)         
-        if row[5][-1:] in ('4','5'):
+        if clean(row[5])[-1:] in ('4','5'):
             abbrv = '{}\t'.format(abbrv) # add second tab for DMUUnit4 and DMUUnit4
         unit.add_run(abbrv, 'DMUUnitLabeltypestyle')
         
@@ -277,11 +316,8 @@ while row:
                     addP = document.add_paragraph(style='DMUParagraph')
                     addMsgAndPrint('  Evaluating paragraph {}'.format(i+1))
                     add_formatting(addP, paras[i])
-           
-        if row[5].find('Head') > -1:
-            lastParaWasHeading = True
-        else:
-            lastParaWasHeading = False
+
+        lastParaWasHeading = False
                     
     else: # Unrecognized paragraph style
         addMsgAndPrint('Do not recognize paragraph style {}'.format(row[5]))
