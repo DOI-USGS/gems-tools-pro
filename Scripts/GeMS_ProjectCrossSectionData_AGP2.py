@@ -724,7 +724,7 @@ for fc_path in poly_fcs:
             try:
                 out_rows.insertRow(vals)
             except Exception as e:
-                addMsgAndPrint(fu"could not create feature from objectid {in_row[oid_i]} in {loc_polys}", 1)
+                addMsgAndPrint(f"could not create feature from objectid {in_row[oid_i]} in {loc_polys}", 1)
                 addMsgAndPrint(e)
                 
         alter_id(fc_name, flds, out_path)
