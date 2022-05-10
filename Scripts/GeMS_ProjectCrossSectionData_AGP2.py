@@ -683,7 +683,6 @@ for fc_path in poly_fcs:
         testAndDelete(out_path)
         arcpy.management.CreateFeatureclass(out_fds, out_name, 'POLYLINE', loc_polys, 'DISABLED', 'SAME_AS_TEMPLATE', spatial_reference=unknown)
        
-              
         # get field names
         # but exclude Shape and shape_length
         fld_obj = arcpy.ListFields(loc_polys)
