@@ -45,11 +45,8 @@ def testAndDelete(fc):
         arcpy.Delete_management(fc)
 
 def fieldNameList(aTable):
-    fns = arcpy.ListFields(aTable)
-    fns2 = []
-    for fn in fns:
-        fns2.append(fn.name)
-    return fns2
+    '''Send this a catalog path to avoid namespace confusion'''
+    return [f.name for f in arcpy.ListFields(aTable)]
 
 def writeLogfile(gdb,msg):
     timeUser = '['+time.asctime()+']['+os.environ['USERNAME']+'] '

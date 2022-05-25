@@ -55,24 +55,24 @@ addMsgAndPrint(versionString)
 fds = sys.argv[1]
 gdb = Path(fds).parent
 saveMUP = False
-if sys.argv[2] == 'true':
+if sys.argv[2].lowercase() == 'true':
     saveMUP = True
-if sys.argv[3] == '#':
-    layerRepository = Path(gdb).parent
-else:
-    layerRepository = sys.argv[3]
-labelPoints = sys.argv[4]
+
+try:
+    labelPoints = arcpy.da.Describe(sys.argv[3]).catalogPath
+except:
+    labelPoints = ''
 
 # check that labelPoints, if specified, has field MapUnit
 if arcpy.Exists(labelPoints):
-    lpFields = fieldNameList(labelPoints)
-    if not 'MapUnit' in lpFields:
-        addMsgAndPrint('Feature class {} should have a MapUnit attribute and it does not.'.format(labelPoints))
+    lpFields = [n.lower() for n in fieldNameList(labelPoints)]
+    if not 'mapunit' in lpFields:
+        addMsgAndPrint(f'Feature class {labelPoints} should have a MapUnit attribute and it does not.')
         forceExit()
   
 # check for existence of fds
 if not arcpy.Exists(str(fds)):
-    arcpy.AddError('Feature dataset {} does not seem to exist.'.format(str(fds)))
+    arcpy.AddError(f'Feature dataset {str(fds)} does not seem to exist.')
     forceExit()
     
 # check for schema lock
@@ -97,47 +97,47 @@ if not topologies is None:
         for fc in arcpy.Describe(topol).featureClassNames: arcpy.AddMessage(fc)
         if shortMup in arcpy.Describe(topol).featureClassNames:
             addMsgAndPrint('  ***')
-            addMsgAndPrint('Cannot delete {} because it is part of topology class {}.'.format(shortMup, topol))
-            addMsgAndPrint('Delete topology (or remove rules that involve {}) before running this script.'.format(shortMup))
+            addMsgAndPrint(f'Cannot delete {shortMup} because it is part of topology class {topol}.')
+            addMsgAndPrint(f'Delete topology (or remove rules that involve {shortMup}) before running this script.')
             addMsgAndPrint('  ***')
             forceExit()
 
-# using joinpath on Path object returns pathlib.Path objects, not strings
-badLabels = str(Path(fds).joinpath('errors_{}multilabels'.format(nameToken)))
-badPolys = str(Path(fds).joinpath('errors_{}multilabelPolys'.format(nameToken)))
-blankPolys = str(Path(fds).joinpath('errors_{}unlabeledPolys'.format(nameToken)))
+# get string of joined Path objects
+badLabels = str(Path(fds) / f'errors_{nameToken}multilabels')
+badPolys = str(Path(fds) / f'errors_{nameToken}multilabelPolys')
+blankPolys = str(Path(fds) / f'errors_{nameToken}unlabeledPolys')
 centerPoints = 'xxxCenterPoints'
-centerPoints2 = '{}2'.format(centerPoints)
-centerPoints3 = '{}3'.format(centerPoints)
+centerPoints2 = f'{centerPoints}2'
+centerPoints3 = f'{centerPoints}3'
 inPolys = mup
 temporaryPolys = 'xxxTempPolys'
 oldPolys = str(Path(fds).joinpath('xxxOldPolys'))
-changedPolys = str(Path(fds).joinpath('edit_{}ChangedPolys'.format(nameToken)))
+changedPolys = str(Path(fds).joinpath(f'edit_{nameToken}ChangedPolys'))
 
 cafLayer = 'cafLayer'
 arcpy.env.workspace = str(fds)
 
 # make layer view of inCaf without concealed lines
 addMsgAndPrint('  Making layer view of CAF without concealed lines')
-sqlQuery =  "LOWER({}) NOT IN ('y', 'yes')".format(arcpy.AddFieldDelimiters(caf, 'IsConcealed'))
+sqlQuery = f"LOWER({arcpy.AddFieldDelimiters(caf, 'IsConcealed')}) NOT IN ('y', 'yes')"
 testAndDelete(cafLayer)
 arcpy.MakeFeatureLayer_management(caf, cafLayer, sqlQuery)
 
 #make temporaryPolys from layer view
-addMsgAndPrint('  Making {}'.format(temporaryPolys))
+addMsgAndPrint(f'  Making {temporaryPolys}')
 testAndDelete(temporaryPolys)
 arcpy.FeatureToPolygon_management(cafLayer, temporaryPolys)
 if debug:
-    addMsgAndPrint('temporaryPolys fields are {}'.format(str(fieldNameList(temporaryPolys))))
+    addMsgAndPrint('temporaryPolys fields are {str(fieldNameList(temporaryPolys))}')
 
 #make center points (within) from temporarypolys
-addMsgAndPrint('  Making {}'.format(centerPoints))
+addMsgAndPrint(f'  Making {centerPoints}')
 testAndDelete(centerPoints)       
 tempPolyPath = arcpy.Describe(temporaryPolys).catalogPath     
 arcpy.FeatureToPoint_management(temporaryPolys, centerPoints, "INSIDE")
 
 if debug:
-    addMsgAndPrint('centerPoints fields are {}'.format(str(fieldNameList(centerPoints))))
+    addMsgAndPrint(f'centerPoints fields are {str(fieldNameList(centerPoints))}')
     
 # get rid of ORIG_FID field
 arcpy.DeleteField_management(centerPoints, 'ORIG_FID')
@@ -167,12 +167,12 @@ for fDef in fieldDefs:
         addMsgAndPrint('field {} is missing'.format(fd))
         try:
             if fDef[1] == 'String':
-                arcpy.AddField_management(thisFC,fDef[0],transDict[fDef[1]],'#','#',fDef[3],'#',transDict[fDef[2]])
+                arcpy.AddField_management(thisFC, fDef[0], transDict[fDef[1]], '#', '#', fDef[3], '#', transDict[fDef[2]])
             else:
-                arcpy.AddField_management(thisFC,fDef[0],transDict[fDef[1]],'#','#','#','#',transDict[fDef[2]])
+                arcpy.AddField_management(thisFC,fDef[0], transDict[fDef[1]], '#', '#', '#', '#', transDict[fDef[2]])
             cp2Fields.append(fDef[0])
         except:
-            addMsgAndPrint('Failed to add field '+fDef[0]+' to feature class '+featureClass)
+            addMsgAndPrint(f'Failed to add field {fDef[0]} to feature class {featureClass}')
             addMsgAndPrint(arcpy.GetMessages(2))        
 
 # if labelPoints specified
@@ -182,9 +182,9 @@ if arcpy.Exists(labelPoints):
     for lpF in lpFields:
         if not lpF.name in cp2Fields:
             if lpF.type in ('Text','STRING'):
-                arcpy.AddField_management(centerPoints2,lpF.name,'TEXT','#','#',lpF.length)
+                arcpy.AddField_management(centerPoints2, lpF.name, 'TEXT', '#', '#', lpF.length)
             else:
-                arcpy.AddField_management(centerPoints2,lpF.name,typeTransDict[lpF.type])
+                arcpy.AddField_management(centerPoints2, lpF.name, typeTransDict[lpF.type])
                 
 # append labelPoints to centerPoints2
 if arcpy.Exists(labelPoints):
@@ -210,11 +210,11 @@ arcpy.CalculateField_management(oldPolys, 'OldMapUnit', "!MapUnit!", "PYTHON_9.3
 fields = fieldNameList(oldPolys)
 if debug:
     addMsgAndPrint('oldPoly fields = ')
-    addMsgAndPrint('  {}'.format(str(fields)))
+    addMsgAndPrint(f'  {str(fields)}')
 for field in fields:
     if not field.lower() in ('oldmapunit', 'objectid', 'shape', 'shape_area', 'shape_length'):
         if debug:
-            addMsgAndPrint('     deleting {}'.format(field))
+            addMsgAndPrint(f'     deleting {field}')
         arcpy.DeleteField_management(oldPolys, field)
 
 #make new mup from layer view, with centerpoints2
@@ -242,12 +242,12 @@ else:
 #addMsgAndPrint('     '+str(numberOfRows(changedPolys))+' rows in changedPolys')
 ## make feature layer, select MapUnit = OldMapUnit and delete
 addMsgAndPrint('     deleting features with MapUnit = OldMapUnit')
-sqlQuery = "{} = {}".format(arcpy.AddFieldDelimiters(changedPolys,'MapUnit'), arcpy.AddFieldDelimiters(changedPolys,'OldMapUnit'))
+sqlQuery = f"{arcpy.AddFieldDelimiters(changedPolys,'MapUnit')} = {arcpy.AddFieldDelimiters(changedPolys,'OldMapUnit')}"
 
 testAndDelete('cpLayer')
 arcpy.MakeFeatureLayer_management(changedPolys, 'cpLayer', sqlQuery)
 arcpy.DeleteFeatures_management('cpLayer')
-addMsgAndPrint('     {} rows in changedPolys'.format(str(numberOfRows(changedPolys))))
+addMsgAndPrint(f'     {str(numberOfRows(changedPolys))} rows in changedPolys')
 
 #identity centerpoints2 with mup
 addMsgAndPrint('  Finding label errors')
@@ -284,37 +284,39 @@ for i in range(1,len(cpList)):
 badPointList, badPolyList = checkMultiPts(multiPts, badPointList, badPolyList)
 
 #from badPolyList, make badPolys
-addMsgAndPrint('    Making {}'.format(badPolys))
-if arcpy.Exists(badPolys):
-    arcpy.CopyFeatures_management(mup, r"in_memory\badPolys")
-    arcpy.DeleteFeatures_management(badPolys)
-    arcpy.Append_management(r"in_memory\badPolys", badPolys)
-    arcpy.Delete_management(r"in_memory\badPolys")
-else:
-    arcpy.CopyFeatures_management(mup, badPolys)
+if len(badPolyList) > 0:
+    addMsgAndPrint(f'    Making {badPolys}')
+    if arcpy.Exists(badPolys):
+        arcpy.CopyFeatures_management(mup, r"in_memory\badPolys")
+        arcpy.DeleteFeatures_management(badPolys)
+        arcpy.Append_management(r"in_memory\badPolys", badPolys)
+        arcpy.Delete_management(r"in_memory\badPolys")
+    else:
+        arcpy.CopyFeatures_management(mup, badPolys)
 
-with arcpy.da.UpdateCursor(badPolys,['OBJECTID']) as cursor:
-    for row in cursor:
-        if row[0] not in badPolyList:
-            cursor.deleteRow()
+    with arcpy.da.UpdateCursor(badPolys,['OBJECTID']) as cursor:
+        for row in cursor:
+            if row[0] not in badPolyList:
+                cursor.deleteRow()
 
-#from badPointlist of badpoints, make badLabels
-if arcpy.Exists(badLabels):
-    arcpy.CopyFeatures_management(centerPoints2, r"in_memory\badLabels")
-    arcpy.DeleteFeatures_management(badLabels)
-    arcpy.Append_management(r"in_memory\badLabels", badLabels)
-    arcpy.Delete_management(r"in_memory\badLabels")
-else:
-    arcpy.CopyFeatures_management(centerPoints2,badLabels)
-    
-with arcpy.da.UpdateCursor(badLabels,['OBJECTID']) as cursor:
-    for row in cursor:
-        if row[0] not in badPointList:
-            cursor.deleteRow()
+if len(badPointList) > 0:
+    #from badPointlist of badpoints, make badLabels
+    if arcpy.Exists(badLabels):
+        arcpy.CopyFeatures_management(centerPoints2, r"in_memory\badLabels")
+        arcpy.DeleteFeatures_management(badLabels)
+        arcpy.Append_management(r"in_memory\badLabels", badLabels)
+        arcpy.Delete_management(r"in_memory\badLabels")
+    else:
+        arcpy.CopyFeatures_management(centerPoints2,badLabels)
+        
+    with arcpy.da.UpdateCursor(badLabels,['OBJECTID']) as cursor:
+        for row in cursor:
+            if row[0] not in badPointList:
+                cursor.deleteRow()
                
 #make blankPolys
-addMsgAndPrint('    Making {}'.format(blankPolys))
-if arcpy.Exists(badLabels):
+addMsgAndPrint(f'    Making {blankPolys}')
+if arcpy.Exists(blankPolys):
     arcpy.CopyFeatures_management(mup, r"in_memory\blankPolys")
     arcpy.DeleteFeatures_management(blankPolys)
     arcpy.Append_management(r"in_memory\blankPolys", blankPolys)
@@ -327,12 +329,14 @@ query = "{} <> ''".format(arcpy.AddFieldDelimiters(blankPolys, 'MapUnit'))
 testAndDelete('blankP')
 arcpy.MakeFeatureLayer_management(blankPolys, 'blankP', query)
 arcpy.DeleteFeatures_management('blankP')
-addMsgAndPrint('    {} multi-label polys'.format(str(len(badPolyList))))
-addMsgAndPrint('    {} multiple, conflicting, label points'.format(str(len(badPointList))))
-addMsgAndPrint('    {} unlabelled polys'.format(str(numberOfRows(blankPolys))))
+addMsgAndPrint(f'    {str(len(badPolyList))} multi-label polys')
+addMsgAndPrint(f'    {str(len(badPointList))} multiple, conflicting, label points')
+addMsgAndPrint(f'    {str(numberOfRows(blankPolys))} unlabelled polys')
 
 addMsgAndPrint('  Cleaning up')
 #delete oldpolys, temporaryPolys, centerPoints, centerPoints2, centerPoints3
 for fc in oldPolys, temporaryPolys, centerPoints, centerPoints2, centerPoints3, cafLayer, 'cP2Layer':
     testAndDelete(fc)
+    
+
 
