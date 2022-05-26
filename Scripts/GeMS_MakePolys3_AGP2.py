@@ -64,22 +64,20 @@ except:
     labelPoints = ''
 
 # check that labelPoints, if specified, has field MapUnit
-if arcpy.Exists(labelPoints):
-    lpFields = [n.lower() for n in fieldNameList(labelPoints)]
-    if not 'mapunit' in lpFields:
-        addMsgAndPrint(f'Feature class {labelPoints} should have a MapUnit attribute and it does not.')
-        forceExit()
+# if arcpy.Exists(labelPoints):
+    # lpFields = [n.lower() for n in fieldNameList(labelPoints)]
+    # if not 'mapunit' in lpFields:
+        # addMsgAndPrint(f'Feature class {labelPoints} should have a MapUnit attribute and it does not.')
+        # forceExit()
   
 # check for existence of fds
-if not arcpy.Exists(str(fds)):
-    arcpy.AddError(f'Feature dataset {str(fds)} does not seem to exist.')
-    forceExit()
+# if not arcpy.Exists(str(fds)):
+    # arcpy.AddError(f'Feature dataset {str(fds)} does not seem to exist.')
+    # forceExit()
     
 # check for schema lock
-# arcpy.AddMessage(arcpy.TestSchemaLock(str(fds)))
-# if arcpy.TestSchemaLock(str(fds)) == False:
-    # addMsgAndPrint('    TestSchemaLock({}) = False.'.format(gdb.name))
-    # arcpy.AddError('CANNOT GET A SCHEMA LOCK')
+# if editSessionActive(str(gdb)):
+    # arcpy.AddError('Geodatabase is being edited. Save changes and close the edit session before running this tool')
     # forceExit()
     
 # get caf, mup, nameToken
@@ -90,17 +88,14 @@ shortMup = Path(mup).name
 nameToken = getNameToken(str(fds))
 
 # check for topology class that involves polys
-arcpy.env.workspace = str(fds)
-topologies = arcpy.ListDatasets('*', 'Topology')
-if not topologies is None:
-    for topol in topologies:
-        for fc in arcpy.Describe(topol).featureClassNames: arcpy.AddMessage(fc)
-        if shortMup in arcpy.Describe(topol).featureClassNames:
-            addMsgAndPrint('  ***')
-            addMsgAndPrint(f'Cannot delete {shortMup} because it is part of topology class {topol}.')
-            addMsgAndPrint(f'Delete topology (or remove rules that involve {shortMup}) before running this script.')
-            addMsgAndPrint('  ***')
-            forceExit()
+# desc = arcpy.da.Describe(fds)
+# children = desc['children']
+# for child in children:
+    # if child['datasetType'] == 'Topology':
+        # for n in child['featureClassNames']:
+             # if n.lower().endswith('mapunitpolys'):
+                # arcpy.AddError(f'Remove {n} from topology or delete topology entirely before running this tool')
+                # forceExit()
 
 # get string of joined Path objects
 badLabels = str(Path(fds) / f'errors_{nameToken}multilabels')
@@ -113,9 +108,8 @@ inPolys = mup
 temporaryPolys = 'xxxTempPolys'
 oldPolys = str(Path(fds).joinpath('xxxOldPolys'))
 changedPolys = str(Path(fds).joinpath(f'edit_{nameToken}ChangedPolys'))
-
 cafLayer = 'cafLayer'
-arcpy.env.workspace = str(fds)
+#arcpy.env.workspace = str(fds)
 
 # make layer view of inCaf without concealed lines
 addMsgAndPrint('  Making layer view of CAF without concealed lines')

@@ -178,7 +178,7 @@ def isPlanar(orientationType):
     return isPlanarType
 
 def editSessionActive(gdb):
-    if glob.glob(os.path.join(gdb_path, '*.ed.lock')):
+    if glob.glob(os.path.join(gdb, '*.ed.lock')):
         edit_session = True
     else:
         edit_session = False
