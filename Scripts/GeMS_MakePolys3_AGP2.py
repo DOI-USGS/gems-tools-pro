@@ -54,68 +54,82 @@ addMsgAndPrint(versionString)
 
 fds = sys.argv[1]
 gdb = Path(fds).parent
-saveMUP = False
+save_mup = False
 if sys.argv[2].lowercase() == 'true':
-    saveMUP = True
+    save_mup = True
 
 try:
-    labelPoints = arcpy.da.Describe(sys.argv[3]).catalogPath
+    label_points = arcpy.da.Describe(sys.argv[3]).catalogPath
 except:
-    labelPoints = ''
+    label_points = ''
 
-# check that labelPoints, if specified, has field MapUnit
-# if arcpy.Exists(labelPoints):
-    # lpFields = [n.lower() for n in fieldNameList(labelPoints)]
-    # if not 'mapunit' in lpFields:
-        # addMsgAndPrint(f'Feature class {labelPoints} should have a MapUnit attribute and it does not.')
-        # forceExit()
-  
-# check for existence of fds
-# if not arcpy.Exists(str(fds)):
-    # arcpy.AddError(f'Feature dataset {str(fds)} does not seem to exist.')
-    # forceExit()
+simple_mode = True  
+if sys.argv[4].lower() in ['false', 'no']:
+    simple_mode = False
     
-# check for schema lock
-# if editSessionActive(str(gdb)):
-    # arcpy.AddError('Geodatabase is being edited. Save changes and close the edit session before running this tool')
-    # forceExit()
-    
-# get caf, mup, nameToken
-caf = getCaf(str(fds))
-shortCaf = Path(caf).name
-mup = getMup(str(fds))
-shortMup = Path(mup).name
-nameToken = getNameToken(str(fds))
+# get caf, mup, name_token
+# dictionary
+fd_dict = arcpy.da.Describe(fds)
+children = fd_dict['children']
 
-# check for topology class that involves polys
-# desc = arcpy.da.Describe(fds)
-# children = desc['children']
-# for child in children:
-    # if child['datasetType'] == 'Topology':
-        # for n in child['featureClassNames']:
-             # if n.lower().endswith('mapunitpolys'):
-                # arcpy.AddError(f'Remove {n} from topology or delete topology entirely before running this tool')
-                # forceExit()
+# ContactsAndFaults
+caf = [child['catalogPath'] for child in children if child['baseName'].lower().endswith('contactsandfaults')][0]
+short_caf = Path(caf).name
 
+# MapUnitPolys
+mup = [child['catalogPath'] for child in children if child['baseName'].lower().endswith('mapunitpolys')][0]
+short_mup = Path(mup).name
+
+# feature dataset name token
+fd_name = fd_dict['baseName']
+if fd_name.lower().endswith('correlationofmapunits'):
+    name_token = 'CMU'
+else:
+    name_token = fd_name
+
+#if not simple_mode:
 # get string of joined Path objects
-badLabels = str(Path(fds) / f'errors_{nameToken}multilabels')
-badPolys = str(Path(fds) / f'errors_{nameToken}multilabelPolys')
-blankPolys = str(Path(fds) / f'errors_{nameToken}unlabeledPolys')
+badLabels = str(Path(fds) / f'errors_{name_token}multilabels')
+badPolys = str(Path(fds) / f'errors_{name_token}multilabelPolys')
+blankPolys = str(Path(fds) / f'errors_{name_token}unlabeledPolys')
 centerPoints = 'xxxCenterPoints'
 centerPoints2 = f'{centerPoints}2'
 centerPoints3 = f'{centerPoints}3'
 inPolys = mup
 temporaryPolys = 'xxxTempPolys'
 oldPolys = str(Path(fds).joinpath('xxxOldPolys'))
-changedPolys = str(Path(fds).joinpath(f'edit_{nameToken}ChangedPolys'))
-cafLayer = 'cafLayer'
-#arcpy.env.workspace = str(fds)
+changedPolys = str(Path(fds).joinpath(f'edit_{name_token}ChangedPolys'))
+cafLayer = 'caf_layer'
+
+if simple_mode:
+    # make selection set without concealed lines
+    where = f"LOWER({arcpy.AddFieldDelimiters(caf, 'IsConcealed')}) NOT IN ('y', 'yes')"
+    arcpy.management.SelectLayerByAttribute(short_mup, where_clause=where)
+    
+    # collapse polygons to points
+    labels = "memory\labels"
+    arcpy.management.FeatureToPoint(mup, labels, "INSIDE")
+    
+    # append label points if they have been included
+    if label_points:
+        try:
+            arcpy.management.Append(label_points, mup, "NO_TEST")
+        except:
+            arcpy.AddWarning(f'Could not make use of {label_points}. Check the geometry and attributes')
+    
+    # save a copy of MapUnitPolys
+    if save_mup:
+        arcpy.AddMessage("Saving MapUnitPolys")
+        arcpy.Copy_management(mup, getSaveName(mup))
+    
+    # delete MapUnitPolys
+
 
 # make layer view of inCaf without concealed lines
 addMsgAndPrint('  Making layer view of CAF without concealed lines')
 sqlQuery = f"LOWER({arcpy.AddFieldDelimiters(caf, 'IsConcealed')}) NOT IN ('y', 'yes')"
 testAndDelete(cafLayer)
-arcpy.MakeFeatureLayer_management(caf, cafLayer, sqlQuery)
+arcpy.management.MakeFeatureLayer(caf, cafLayer, sqlQuery)
 
 #make temporaryPolys from layer view
 addMsgAndPrint(f'  Making {temporaryPolys}')
@@ -169,10 +183,10 @@ for fDef in fieldDefs:
             addMsgAndPrint(f'Failed to add field {fDef[0]} to feature class {featureClass}')
             addMsgAndPrint(arcpy.GetMessages(2))        
 
-# if labelPoints specified
+# if label_points specified
 ## add any missing fields to centerPoints2
-if arcpy.Exists(labelPoints):
-    lpFields = arcpy.ListFields(labelPoints)
+if arcpy.Exists(label_points):
+    lpFields = arcpy.ListFields(label_points)
     for lpF in lpFields:
         if not lpF.name in cp2Fields:
             if lpF.type in ('Text','STRING'):
@@ -180,12 +194,12 @@ if arcpy.Exists(labelPoints):
             else:
                 arcpy.AddField_management(centerPoints2, lpF.name, typeTransDict[lpF.type])
                 
-# append labelPoints to centerPoints2
-if arcpy.Exists(labelPoints):
-    arcpy.Append_management(labelPoints,centerPoints2, 'NO_TEST')
+# append label_points to centerPoints2
+if arcpy.Exists(label_points):
+    arcpy.Append_management(label_points,centerPoints2, 'NO_TEST')
 
 #if inPolys are to be saved, copy inpolys to savedPolys
-if saveMUP:
+if save_mup:
     addMsgAndPrint('  Saving MapUnitPolys')
     arcpy.Copy_management(inPolys, getSaveName(inPolys)) 
 
