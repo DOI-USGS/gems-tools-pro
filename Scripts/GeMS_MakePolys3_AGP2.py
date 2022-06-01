@@ -89,15 +89,16 @@ else:
 
 #if not simple_mode:
 # get string of joined Path objects
-badLabels = str(Path(fds) / f'errors_{name_token}multilabels')
-badPolys = str(Path(fds) / f'errors_{name_token}multilabelPolys')
-blankPolys = str(Path(fds) / f'errors_{name_token}unlabeledPolys')
+badLabels = str(Path(fds) / 'errors_multilabels')
+badPolys = str(Path(fds) / 'errors_multilabelPolys')
+blankPolys = str(Path(fds) / 'errors_unlabeledPolys')
+changedPolys = str(Path(fds) / 'edit_ChangedPolys')
 centerPoints = 'xxxCenterPoints'
 centerPoints2 = f'{centerPoints}2'
 centerPoints3 = f'{centerPoints}3'
 temporaryPolys = 'xxxTempPolys'
 oldPolys = str(Path(fds).joinpath('xxxOldPolys'))
-changedPolys = str(Path(fds).joinpath(f'edit_{name_token}ChangedPolys'))
+
 cafLayer = 'caf_layer'
 
 if simple_mode:
@@ -140,38 +141,49 @@ else:
     arcpy.management.MakeFeatureLayer(caf, cafLayer, sqlQuery)
 
     #make temporaryPolys from layer view
-    addMsgAndPrint(f'  Making {temporaryPolys}')
-    testAndDelete(temporaryPolys)
-    arcpy.FeatureToPolygon_management(cafLayer, temporaryPolys)
-    if debug:
-        addMsgAndPrint('temporaryPolys fields are {str(fieldNameList(temporaryPolys))}')
+    # addMsgAndPrint(f'  Making {temporaryPolys}')
+    # testAndDelete(temporaryPolys)
+    # arcpy.management.FeatureToPolygon(cafLayer, temporaryPolys)
+    # if debug:
+        # addMsgAndPrint('temporaryPolys fields are {str(fieldNameList(temporaryPolys))}')
 
-    #make center points (within) from temporarypolys
+    # make center points (within) from temporarypolys
+    # addMsgAndPrint(f'  Making {centerPoints}')
+    # testAndDelete(centerPoints)       
+    # tempPolyPath = arcpy.da.Describe(temporaryPolys)['catalogPath ']    
+    # arcpy.management.FeatureToPoint(temporaryPolys, centerPoints, "INSIDE")
+    
+    #make center points (within) from mup
     addMsgAndPrint(f'  Making {centerPoints}')
-    testAndDelete(centerPoints)       
-    tempPolyPath = arcpy.Describe(temporaryPolys).catalogPath     
-    arcpy.FeatureToPoint_management(temporaryPolys, centerPoints, "INSIDE")
+    testAndDelete(centerPoints)
+    temp_mup = r'memory\temp_polys' 
+    arcpy.management.FeatureToPoint(temp_mup, centerPoints, "INSIDE")
 
     if debug:
         addMsgAndPrint(f'centerPoints fields are {str(fieldNameList(centerPoints))}')
         
     # get rid of ORIG_FID field
-    arcpy.DeleteField_management(centerPoints, 'ORIG_FID')
+    #arcpy.DeleteField_management(centerPoints, 'ORIG_FID')
 
     #identity center points with mup
-    testAndDelete(centerPoints2)
-    arcpy.Identity_analysis(centerPoints, mup, centerPoints2, 'NO_FID')
+    # testAndDelete(centerPoints2)
+    # arcpy.analysis.Identity(centerPoints, mup, centerPoints2, 'NO_FID')
 
     # delete points with MapUnit = ''
     ## first, make layer view
-    addMsgAndPrint("    Deleting centerPoints2 MapUnit = '' ")
-    sqlQuery =  "{} = ''".format(arcpy.AddFieldDelimiters(centerPoints2, 'MapUnit'))
-    testAndDelete('cP2Layer')
-    arcpy.MakeFeatureLayer_management(centerPoints2, 'cP2Layer', sqlQuery)
+    # addMsgAndPrint("    Deleting centerPoints2 MapUnit = '' ")
+    # sqlQuery =  "{} = ''".format(arcpy.AddFieldDelimiters(centerPoints2, 'MapUnit'))
+    # testAndDelete('cP2Layer')
+    # arcpy.management.MakeFeatureLayer(centerPoints2, 'cP2Layer', sqlQuery)
+    
+    addMsgAndPrint("    Deleting centerPoints MapUnit = '' ")
+    sqlQuery =  "{} = ''".format(arcpy.AddFieldDelimiters(centerPoints, 'MapUnit'))
+    testAndDelete(r'memory\cP2Layer')
+    arcpy.management.MakeFeatureLayer(centerPoints, r'memory\cP2Layer', sqlQuery)
 
     ## then delete features
     if numberOfRows('cP2Layer') > 0:
-        arcpy.DeleteFeatures_management('cP2Layer')
+        arcpy.management.DeleteFeatures('cP2Layer')
 
     #adjust center point fields (delete extra, add any missing. Use NCGMP09_Definition as guide)
     ## get list of fields in centerPoints2
@@ -183,9 +195,9 @@ else:
             addMsgAndPrint('field {} is missing'.format(fd))
             try:
                 if fDef[1] == 'String':
-                    arcpy.AddField_management(thisFC, fDef[0], transDict[fDef[1]], '#', '#', fDef[3], '#', transDict[fDef[2]])
+                    arcpy.management.AddField(thisFC, fDef[0], transDict[fDef[1]], '#', '#', fDef[3], '#', transDict[fDef[2]])
                 else:
-                    arcpy.AddField_management(thisFC,fDef[0], transDict[fDef[1]], '#', '#', '#', '#', transDict[fDef[2]])
+                    arcpy.management.AddField(thisFC,fDef[0], transDict[fDef[1]], '#', '#', '#', '#', transDict[fDef[2]])
                 cp2Fields.append(fDef[0])
             except:
                 addMsgAndPrint(f'Failed to add field {fDef[0]} to feature class {featureClass}')
@@ -198,29 +210,29 @@ else:
         for lpF in lpFields:
             if not lpF.name in cp2Fields:
                 if lpF.type in ('Text','STRING'):
-                    arcpy.AddField_management(centerPoints2, lpF.name, 'TEXT', '#', '#', lpF.length)
+                    arcpy.management.AddField(centerPoints2, lpF.name, 'TEXT', '#', '#', lpF.length)
                 else:
-                    arcpy.AddField_management(centerPoints2, lpF.name, typeTransDict[lpF.type])
+                    arcpy.management.AddField(centerPoints2, lpF.name, typeTransDict[lpF.type])
                     
     # append label_points to centerPoints2
     if arcpy.Exists(label_points):
-        arcpy.Append_management(label_points,centerPoints2, 'NO_TEST')
+        arcpy.management.Append(label_points,centerPoints2, 'NO_TEST')
 
     #if mup are to be saved, copy mup to savedPolys
     if save_mup:
         addMsgAndPrint('  Saving MapUnitPolys')
-        arcpy.Copy_management(mup, getSaveName(mup)) 
+        arcpy.management.Copy(mup, getSaveName(mup)) 
 
     # make oldPolys
     addMsgAndPrint('  Making oldPolys')
     testAndDelete(oldPolys)
     if debug:
         addMsgAndPrint(' oldPolys should be deleted!')
-    arcpy.Copy_management(mup, oldPolys)
+    arcpy.management.Copy(mup, oldPolys)
 
     ## copy field MapUnit to new field OldMapUnit
-    arcpy.AddField_management(oldPolys, 'OldMapUnit', 'TEXT', '', '', 40)
-    arcpy.CalculateField_management(oldPolys, 'OldMapUnit', "!MapUnit!", "PYTHON_9.3")
+    arcpy.management.AddField(oldPolys, 'OldMapUnit', 'TEXT', '', '', 40)
+    arcpy.management.CalculateField(oldPolys, 'OldMapUnit', "!MapUnit!", "PYTHON_9.3")
 
     ## get rid of excess fields in oldPolys
     fields = fieldNameList(oldPolys)
@@ -231,34 +243,36 @@ else:
         if not field.lower() in ('oldmapunit', 'objectid', 'shape', 'shape_area', 'shape_length'):
             if debug:
                 addMsgAndPrint(f'     deleting {field}')
-            arcpy.DeleteField_management(oldPolys, field)
+            arcpy.management.DeleteField(oldPolys, field)
 
     #make new mup from layer view, with centerpoints2
     addMsgAndPrint('  Making new MapUnitPolys')
     # create polygons in memory
-    arcpy.FeatureToPolygon_management(cafLayer, r"in_memory\mup", '', 'ATTRIBUTES', centerPoints2)
+    arcpy.management.FeatureToPolygon(cafLayer, r"memory\mup", '', 'ATTRIBUTES', centerPoints2)
     # delete all features in mup
-    arcpy.DeleteFeatures_management(mup)
+    arcpy.management.DeleteFeatures(mup)
     # and append the newly created features
-    arcpy.Append_management(r"in_memory\mup", mup, "NO_TEST")
-    arcpy.Delete_management(r"in_memory\mup")
+    arcpy.management.Append(r"memory\mup", mup, "NO_TEST")
+    arcpy.management.Delete(r"memory\mup")
 
     testAndDelete(cafLayer)
 
     addMsgAndPrint('  Making changedPolys')
+    
     #intersect oldPolys with mup to make changedPolys
+    testAndDelete(changedPolys)
     if arcpy.Exists(changedPolys):
-        arcpy.Identity_analysis(mup, oldPolys, r"in_memory\changedPolys")
-        arcpy.DeleteFeatures_management(changedPolys)
-        arcpy.Append_management(r"in_memory\changedPolys", changedPolys)
-        arcpy.Delete_management(r"in_memory\changedPolys")
+        arcpy.analysis.Identity(mup, oldPolys, "memory\changedPolys")
+        arcpy.management.DeleteFeatures(changedPolys)
+        arcpy.management.Append("memory\changedPolys", changedPolys, "NO_TEST")
+        arcpy.management.Delete("memory\changedPolys")
     else:
-        arcpy.Identity_analysis(mup, oldPolys, changedPolys)
+        arcpy.analysis.Identity(mup, oldPolys, changedPolys)
 
     #addMsgAndPrint('     '+str(numberOfRows(changedPolys))+' rows in changedPolys')
     ## make feature layer, select MapUnit = OldMapUnit and delete
     addMsgAndPrint('     deleting features with MapUnit = OldMapUnit')
-    sqlQuery = f"{arcpy.AddFieldDelimiters(changedPolys,'MapUnit')} = {arcpy.AddFieldDelimiters(changedPolys,'OldMapUnit')}"
+    sqlQuery = f"{arcpy.AddFieldDelimiters(changedPolys,'MapUnit')} = {arcpy.AddFieldDelimiters(changedPolys, 'OldMapUnit')}"
 
     testAndDelete('cpLayer')
     arcpy.MakeFeatureLayer_management(changedPolys, 'cpLayer', sqlQuery)
@@ -268,7 +282,7 @@ else:
     #identity centerpoints2 with mup
     addMsgAndPrint('  Finding label errors')
     testAndDelete(centerPoints3)
-    arcpy.Identity_analysis(centerPoints2, mup, centerPoints3)
+    arcpy.analysis.Identity(centerPoints2, mup, centerPoints3)
 
     if debug: addMsgAndPrint(str(fieldNameList(centerPoints3)))
 
@@ -279,7 +293,7 @@ else:
     fields = [mupID, cp2ID, 'MapUnit_1', 'MapUnit']
     with arcpy.da.SearchCursor(centerPoints3, fields) as cursor:
         for row in cursor:
-            cpList.append([row[0],row[1],row[2],row[3]])
+            cpList.append([row[0], row[1], row[2], row[3]])
              
     #sort list on mupID
     cpList.sort()
@@ -300,30 +314,32 @@ else:
     badPointList, badPolyList = checkMultiPts(multiPts, badPointList, badPolyList)
 
     #from badPolyList, make badPolys
+    testAndDelete(badPolys)
     if len(badPolyList) > 0:
         addMsgAndPrint(f'    Making {badPolys}')
         if arcpy.Exists(badPolys):
-            arcpy.CopyFeatures_management(mup, r"in_memory\badPolys")
-            arcpy.DeleteFeatures_management(badPolys)
-            arcpy.Append_management(r"in_memory\badPolys", badPolys)
-            arcpy.Delete_management(r"in_memory\badPolys")
+            arcpy.management.CopyFeatures(mup, r"memory\badPolys")
+            arcpy.management.TruncateTable(badPolys)
+            arcpy.management.Append(r"memory\badPolys", badPolys)
+            arcpy.management.Delete(r"memory\badPolys")
         else:
-            arcpy.CopyFeatures_management(mup, badPolys)
+            arcpy.management.CopyFeatures(mup, badPolys)
 
         with arcpy.da.UpdateCursor(badPolys,['OBJECTID']) as cursor:
             for row in cursor:
                 if row[0] not in badPolyList:
                     cursor.deleteRow()
-
+                    
+    testAndDelete("memory\badLabels")
     if len(badPointList) > 0:
         #from badPointlist of badpoints, make badLabels
         if arcpy.Exists(badLabels):
-            arcpy.CopyFeatures_management(centerPoints2, r"in_memory\badLabels")
-            arcpy.DeleteFeatures_management(badLabels)
-            arcpy.Append_management(r"in_memory\badLabels", badLabels)
-            arcpy.Delete_management(r"in_memory\badLabels")
+            arcpy.management.CopyFeatures(centerPoints2, r"memory\badLabels")
+            arcpy.management.TruncateTable(badLabels)
+            arcpy.management.Append(r"memory\badLabels", badLabels)
+            arcpy.management.Delete(r"memory\badLabels")
         else:
-            arcpy.CopyFeatures_management(centerPoints2,badLabels)
+            arcpy.management.CopyFeatures(centerPoints2, badLabels)
             
         with arcpy.da.UpdateCursor(badLabels,['OBJECTID']) as cursor:
             for row in cursor:
@@ -331,20 +347,21 @@ else:
                     cursor.deleteRow()
                    
     #make blankPolys
+    testAndDelete(blankPolys)
     addMsgAndPrint(f'    Making {blankPolys}')
     if arcpy.Exists(blankPolys):
-        arcpy.CopyFeatures_management(mup, r"in_memory\blankPolys")
-        arcpy.DeleteFeatures_management(blankPolys)
-        arcpy.Append_management(r"in_memory\blankPolys", blankPolys)
-        arcpy.Delete_management(r"in_memory\blankPolys")
+        arcpy.management.CopyFeatures(mup, blankPolys)
+        arcpy.management.TruncateTable(blankPolys)
+        arcpy.management.Append(r"memory\blankPolys", blankPolys)
+        arcpy.management.Delete(r"memory\blankPolys")
     else:
-        arcpy.CopyFeatures_management(centerPoints2, blankPolys)
+        arcpy.management.CopyFeatures(centerPoints2, blankPolys)
 
     query = "{} <> ''".format(arcpy.AddFieldDelimiters(blankPolys, 'MapUnit'))
        
     testAndDelete('blankP')
-    arcpy.MakeFeatureLayer_management(blankPolys, 'blankP', query)
-    arcpy.DeleteFeatures_management('blankP')
+    arcpy.management.MakeFeatureLayer(blankPolys, 'blankP', query)
+    arcpy.management.TruncateTable('blankP')
     addMsgAndPrint(f'    {str(len(badPolyList))} multi-label polys')
     addMsgAndPrint(f'    {str(len(badPointList))} multiple, conflicting, label points')
     addMsgAndPrint(f'    {str(numberOfRows(blankPolys))} unlabelled polys')
