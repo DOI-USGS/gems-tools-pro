@@ -90,26 +90,31 @@ else:
     name_token = fd_name
 
 # collapse map unit polygons to points
-mup_labels = r'memory\labels'
-arcpy.management.FeatureToPoint(mup, mup_labels, "INSIDE")
+orig_mup_labels = fr'memory\{short_mup}_labels'
+arcpy.management.FeatureToPoint(mup, orig_mup_labels, "INSIDE")
 
 # append label points if they have been included
 if label_points:
     arcpy.AddMessage("Organizing label points")
+    new_mup_labels = arcpy.management.Copy(orig_mup_labels)
+    
     # add any fields in label_points that are not in MapUnitPolys
     label_fields = [f for f in arcpy.ListFields(label_points)]
     mup_f_names = [fld.name for fld in mup_fields]
     for f in label_fields:
         if f.name not in mup_f_names:
             arcpy.AddMessages(f'Adding label point fields not found in {short_mup}')
-            params = (mup_labels, f.name, f.type, f.precision, f.scale, f.length, f.aliasName, f.isNullable, f.required, f.domain)
+            params = (new_mup_labels, f.name, f.type, f.precision, f.scale, f.length, f.aliasName, f.isNullable, f.required, f.domain)
             arcpy.management.AddField(params)
             
     try:
         arcpy.AddMessage(f'Combining MapUnitPolys attributes and {label_points}')
-        arcpy.management.Append(label_points, mup_labels, "NO_TEST")
-    except:
+        arcpy.management.Append(label_points, new_mup_labels, "NO_TEST")
+    except Exception as e:
         arcpy.AddWarning(f'Could not make use of {label_points}. Check the geometry and attributes')
+        arcpy.AddWarning(e)
+else:
+    new_mup_labels = orig_mup_labels
 
 # save a copy of MapUnitPolys
 if save_mup:
@@ -134,7 +139,7 @@ contacts = arcpy.management.SelectLayerByAttribute(caf, where_clause=where)
 # make new polys
 new_polys = r"memory\mup"
 arcpy.AddMessage('Making new MapUnitPolys in memory')
-arcpy.management.FeatureToPolygon(contacts, new_polys, label_features=mup_labels)
+arcpy.management.FeatureToPolygon(contacts, new_polys, label_features=new_mup_labels)
 
 # append to the now empty MapUnitPolys
 arcpy.AddMessage(f'Adding features from memory to {mup}')
@@ -148,19 +153,23 @@ if not simple_mode:
     # also, adds a FID_ field for each feature class name.
     if label_points:
         all_labels = r'memory\merge_labels'
-        arcpy.management.Merge([mup_labels, label_points], all_labels, add_source='ADD_SOURCE_INFO')
-    else:
-        all_labels = label_points
+        arcpy.management.Merge([orig_mup_labels, label_points], all_labels, add_source='ADD_SOURCE_INFO')
+    # else:
+        # all_labels = label_points
         
-    # intersect with the polygon
-    #inter_points = r'memory\inter_points'
-    inter_points = r'C:\_AAA\gems\testing\testbed\testbed\Default.gdb\inter_points'
-    arcpy.analysis.Intersect([new_polys, all_labels], inter_points)
-    
-    # find identical FID_MapUnitPolys
-    arcpy.AddMessage('Looking for polygons with multiple label points')
-    OIDs = [row[0] for row in arcpy.da.SearchCursor(inter_points, 'FID_mup')]
-    dups = set([x for x in OIDs if OIDs.count(x) > 1])
+        # intersect with the polygons
+        #inter_points = r'memory\inter_points'
+        inter_points = r'C:\_AAA\gems\testing\testbed\testbed\Default.gdb\inter_points'
+        arcpy.analysis.Intersect([new_polys, all_labels], inter_points)
+
+        # get list of FID_mup that are duplicates which represent
+        # where two label points were intersected with the same polygon
+        arcpy.AddMessage('Looking for polygons with multiple label points')
+        OIDs = [row[0] for row in arcpy.da.SearchCursor(inter_points, 'FID_mup')]
+        dups = set([x for x in OIDs if OIDs.count(x) > 1])
+        for oid in OIDs:
+            where = 'FID
+            with arcpy.da.
     
     if dups:
         # get the active map
@@ -183,23 +192,21 @@ if not simple_mode:
         where = f'OBJECTID IN {tuple(dups)}'
         # 1) feature layer of polygons that contain more than one label point
         arcpy.AddMessage("Making feature layer 'Multi label polygons'")
-        arcpy.conversion.FeatureClassToFeatureClass(mup, 'memory', 'Multi label polygons')
-        mlply = active_map.addDataFromPath(r'memory\Multi label polygons'
-        #mlply = arcpy.management.MakeFeatureLayer(mup, 'Multi label polygons', where)
+        mlply = arcpy.management.MakeFeatureLayer(mup, 'Multi label polygons', where)[0]
         active_map.addLayerToGroup(group, mlply)
         
         # 2) feature layer of the multiple label points
         where = f'FID_mup in {tuple(dups)}'
         arcpy.AddMessage("Making feature layer 'Multiple label points'")
-        arcpy.management.MakeFeatureLayer(inter_points, 'Multiple label points', where)
-        active_map.addLayerToGroup(group, 'Multi label points')
+        mlpts = arcpy.management.MakeFeatureLayer(inter_points, 'Multiple label points', where)[0]
+        active_map.addLayerToGroup(group, mlpts)
      
     # 3) feature layer of polygons with empty MapUnit
     null_vals = [row[0] for row in arcpy.da.SearchCursor(mup, [mup_oid, 'MapUnit']) if row[1] in (None, '', ' ')]
     if null_vals:
         where = f'{mup_oid} in {tuple(null_vals)}'
-        arcpy.management.MakeFeatureLayer(mup, 'Empty MapUnit values', where)
-        active_map.addLayerToGroup(group, 'Empty MapUnitValues')
+        nullunit = arcpy.management.MakeFeatureLayer(mup, 'Empty MapUnit values', where)[0]
+        active_map.addLayerToGroup(group, nullunit)
     
     # 4) feature layer of polygons or parts of polygons where MapUnit changed
     inter_polys = r"memory\changed_polys"
@@ -207,8 +214,8 @@ if not simple_mode:
     OIDs = [row[0] for row in arcpy.da.SearchCursor(inter_polys, ['OBJECTID', 'MapUnit', 'MapUnit_1'])if row[1] != row[2]]
     if OIDs:
         where = f'OBJECTID IN {tuple(OIDs)}'
-        arcpy.management.MakeFeatureLayer(inter_polys, 'Changed MapUnit values', where)
-        active_map.addLayerToGroup(group, 'Changed MapUnit Values')
+        changed = arcpy.management.MakeFeatureLayer(inter_polys, 'Changed MapUnit values', where)[0]
+        active_map.addLayerToGroup(group, changed)
     
         
 # else:
