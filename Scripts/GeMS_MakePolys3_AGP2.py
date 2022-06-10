@@ -220,22 +220,22 @@ for field in fields:
 #make new mup from layer view, with centerpoints2
 addMsgAndPrint('  Making new MapUnitPolys')
 # create polygons in memory
-arcpy.FeatureToPolygon_management(cafLayer, r"in_memory\mup", '', 'ATTRIBUTES', centerPoints2)
+arcpy.FeatureToPolygon_management(cafLayer, r"memory\mup", '', 'ATTRIBUTES', centerPoints2)
 # delete all features in mup
 arcpy.DeleteFeatures_management(mup)
 # and append the newly created features
-arcpy.Append_management(r"in_memory\mup", mup, "NO_TEST")
-arcpy.Delete_management(r"in_memory\mup")
+arcpy.Append_management(r"memory\mup", mup, "NO_TEST")
+arcpy.Delete_management(r"memory\mup")
 
 testAndDelete(cafLayer)
 
 addMsgAndPrint('  Making changedPolys')
 #intersect oldPolys with mup to make changedPolys
 if arcpy.Exists(changedPolys):
-    arcpy.Identity_analysis(mup, oldPolys, r"in_memory\changedPolys")
+    arcpy.Identity_analysis(mup, oldPolys, r"memory\changedPolys")
     arcpy.DeleteFeatures_management(changedPolys)
-    arcpy.Append_management(r"in_memory\changedPolys", changedPolys)
-    arcpy.Delete_management(r"in_memory\changedPolys")
+    arcpy.Append_management(r"memory\changedPolys", changedPolys)
+    arcpy.Delete_management(r"memory\changedPolys")
 else:
     arcpy.Identity_analysis(mup, oldPolys, changedPolys)
 
@@ -286,10 +286,10 @@ badPointList, badPolyList = checkMultiPts(multiPts, badPointList, badPolyList)
 #from badPolyList, make badPolys
 addMsgAndPrint('    Making {}'.format(badPolys))
 if arcpy.Exists(badPolys):
-    arcpy.CopyFeatures_management(mup, r"in_memory\badPolys")
+    arcpy.CopyFeatures_management(mup, r"memory\badPolys")
     arcpy.DeleteFeatures_management(badPolys)
-    arcpy.Append_management(r"in_memory\badPolys", badPolys)
-    arcpy.Delete_management(r"in_memory\badPolys")
+    arcpy.Append_management(r"memory\badPolys", badPolys)
+    arcpy.Delete_management(r"memory\badPolys")
 else:
     arcpy.CopyFeatures_management(mup, badPolys)
 
@@ -300,10 +300,10 @@ with arcpy.da.UpdateCursor(badPolys,['OBJECTID']) as cursor:
 
 #from badPointlist of badpoints, make badLabels
 if arcpy.Exists(badLabels):
-    arcpy.CopyFeatures_management(centerPoints2, r"in_memory\badLabels")
+    arcpy.CopyFeatures_management(centerPoints2, r"memory\badLabels")
     arcpy.DeleteFeatures_management(badLabels)
-    arcpy.Append_management(r"in_memory\badLabels", badLabels)
-    arcpy.Delete_management(r"in_memory\badLabels")
+    arcpy.Append_management(r"memory\badLabels", badLabels)
+    arcpy.Delete_management(r"memory\badLabels")
 else:
     arcpy.CopyFeatures_management(centerPoints2,badLabels)
     
@@ -314,11 +314,11 @@ with arcpy.da.UpdateCursor(badLabels,['OBJECTID']) as cursor:
                
 #make blankPolys
 addMsgAndPrint('    Making {}'.format(blankPolys))
-if arcpy.Exists(badLabels):
-    arcpy.CopyFeatures_management(mup, r"in_memory\blankPolys")
+if arcpy.Exists(blankPolys):
+    arcpy.CopyFeatures_management(mup, r"memory\blankPolys")
     arcpy.DeleteFeatures_management(blankPolys)
-    arcpy.Append_management(r"in_memory\blankPolys", blankPolys)
-    arcpy.Delete_management(r"in_memory\blankPolys")
+    arcpy.Append_management(r"memory\blankPolys", blankPolys)
+    arcpy.Delete_management(r"memory\blankPolys")
 else:
     arcpy.CopyFeatures_management(centerPoints2, blankPolys)
 
