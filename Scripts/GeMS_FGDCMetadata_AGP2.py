@@ -16,6 +16,7 @@ from pathlib import Path
 from lxml import etree
 import sys
 from GeMS_Definition import *
+from GeMS_utilityFunctions import *
 from osgeo import ogr  # only used in def max_bounding
 # to import adjacent python files as modules
 sys.path.append('../')
@@ -23,9 +24,9 @@ import Resources.spatial_utils as su
 import copy
 import requests
 
-versionString = 'GeMS_FGDC1_Arc10.py, version of 24 March 2022'
+versionString = 'GeMS_FGDC1_Arc10.py, version of 9 June 2022'
 rawurl = 'https://raw.githubusercontent.com/usgs/gems-tools-pro/master/Scripts/Metadata_AGP2.py'
-#checkVersion(versionString, rawurl, 'gems-tools-pro')
+checkVersion(versionString, rawurl, 'gems-tools-pro')
    
 gems_full_ref = """GeMS (Geologic Map Schema)--a standard format for the digital publication of geologic maps", available at http://ngmdb.usgs.gov/Info/standards/GeMS/"""
 
@@ -89,9 +90,11 @@ def gdb_object_dict(gdb_path):
     for k,v in new_dict.items():
         if v['dataType'] == 'Table':
             v['concat_type'] = 'Nonspatial Table'
-        if v['dataType'] == 'FeatureClass':
+        elif v['dataType'] == 'FeatureClass':
             v['concat_type'] = f"{v['featureType']} {v['shapeType']} {v['dataType']}"
-            
+        else:
+            v['concat_type'] = v['dataType']
+           
     return new_dict
 
 def max_bounding(db_path):

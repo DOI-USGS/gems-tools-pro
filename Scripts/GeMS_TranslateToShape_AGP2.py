@@ -221,12 +221,12 @@ def dumpTable(fc, outName, isSpatial, outputDir, logfile, isOpen, fcName):
                         #if debug: addMsgAndPrint("Current row is: " + str(row[i]))
                         if row[i] != None:
                             xString = str(row[i])
-                            # if isinstance(row[i],Number) or isinstance(row[i], datetime.datetime):
-                                # xString = str(row[i])
-                            # else:
-                                # #if debug: addMsgAndPrint("Current row type is: " + str(type(row[i])))
-                                # xString = row[i].encode('ascii','xmlcharrefreplace')
-                            rowString = rowString+'|'+xString
+                            if isinstance(row[i],Number) or isinstance(row[i], datetime.datetime):
+                                xString = str(row[i])
+                            else:
+                                #if debug: addMsgAndPrint("Current row type is: " + str(type(row[i])))
+                                xString = row[i].encode('ascii','xmlcharrefreplace')
+                            #rowString = rowString+'|'+xString
                         else:
                             rowString = rowString+'|'
                     csvFile.write(rowString+'\n')
