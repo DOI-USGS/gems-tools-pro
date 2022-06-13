@@ -840,7 +840,7 @@ if sources_param in [1, 4, 5, 7]:
 # add Entity Attributes
 arcpy.AddMessage("Adding metadata for the following feature classes:")
 for k, v in obj_dict.items():
-    detailed = add_entity(k, v)]
+    detailed = add_entity(k, v)
     if 'fields' in obj_dict[fc_name]:
         add_attributes(k, detailed)
 
