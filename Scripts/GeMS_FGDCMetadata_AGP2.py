@@ -69,6 +69,7 @@ def gdb_object_dict(gdb_path):
     # delete entries for feature datasets if any were found
     children = {k:v for (k, v) in children.items() if not children[k]['dataType'] == 'FeatureDataset'}
     
+    
     # and sanitize names that come from geopackages that start with "main."
     # trying to modify the children dictionary in-place wasn't producing expected results
     # we'll build a new dictionary with modified names
@@ -232,7 +233,7 @@ def add_entity(fc_name, elem_dict):
         append = f'In the original file geodatabase, this dataset is found within the {fd_name} feature dataset.'
     else:
         append = ''
-
+        
     # add a detailed node for each database object
     detailed = etree.Element('detailed')
     
@@ -839,8 +840,9 @@ if sources_param in [1, 4, 5, 7]:
 # add Entity Attributes
 arcpy.AddMessage("Adding metadata for the following feature classes:")
 for k, v in obj_dict.items():
-    detailed = add_entity(k, v)
-    add_attributes(k, detailed)
+    detailed = add_entity(k, v)]
+    if 'fields' in obj_dict[fc_name]:
+        add_attributes(k, detailed)
 
 # merge with template
 # If no template specified, just write out the metadata as generated here which could include embedded metadata.  
