@@ -96,7 +96,7 @@ arcpy.management.FeatureToPoint(mup, orig_mup_labels, "INSIDE")
 # append label points if they have been included
 if label_points:
     arcpy.AddMessage("Organizing label points")
-    new_mup_labels = arcpy.management.Copy(orig_mup_labels)
+    new_mup_labels = arcpy.management.CopyFeatures(fr'memory\'{orig_mup_labels}')
     
     # add any fields in label_points that are not in MapUnitPolys
     label_fields = [f for f in arcpy.ListFields(label_points)]
@@ -106,7 +106,7 @@ if label_points:
             arcpy.AddMessages(f'Adding label point fields not found in {short_mup}')
             params = (new_mup_labels, f.name, f.type, f.precision, f.scale, f.length, f.aliasName, f.isNullable, f.required, f.domain)
             arcpy.management.AddField(params)
-            
+
     try:
         arcpy.AddMessage(f'Combining MapUnitPolys attributes and {label_points}')
         arcpy.management.Append(label_points, new_mup_labels, "NO_TEST")
@@ -165,11 +165,15 @@ if not simple_mode:
         # get list of FID_mup that are duplicates which represent
         # where two label points were intersected with the same polygon
         arcpy.AddMessage('Looking for polygons with multiple label points')
-        OIDs = [row[0] for row in arcpy.da.SearchCursor(inter_points, 'FID_mup')]
-        dups = set([x for x in OIDs if OIDs.count(x) > 1])
+        OIDs = [row[0] for row in arcpy.da.SearchCursor(inter_points, 'FID_mup']]
+        dups = list(set([x for x in OIDs if OIDs.count(x) > 1]))
         for oid in OIDs:
-            where = 'FID
-            with arcpy.da.
+            where = f'FID_mup = {oid}'
+            with arcpy.da.SearchCursor(inter_points, ['MapUnit', 'MapUnit_1']) as cursor:
+                for row in cursor:
+                    if row[0] == row[1]:
+                        if oid in dups:
+                            dups.remove(oid)
     
     if dups:
         # get the active map
