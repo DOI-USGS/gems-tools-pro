@@ -142,7 +142,7 @@ def catch_m2m(dictionary, field_value):
             if field_value in dictionary:
                 return dictionary[field_value]
             else:
-                return f"PROVIDE A DEFINITION FOR {src_id}"
+                return f"PROVIDE A DEFINITION FOR {field_value}"
     else:
         return 
 
@@ -669,7 +669,7 @@ deez_nodes = {
         'title' : {
             'xpath': 'srccite/citeinfo/title'},
 
-        'online': {
+        'onlink': {
             'xpath': 'srccite/citeinfo/onlink'}},
     
     'spatial_nodes': {
