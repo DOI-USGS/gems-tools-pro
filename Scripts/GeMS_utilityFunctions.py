@@ -45,11 +45,8 @@ def testAndDelete(fc):
         arcpy.Delete_management(fc)
 
 def fieldNameList(aTable):
-    fns = arcpy.ListFields(aTable)
-    fns2 = []
-    for fn in fns:
-        fns2.append(fn.name)
-    return fns2
+    '''Send this a catalog path to avoid namespace confusion'''
+    return [f.name for f in arcpy.ListFields(aTable)]
 
 def writeLogfile(gdb,msg):
     timeUser = '['+time.asctime()+']['+os.environ['USERNAME']+'] '
@@ -181,35 +178,11 @@ def isPlanar(orientationType):
     return isPlanarType
 
 def editSessionActive(gdb):
-    # returns True if edit session active, else False
-    # test for 
-    if arcpy.Exists(gdb+'/GeoMaterialDict'):
-        tbl = gdb+'/GeoMaterialDict'
-        fld = 'GeoMaterial'
-    elif arcpy.Exists(gdb+'/GeologicMap/MapUnitPolys') and numberOfRows(gdb+'/GeologicMap/MapUnitPolys') > 2:
-        tbl = gdb+'/GeologicMap/MapUnitPolys'
-        fld = 'MapUnit'
+    if glob.glob(os.path.join(gdb, '*.ed.lock')):
+        edit_session = True
     else:
-        # doesn't appear to be a GeMS database
-        # default to no edit session active and bail
-        return False 
-    ## Following code modified from routine posted by Curtis Price at
-    ## https://gis.stackexchange.com/questions/61708/checking-via-arcpy-if-arcmap-is-in-edit-session
-    edit_session = True
-    try:
-        # attempt to open two cursors on the input
-        # this generates a RuntimeError if no edit session is active
-        with arcpy.da.UpdateCursor(tbl, fld) as rows:
-            row = next(rows)
-            with arcpy.da.UpdateCursor(tbl, fld) as rows2:
-                row2 = next(rows2)
-    except RuntimeError as e:
-        if "workspace already in transaction mode" in str(e):
-            # # this error means that no edit session is active
-            edit_session = False
-        else:
-            # # # we have some other error going on, report it
-            raise
+        edit_session = False
+
     return edit_session
     
 def checkVersion(vString, rawurl, toolbox):

@@ -1,338 +1,295 @@
-##New, improved make polys
-
-import arcpy, sys, os
+import arcpy
+import sys
 from pathlib import Path
-from GeMS_utilityFunctions import *
-from GeMS_Definition import tableDict
+import GeMS_utilityFunctions as guf
 
-# 5 January 2018: Modified error message for topology that contains polys
-#
-# 29 May 2019: Evan Thoms
-#   Replaced concatenated path strings and os.path operations
-#     with Python 3 pathlib operations.
-#   Replaced concatenated message strings with string.format()
-#   Replaced arcpy.mapping operations with arcpy.mp operations
-#   Removed all the fiddling around with layerfiles. Now, we change the 
-#     contents of the datasource without removing and then adding the layer.
-#   Seems to work. Didn't do extensive testing of the error reporting but did edit 
-#     a contact and found that the new polygons were created correctly and additions 
-#     were made to edit_ChangedPolys
+'''
+Parameters
+----------
+fds : Path to feature dataset that contains ContactsAndFaults and MapUnitPolys feature 
+    classes. Required
+save_mup : Save a copy of the existing MapUnitPolys? Boolean, optional, false
+    by default
+label_points : path to feature class of points to be used for polygon attributes
+    optional. If provided, will always be favored over points generated within
+    polygons by feature to point tool  .
+simple_mode : Use simple mode or reporting mode. Boolean, true by default. Use
+    simple_mode for speed. New polygons will be constructed from lines and 
+    label_points (if provided) with no error reporting. Reporting mode will,
+    additionally, check for polygons that have more than one label_point, 
+    MapUnitPolygons where MapUnit is Null, and find polgyons where MapUnit has 
+    changed. The result, if any of the above are found, will be a group layer
+    in the map with relevant feature layers created from definition queries on 
+    existing feature classes; label_points that are redundant (more than one
+    found in a polgyon), polygons that contain those multiple points, polygons
+    where MapUnit = Null, and polgyons where MapUnit has changed. Reporting mode
+    can take a long time but might be useful in large maps with conmplicated, 
+    convoluted polygon boundaries.
+'''
 
-versionString = 'GeMS_MakePolys3_AGP2.py, version of 15 January 2020'
+versionString = 'GeMS_MakePolys3_AGP2.py, version of 23 June 2022'
 rawurl = 'https://raw.githubusercontent.com/usgs/gems-tools-pro/master/Scripts/GeMS_MakePolys3_AGP2.py'
-checkVersion(versionString, rawurl, 'gems-tools-pro')
+guf.checkVersion(versionString, rawurl, 'gems-tools-pro')
 
 debug = False
 
-def checkMultiPts(multiPts, badPointList, badPolyList):
-    # checks list of label points, all in same poly. If MapUnits are not all same,
-    # adds mapunitID to badPolyList, adds labelPointIDs to badPointList
-    # multiPts fields = [mupID,cp2ID,'MapUnit_1','MapUnit']
-    if len(multiPts) > 1:
-        # some tests, grow bad lists
-        polyID = multiPts[0][0]
-        ptIDs = [multiPts[0][1]]
-        mapUnits = set()
-        mapUnits.add(multiPts[0][2]); mapUnits.add(multiPts[0][3])
-        for i in range(0,len(multiPts)):
-            if multiPts[i][0] != polyID:
-                addMsgAndPrint('PROBLEM IN CHECKMULTIPTS!')
-                addMsgAndPrint(str(multiPts))
-                forceExit()
-            ptIDs.append(multiPts[i][1])
-            mapUnits.add(multiPts[i][2])
-            mapUnits.add(multiPts[i][3])
-        if len(mapUnits) > 1:  # label pts reference more than one map unit
-            badPolyList.append(polyID)
-            for pt in ptIDs:
-                badPointList.append(pt)
-    return badPointList, badPolyList
+guf.addMsgAndPrint(versionString)
 
-##################################
+def sql_list(var):
+    '''
+    Parameters
+    ----------
+    var : set, tuple, or list
+        List of integers (OBJECTIDs)
 
-addMsgAndPrint(versionString)
+    Returns
+    -------
+    string or tuple
+        Multiple-item tuples evaluate as (i1, i2, i3) which can be used in an
+        SQL query without error. One-item tuples, however, evaluate as (i1,) 
+        (the one item with a trailing comma), which throws an error in SQL.
+        This function returns a string for one-item tuples (or lists or sets)
+        and a tuple for multiple-item lists or sets
+    '''
+    var = list(var)
+    if len(var) > 1:
+        return tuple(var)
+    else:
+        n = var[0]
+        return f"({n})"
 
 fds = sys.argv[1]
 gdb = Path(fds).parent
-saveMUP = False
-if sys.argv[2] == 'true':
-    saveMUP = True
-if sys.argv[3] == '#':
-    layerRepository = Path(gdb).parent
+save_mup = False
+if sys.argv[2].lower() == 'true':
+    save_mup = True
+
+try:
+    label_points = arcpy.da.Describe(sys.argv[3])['catalogPath']
+except:
+    label_points = ''
+
+simple_mode = True  
+if sys.argv[4].lower() in ['false', 'no']:
+    simple_mode = False
+    
+# get caf, mup, name_token
+# dictionary
+fd_dict = arcpy.da.Describe(fds)
+children = fd_dict['children']
+
+# ContactsAndFaults
+caf = [child['catalogPath'] for child in children if child['baseName'].lower().
+       endswith('contactsandfaults')][0]
+short_caf = Path(caf).name
+
+# MapUnitPolys
+mup_dict = [child for child in children if child['baseName'].lower().
+            endswith('mapunitpolys')][0]
+mup = mup_dict['catalogPath']
+mup_fields = mup_dict['fields']
+short_mup = Path(mup).name
+
+# feature dataset name token
+fd_name = fd_dict['baseName']
+if fd_name.lower().endswith('correlationofmapunits'):
+    name_token = 'CMU'
 else:
-    layerRepository = sys.argv[3]
-labelPoints = sys.argv[4]
+    name_token = fd_name
 
-# check that labelPoints, if specified, has field MapUnit
-if arcpy.Exists(labelPoints):
-    lpFields = fieldNameList(labelPoints)
-    if not 'MapUnit' in lpFields:
-        addMsgAndPrint('Feature class {} should have a MapUnit attribute and it does not.'.format(labelPoints))
-        forceExit()
-  
-# check for existence of fds
-if not arcpy.Exists(str(fds)):
-    arcpy.AddError('Feature dataset {} does not seem to exist.'.format(str(fds)))
-    forceExit()
+# save a copy of MapUnitPolys
+## saving a copy also saves a copy of any relationship classes
+if save_mup:
+    arcpy.AddMessage("Saving MapUnitPolys")
+    arcpy.management.Copy(mup, guf.getSaveName(mup))
     
-# check for schema lock
-# arcpy.AddMessage(arcpy.TestSchemaLock(str(fds)))
-# if arcpy.TestSchemaLock(str(fds)) == False:
-    # addMsgAndPrint('    TestSchemaLock({}) = False.'.format(gdb.name))
-    # arcpy.AddError('CANNOT GET A SCHEMA LOCK')
-    # forceExit()
+# make selection set without concealed lines
+fld = arcpy.AddFieldDelimiters(caf, 'IsConcealed')
+where = f"LOWER({fld}) NOT IN ('y', 'yes')"
+arcpy.AddMessage('Selecting all non-concealed lines')
+contacts = arcpy.management.SelectLayerByAttribute(caf, where_clause=where)
+
+# make new polys
+new_polys = r"memory\mup"
+if simple_mode:
+    arcpy.AddMessage("Continuing in simple mode")
+    # simple mode is for speed. EITHER label_points or existing polygons will 
+    # be used for attributes of new polygons. No reconciliation or error reporting
+    if label_points:
+        arcpy.AddMessage("Using label points source in simple mode")
+    else:
+        arcpy.AddMessage("Using existing polygon attributes in simple mode")
+        label_points = fr'memory\{short_mup}_labels'
+        # Feature to point adds a ORIG_FID to table but it will be not be
+        # added to the final output if Append is used.
+        arcpy.management.FeatureToPoint(mup, label_points, "INSIDE")
     
-# get caf, mup, nameToken
-caf = getCaf(str(fds))
-shortCaf = Path(caf).name
-mup = getMup(str(fds))
-shortMup = Path(mup).name
-nameToken = getNameToken(str(fds))
+    arcpy.AddMessage("Building new map unit polygons in memory")
+    arcpy.management.FeatureToPolygon(contacts, new_polys, label_features=label_points)
 
-# check for topology class that involves polys
-arcpy.env.workspace = str(fds)
-topologies = arcpy.ListDatasets('*', 'Topology')
-if not topologies is None:
-    for topol in topologies:
-        for fc in arcpy.Describe(topol).featureClassNames: arcpy.AddMessage(fc)
-        if shortMup in arcpy.Describe(topol).featureClassNames:
-            addMsgAndPrint('  ***')
-            addMsgAndPrint('Cannot delete {} because it is part of topology class {}.'.format(shortMup, topol))
-            addMsgAndPrint('Delete topology (or remove rules that involve {}) before running this script.'.format(shortMup))
-            addMsgAndPrint('  ***')
-            forceExit()
+    # truncate MapUnitPolys
+    arcpy.AddMessage(f'Emptying {short_mup}')
+    arcpy.management.TruncateTable(mup)
 
-# using joinpath on Path object returns pathlib.Path objects, not strings
-badLabels = str(Path(fds).joinpath('errors_{}multilabels'.format(nameToken)))
-badPolys = str(Path(fds).joinpath('errors_{}multilabelPolys'.format(nameToken)))
-blankPolys = str(Path(fds).joinpath('errors_{}unlabeledPolys'.format(nameToken)))
-centerPoints = 'xxxCenterPoints'
-centerPoints2 = '{}2'.format(centerPoints)
-centerPoints3 = '{}3'.format(centerPoints)
-inPolys = mup
-temporaryPolys = 'xxxTempPolys'
-oldPolys = str(Path(fds).joinpath('xxxOldPolys'))
-changedPolys = str(Path(fds).joinpath('edit_{}ChangedPolys'.format(nameToken)))
+    # append to the now empty MapUnitPolys
+    arcpy.AddMessage(f'Adding features from memory to {mup}')
+    arcpy.management.Append(new_polys, mup, "NO_TEST")
 
-cafLayer = 'cafLayer'
-arcpy.env.workspace = str(fds)
-
-# make layer view of inCaf without concealed lines
-addMsgAndPrint('  Making layer view of CAF without concealed lines')
-sqlQuery =  "LOWER({}) NOT IN ('y', 'yes')".format(arcpy.AddFieldDelimiters(caf, 'IsConcealed'))
-testAndDelete(cafLayer)
-arcpy.MakeFeatureLayer_management(caf, cafLayer, sqlQuery)
-
-#make temporaryPolys from layer view
-addMsgAndPrint('  Making {}'.format(temporaryPolys))
-testAndDelete(temporaryPolys)
-arcpy.FeatureToPolygon_management(cafLayer, temporaryPolys)
-if debug:
-    addMsgAndPrint('temporaryPolys fields are {}'.format(str(fieldNameList(temporaryPolys))))
-
-#make center points (within) from temporarypolys
-addMsgAndPrint('  Making {}'.format(centerPoints))
-testAndDelete(centerPoints)       
-tempPolyPath = arcpy.Describe(temporaryPolys).catalogPath     
-arcpy.FeatureToPoint_management(temporaryPolys, centerPoints, "INSIDE")
-
-if debug:
-    addMsgAndPrint('centerPoints fields are {}'.format(str(fieldNameList(centerPoints))))
-    
-# get rid of ORIG_FID field
-arcpy.DeleteField_management(centerPoints, 'ORIG_FID')
-
-#identity center points with inpolys
-testAndDelete(centerPoints2)
-arcpy.Identity_analysis(centerPoints, inPolys, centerPoints2, 'NO_FID')
-
-# delete points with MapUnit = ''
-## first, make layer view
-addMsgAndPrint("    Deleting centerPoints2 MapUnit = '' ")
-sqlQuery =  "{} = ''".format(arcpy.AddFieldDelimiters(centerPoints2, 'MapUnit'))
-testAndDelete('cP2Layer')
-arcpy.MakeFeatureLayer_management(centerPoints2, 'cP2Layer', sqlQuery)
-
-## then delete features
-if numberOfRows('cP2Layer') > 0:
-    arcpy.DeleteFeatures_management('cP2Layer')
-
-#adjust center point fields (delete extra, add any missing. Use NCGMP09_Definition as guide)
-## get list of fields in centerPoints2
-cp2Fields = fieldNameList(centerPoints2)
-## add fields not in MUP as defined in Definitions
-fieldDefs = tableDict['MapUnitPolys']
-for fDef in fieldDefs:
-    if fDef[0] not in cp2Fields:
-        addMsgAndPrint('field {} is missing'.format(fd))
-        try:
-            if fDef[1] == 'String':
-                arcpy.AddField_management(thisFC,fDef[0],transDict[fDef[1]],'#','#',fDef[3],'#',transDict[fDef[2]])
-            else:
-                arcpy.AddField_management(thisFC,fDef[0],transDict[fDef[1]],'#','#','#','#',transDict[fDef[2]])
-            cp2Fields.append(fDef[0])
-        except:
-            addMsgAndPrint('Failed to add field '+fDef[0]+' to feature class '+featureClass)
-            addMsgAndPrint(arcpy.GetMessages(2))        
-
-# if labelPoints specified
-## add any missing fields to centerPoints2
-if arcpy.Exists(labelPoints):
-    lpFields = arcpy.ListFields(labelPoints)
-    for lpF in lpFields:
-        if not lpF.name in cp2Fields:
-            if lpF.type in ('Text','STRING'):
-                arcpy.AddField_management(centerPoints2,lpF.name,'TEXT','#','#',lpF.length)
-            else:
-                arcpy.AddField_management(centerPoints2,lpF.name,typeTransDict[lpF.type])
-                
-# append labelPoints to centerPoints2
-if arcpy.Exists(labelPoints):
-    arcpy.Append_management(labelPoints,centerPoints2, 'NO_TEST')
-
-#if inPolys are to be saved, copy inpolys to savedPolys
-if saveMUP:
-    addMsgAndPrint('  Saving MapUnitPolys')
-    arcpy.Copy_management(inPolys, getSaveName(inPolys)) 
-
-# make oldPolys
-addMsgAndPrint('  Making oldPolys')
-testAndDelete(oldPolys)
-if debug:
-    addMsgAndPrint(' oldPolys should be deleted!')
-arcpy.Copy_management(inPolys, oldPolys)
-
-## copy field MapUnit to new field OldMapUnit
-arcpy.AddField_management(oldPolys, 'OldMapUnit', 'TEXT', '', '', 40)
-arcpy.CalculateField_management(oldPolys, 'OldMapUnit', "!MapUnit!", "PYTHON_9.3")
-
-## get rid of excess fields in oldPolys
-fields = fieldNameList(oldPolys)
-if debug:
-    addMsgAndPrint('oldPoly fields = ')
-    addMsgAndPrint('  {}'.format(str(fields)))
-for field in fields:
-    if not field.lower() in ('oldmapunit', 'objectid', 'shape', 'shape_area', 'shape_length'):
-        if debug:
-            addMsgAndPrint('     deleting {}'.format(field))
-        arcpy.DeleteField_management(oldPolys, field)
-
-#make new mup from layer view, with centerpoints2
-addMsgAndPrint('  Making new MapUnitPolys')
-# create polygons in memory
-arcpy.FeatureToPolygon_management(cafLayer, r"in_memory\mup", '', 'ATTRIBUTES', centerPoints2)
-# delete all features in mup
-arcpy.DeleteFeatures_management(mup)
-# and append the newly created features
-arcpy.Append_management(r"in_memory\mup", mup, "NO_TEST")
-arcpy.Delete_management(r"in_memory\mup")
-
-testAndDelete(cafLayer)
-
-addMsgAndPrint('  Making changedPolys')
-#intersect oldPolys with mup to make changedPolys
-if arcpy.Exists(changedPolys):
-    arcpy.Identity_analysis(mup, oldPolys, r"in_memory\changedPolys")
-    arcpy.DeleteFeatures_management(changedPolys)
-    arcpy.Append_management(r"in_memory\changedPolys", changedPolys)
-    arcpy.Delete_management(r"in_memory\changedPolys")
 else:
-    arcpy.Identity_analysis(mup, oldPolys, changedPolys)
+    arcpy.AddMessage("Continuing in reporting mode")
+    # in reporting mode 
+    # 1) turn map unit polygons into points - adds ORIG_FID
+    # 2) merge with optional label point - adds MERGE_SRC
+    # 3) create polgyons from the lines, no attributes
+    # 4) Run Identity with empty polygons and all merged labels - adds FID_ for 
+    #   label points and polys
+    # 5) if there is a mup point and a label point in any polygon, choose the
+    #    label point
+    # 6) build new MapUnitPolys
+    # 7) report multiple label points 
+    # 8) report polygons with those extra points
+    # 9) report changed polygons
+    # 10) report polygons that have no MapUnit value
 
-#addMsgAndPrint('     '+str(numberOfRows(changedPolys))+' rows in changedPolys')
-## make feature layer, select MapUnit = OldMapUnit and delete
-addMsgAndPrint('     deleting features with MapUnit = OldMapUnit')
-sqlQuery = "{} = {}".format(arcpy.AddFieldDelimiters(changedPolys,'MapUnit'), arcpy.AddFieldDelimiters(changedPolys,'OldMapUnit'))
-
-testAndDelete('cpLayer')
-arcpy.MakeFeatureLayer_management(changedPolys, 'cpLayer', sqlQuery)
-arcpy.DeleteFeatures_management('cpLayer')
-addMsgAndPrint('     {} rows in changedPolys'.format(str(numberOfRows(changedPolys))))
-
-#identity centerpoints2 with mup
-addMsgAndPrint('  Finding label errors')
-testAndDelete(centerPoints3)
-arcpy.Identity_analysis(centerPoints2, mup, centerPoints3)
-
-if debug: addMsgAndPrint(str(fieldNameList(centerPoints3)))
-
-#make list from centerPoints3:  mupID, centerPoints2ID, cp2.MapUnit, mup.MapUnit
-cpList = []
-mupID = 'FID_{}'.format(Path(mup).name)
-cp2ID = 'FID_xxxcenterPoints2'
-fields = [mupID, cp2ID, 'MapUnit_1', 'MapUnit']
-with arcpy.da.SearchCursor(centerPoints3, fields) as cursor:
-    for row in cursor:
-        cpList.append([row[0],row[1],row[2],row[3]])
+    # turn map unit polygons into points - adds ORIG_FID
+    orig_mup_labels = fr'memory\{short_mup}_labels'
+    arcpy.management.FeatureToPoint(mup, orig_mup_labels, "INSIDE")
+    
+    # merge with optional label point - adds MERGE_SRC
+    filter_from_labels = []
+    extra_labels = []
+    if label_points:
+        arcpy.AddMessage("Organizing label points")
+        # make a copy in memory in order to add ORIG_FID
+        # used later to identify multiple labels in a single polygon
+        out = r'memory\labels_copy'
+        labels_copy = arcpy.management.CopyFeatures(label_points, out)
+        arcpy.management.AddField(labels_copy, 'ORIG_FID', 'LONG')
+        arcpy.management.CalculateField(labels_copy, 'ORIG_FID', '!OBJECTID!')
+        
+        # merge with the feature-to-point points
+        merge_labels = r'memory\merge_labels'
+        arcpy.management.Merge([orig_mup_labels, labels_copy], merge_labels, add_source='ADD_SOURCE_INFO')     
+        
+        # make polygons from selected contacts. these will be empty but are needed
+        # in order to reconcile multiple label points
+        empty_polys = r'memory\empty'
+        arcpy.management.FeatureToPolygon(contacts, empty_polys)
+    
+        # intersect with the merged label points
+        inter_points = r'memory\inter_points'
+        arcpy.analysis.Intersect([empty_polys, merge_labels], inter_points)
+    
+        # find duplicate FID_empty; polygons that intersected with multiple points
+        # keep a list of oids of feature-to-points that are found in a polygon
+        # along with label_points; prioritize label_points by removing co-located
+        # feature-to-points
+        FIDs = [row[0] for row in arcpy.da.SearchCursor(inter_points, 'FID_empty')]
+        dup_FIDs = list(set([x for x in FIDs if FIDs.count(x) > 1]))
+        for FID in dup_FIDs:
+            exp = f'FID_empty = {FID}'
+            with arcpy.da.SearchCursor(inter_points, ['ORIG_FID', 'MERGE_SRC'], exp) as cursor:
+                # list of ORIG_IDs to exclude from the feature-to-points
+                for row in cursor:
+                    if row[1] == orig_mup_labels:
+                        filter_from_labels.append(row[0])
+                        
+            # extra labels
+            exp = f"FID_empty = {FID} and MERGE_SRC = '{out}'"
+            selected = arcpy.management.SelectLayerByAttribute(inter_points, where_clause=exp)
+            if int(arcpy.management.GetCount(selected)[0]) > 1:
+                extra_labels.extend([r[0] for r in arcpy.da.SearchCursor(selected, 'ORIG_FID')])
          
-#sort list on mupID
-cpList.sort()
-badPointList = []
-badPolyList = []
-
-#step through list. If more than 1 centerpoint with same mupID AND mapUnit1 <> MapUnit2 <>  ...:
-addMsgAndPrint('    Sorting through label points')
-lastPt = cpList[0]
-multiPts = [lastPt]
-for i in range(1,len(cpList)):
-    if cpList[i][0] != lastPt[0]:  # different poly than lastPt
-        badPointList, badPolyList = checkMultiPts(multiPts, badPointList, badPolyList)
-        lastPt = cpList[i]
-        multiPts = [lastPt]
-    else: # we are looking at more points in same poly
-        multiPts.append(cpList[i])
-badPointList, badPolyList = checkMultiPts(multiPts, badPointList, badPolyList)
-
-#from badPolyList, make badPolys
-addMsgAndPrint('    Making {}'.format(badPolys))
-if arcpy.Exists(badPolys):
-    arcpy.CopyFeatures_management(mup, r"in_memory\badPolys")
-    arcpy.DeleteFeatures_management(badPolys)
-    arcpy.Append_management(r"in_memory\badPolys", badPolys)
-    arcpy.Delete_management(r"in_memory\badPolys")
-else:
-    arcpy.CopyFeatures_management(mup, badPolys)
-
-with arcpy.da.UpdateCursor(badPolys,['OBJECTID']) as cursor:
-    for row in cursor:
-        if row[0] not in badPolyList:
-            cursor.deleteRow()
-
-#from badPointlist of badpoints, make badLabels
-if arcpy.Exists(badLabels):
-    arcpy.CopyFeatures_management(centerPoints2, r"in_memory\badLabels")
-    arcpy.DeleteFeatures_management(badLabels)
-    arcpy.Append_management(r"in_memory\badLabels", badLabels)
-    arcpy.Delete_management(r"in_memory\badLabels")
-else:
-    arcpy.CopyFeatures_management(centerPoints2,badLabels)
+        # remove extra labels from merge_labels
+        with arcpy.da.UpdateCursor(merge_labels, ['ORIG_FID', 'MERGE_SRC']) as cursor:
+            for row in cursor:
+                if row[0] in filter_from_labels and row[1] == orig_mup_labels:
+                    cursor.deleteRow()
     
-with arcpy.da.UpdateCursor(badLabels,['OBJECTID']) as cursor:
-    for row in cursor:
-        if row[0] not in badPointList:
-            cursor.deleteRow()
-               
-#make blankPolys
-addMsgAndPrint('    Making {}'.format(blankPolys))
-if arcpy.Exists(badLabels):
-    arcpy.CopyFeatures_management(mup, r"in_memory\blankPolys")
-    arcpy.DeleteFeatures_management(blankPolys)
-    arcpy.Append_management(r"in_memory\blankPolys", blankPolys)
-    arcpy.Delete_management(r"in_memory\blankPolys")
-else:
-    arcpy.CopyFeatures_management(centerPoints2, blankPolys)
+        # make new polygons based on the contacts and this new set of label points
+        arcpy.management.FeatureToPolygon(contacts, new_polys, label_features=merge_labels)
+    else:
+        arcpy.management.FeatureToPolygon(contacts, new_polys, label_features=orig_mup_labels)
 
-query = "{} <> ''".format(arcpy.AddFieldDelimiters(blankPolys, 'MapUnit'))
-   
-testAndDelete('blankP')
-arcpy.MakeFeatureLayer_management(blankPolys, 'blankP', query)
-arcpy.DeleteFeatures_management('blankP')
-addMsgAndPrint('    {} multi-label polys'.format(str(len(badPolyList))))
-addMsgAndPrint('    {} multiple, conflicting, label points'.format(str(len(badPointList))))
-addMsgAndPrint('    {} unlabelled polys'.format(str(numberOfRows(blankPolys))))
-
-addMsgAndPrint('  Cleaning up')
-#delete oldpolys, temporaryPolys, centerPoints, centerPoints2, centerPoints3
-for fc in oldPolys, temporaryPolys, centerPoints, centerPoints2, centerPoints3, cafLayer, 'cP2Layer':
-    testAndDelete(fc)
-
+    # make a copy in memory in order to look for changed polys later
+    old_polys = r"memory\old_polys"
+    arcpy.management.CopyFeatures(mup, old_polys)
+    
+    # truncate MapUnitPolys
+    arcpy.AddMessage(f'Emptying {short_mup}')
+    arcpy.management.TruncateTable(mup)
+    
+    # append to the now empty MapUnitPolys
+    arcpy.AddMessage(f'Adding features from memory to {mup}')
+    arcpy.management.Append(new_polys, mup, "NO_TEST")
+    
+    # do we need to build report layers?
+    # look for null values
+    mup_oid = mup_dict['OIDFieldName']
+    null_vals = [row[0] for row in arcpy.da.SearchCursor(mup, [mup_oid, 'MapUnit']) if row[1] in (None, '', ' ')]
+    
+    # look for multiple label points in the new polygons
+    mup_inter_labels = r'memory\mup_inter_labels'
+    arcpy.analysis.Intersect([mup, label_points], mup_inter_labels)
+    oids = [row[0] for row in arcpy.da.SearchCursor(mup_inter_labels, f'FID_{short_mup}')]
+    dup_oids = set([x for x in oids if oids.count(x) > 1])
+    
+    # look for changed polygons
+    inter_polys = r"memory\inter_polys"
+    arcpy.analysis.Intersect([old_polys, mup], inter_polys)
+    changed = []
+    with arcpy.da.SearchCursor(inter_polys, [f'FID_{short_mup}', 'MapUnit', 'MapUnit_1']) as cursor:
+        for row in cursor:
+            if row[1] != row[2] and row[1] not in [None, '']:
+                changed.append(row[0])
+    
+    if null_vals or extra_labels or dup_oids or changed:
+        # build report feature layers
+        arcpy.AddMessage("Preparing report layers")
+        
+        # prepare group layer
+        # get the active map
+        aprx = arcpy.mp.ArcGISProject("CURRENT")
+        active_map = aprx.activeMap
+         
+        for l in active_map.listLayers():
+            if l.name == 'Make Polys - Report Layers':
+                active_map.removeLayer(l)
+             
+        # find genericgroup.lyrx in the \Scripts folder
+        this_py = Path(__file__)
+        scripts = this_py.parent
+        group_lyr = scripts / "genericgroup.lyrx"
+    
+        # add it to the map and rename it
+        group = active_map.addDataFromPath(str(group_lyr))
+        group.name = 'Make Polys - Report Layers'
+        
+        # add report layers
+        # multiple label point polygons 
+        if len(extra_labels) > 0:
+            arcpy.AddMessage('Creating extra labels layer')
+            exp = f'OBJECTID in {sql_list(extra_labels)}'
+            extras = arcpy.management.MakeFeatureLayer(label_points, 'Extra label points', exp)[0]
+            active_map.addLayerToGroup(group, extras)
+            
+        # the polygons where those extra labels are found
+        if len(dup_oids) > 0:
+            arcpy.AddMessage('Creating polygons with extra labels layer')
+            exp = f'OBJECTID in {sql_list(dup_oids)}'
+            poly_layer =  arcpy.management.MakeFeatureLayer(mup, 'Polygons with extra labels', exp)[0]
+            active_map.addLayerToGroup(group, poly_layer)
+            
+        # polygons that don't have a MapUnit value
+        if len(null_vals) > 0:
+            arcpy.AddMessage('Creating polygons with no MapUnit value')
+            exp = f'OBJECTID in {sql_list(null_vals)}'
+            null_polys = arcpy.management.MakeFeatureLayer(mup, 'Polygons with no MapUnit', exp)[0]
+            active_map.addLayerToGroup(group, null_polys)
+            
+        # polygons that changed MapUnit (but not Null to a new map unit)
+        if len(changed) > 0:
+            arcpy.AddMessage('Creating polygons where MapUnit changed layer')
+            exp = f'OBJECTID in {sql_list(changed)}'
+            changed_polys = arcpy.management.MakeFeatureLayer(mup, 'Polygons where MapUnit changed', exp)[0]
+            active_map.addLayerToGroup(group, changed_polys)
