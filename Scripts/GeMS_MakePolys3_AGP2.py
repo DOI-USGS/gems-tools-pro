@@ -27,7 +27,7 @@ simple_mode : Use simple mode or reporting mode. Boolean, true by default. Use
     convoluted polygon boundaries.
 '''
 
-versionString = 'GeMS_MakePolys3_AGP2.py, version of 23 June 2022'
+versionString = 'GeMS_MakePolys3_AGP2.py, version of 24 June 2022'
 rawurl = 'https://raw.githubusercontent.com/usgs/gems-tools-pro/master/Scripts/GeMS_MakePolys3_AGP2.py'
 guf.checkVersion(versionString, rawurl, 'gems-tools-pro')
 
@@ -223,6 +223,7 @@ else:
     arcpy.AddMessage(f'Adding features from memory to {mup}')
     arcpy.management.Append(new_polys, mup, "NO_TEST")
     
+    arcpy.AddMessage("Looking for errors and changes")
     # do we need to build report layers?
     # look for null values
     mup_oid = mup_dict['OIDFieldName']
@@ -242,8 +243,18 @@ else:
         for row in cursor:
             if row[1] != row[2] and row[1] not in [None, '']:
                 changed.append(row[0])
+                
+    # look for contacts with the same MapUnit on either side
+    inter_lines = r"memory\inter_lines"
+    arcpy.analysis.Identity(caf, mup, inter_lines, relationship='KEEP_RELATIONSHIPS')
+    id_field = f'FID_{str(short_caf)}'
+    same_unit = []
+    with arcpy.da.SearchCursor(inter_lines, [id_field, 'left_mapunit', 'right_mapunit']) as cursor:
+        for row in cursor:
+            if row[1] == row[2]:
+                same_unit.append(row[0])
     
-    if null_vals or extra_labels or dup_oids or changed:
+    if null_vals or extra_labels or dup_oids or changed or same_unit:
         # build report feature layers
         arcpy.AddMessage("Preparing report layers")
         
@@ -253,7 +264,7 @@ else:
         active_map = aprx.activeMap
          
         for l in active_map.listLayers():
-            if l.name == 'Make Polys - Report Layers':
+            if l.longName == 'Make Polys - Report Layers':
                 active_map.removeLayer(l)
              
         # find genericgroup.lyrx in the \Scripts folder
@@ -267,6 +278,8 @@ else:
         
         # add report layers
         # multiple label point polygons 
+        # just testing for boolean(True) of lists seemed to miss them so we'll
+        # test for length > 0
         if len(extra_labels) > 0:
             arcpy.AddMessage('Creating extra labels layer')
             exp = f'OBJECTID in {sql_list(extra_labels)}'
@@ -275,21 +288,30 @@ else:
             
         # the polygons where those extra labels are found
         if len(dup_oids) > 0:
-            arcpy.AddMessage('Creating polygons with extra labels layer')
+            arcpy.AddMessage('Creating layer for polygons with extra labels')
             exp = f'OBJECTID in {sql_list(dup_oids)}'
             poly_layer =  arcpy.management.MakeFeatureLayer(mup, 'Polygons with extra labels', exp)[0]
             active_map.addLayerToGroup(group, poly_layer)
             
         # polygons that don't have a MapUnit value
         if len(null_vals) > 0:
-            arcpy.AddMessage('Creating polygons with no MapUnit value')
+            arcpy.AddMessage('Creating layer for polygons with no MapUnit value')
             exp = f'OBJECTID in {sql_list(null_vals)}'
             null_polys = arcpy.management.MakeFeatureLayer(mup, 'Polygons with no MapUnit', exp)[0]
             active_map.addLayerToGroup(group, null_polys)
             
         # polygons that changed MapUnit (but not Null to a new map unit)
         if len(changed) > 0:
-            arcpy.AddMessage('Creating polygons where MapUnit changed layer')
+            arcpy.AddMessage('Creating layer for polygons where MapUnit changed')
             exp = f'OBJECTID in {sql_list(changed)}'
             changed_polys = arcpy.management.MakeFeatureLayer(mup, 'Polygons where MapUnit changed', exp)[0]
             active_map.addLayerToGroup(group, changed_polys)
+            
+        # contacts that have the same MapUnit on either side
+        if len(same_unit) > 0:
+            arcpy.AddMessage('Creating layer for contacts that have the same MapUnit on either side')
+            exp = f'OBJECTID in {sql_list(same_unit)}'
+            sandwiched_lines = arcpy.management.MakeFeatureLayer(caf, 'Contacts with same MapUnit on either side', exp)[0]
+            active_map.addLayerToGroup(group, sandwiched_lines)
+    else:
+        arcpy.AddMessage("No errors or changes to report")
