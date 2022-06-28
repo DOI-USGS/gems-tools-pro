@@ -354,7 +354,7 @@ id_exists = field_none(copy_xs_path, check_field)
 # and if there isn't one, make one. 
 if id_field is None or id_exists == False:
     id_field = 'ROUTEID'
-    arcpy.AddField_management(copy_xs_line, id_field, 'TEXT')
+    arcpy.AddField_management(copy_xs_path, id_field, 'TEXT')
     arcpy.management.CalculateField(copy_xs_path, check_field, "'01'", 'PYTHON3')    
       
 # check for Z and M values
