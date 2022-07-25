@@ -535,7 +535,7 @@ for fc_path in point_fcs:
         
         # make an event layer from the event table. "Snaps" points tangentially to the 
         # line of cross section.
-        guf.addMsgAndPrint('9placing events on section line')
+        guf.addMsgAndPrint('placing events on section line')
         event_lyr = f'CS{token}{fc_name}_events'
         arcpy.lr.MakeRouteEventLayer(zm_line, id_field, event_tbl, event_props, 
                                      event_lyr, '#', '#', 'ANGLE_FIELD', 'TANGENT')
@@ -551,13 +551,7 @@ for fc_path in point_fcs:
         # add DistanceFromSection and LocalXsAzimuth
         arcpy.AddField_management(loc_points, 'DistanceFromSection', 'FLOAT')
         arcpy.AddField_management(loc_points, 'LocalCSAzimuth', 'FLOAT')
-        
-        # with all fields set, collect a list of the names for the cursors below
-        # and append the SHAPE@ token
-        fld_obj = arcpy.ListFields(loc_points)
-        flds = [f.name for f in fld_obj if f.type != 'Geometry']
-        flds.append('SHAPE@')
-              
+             
         # set isOrientationData
         guf.addMsgAndPrint('checking for Azimuth and Inclination fields')
         if 'Azimuth' in flds and 'Inclination' in flds:
@@ -567,6 +561,12 @@ for fc_path in point_fcs:
                 flds.append(n)                         
         else:
             isOrientationData = False
+            
+        # with all fields set, collect a list of the names for the cursors below
+        # and append the SHAPE@ token
+        fld_obj = arcpy.ListFields(loc_points)
+        flds = [f.name for f in fld_obj if f.type != 'Geometry']
+        flds.append('SHAPE@')
             
         # create empty feature class, with unknown SR, in the original gdb
         out_name = f'CS{token}_{fc_name}'
