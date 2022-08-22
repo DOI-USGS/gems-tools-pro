@@ -895,6 +895,7 @@ gdbName = os.path.basename(inGdb)
 refreshGeoMaterialDict = sys.argv[3]
 skipTopology = sys.argv[4]
 deleteExtraGlossaryDataSources = sys.argv[5]
+compactDB = sys.argv[6]
 
 refgmd = os.path.join(resources_path, 'GeMS_lib.gdb', 'GeoMaterialDict')
 mp_path = os.path.join(resources_path, 'mp.exe')
@@ -931,7 +932,8 @@ else:
         ##   make GeoMaterials domain
         arcpy.management.TableToDomain(inGdb+'/GeoMaterialDict', 'GeoMaterial', 'IndentedName', inGdb, 'GeoMaterials', '', 'REPLACE')
         ##   attach it to DMU field GeoMaterial
-        arcpy.management.AssignDomainToField(inGdb+'/DescriptionOfMapUnits','GeoMaterial','GeoMaterials')                                                    
+        arcpy.management.AssignDomainToField(inGdb+'/DescriptionOfMapUnits','GeoMaterial','GeoMaterials')
+        
 
     # open output files
     summaryName = f'{gdbName}-Validation.html'
@@ -1282,6 +1284,14 @@ else:
             summary.write(space4+fc+', '+shp+' feature class, '+str(numberOfRows(fc))+' rows<br>\n')
         arcpy.env.workspace = inGdb
     summary.write(divend)
+
+
+### Compact DB option
+if compactDB == 'true':
+    addMsgAndPrint( '  Compacting '+os.path.basename(inGdb) )
+    arcpy.Compact_management(inGdb)
+else:
+    pass
 
 summary.close()
 errors.close()
