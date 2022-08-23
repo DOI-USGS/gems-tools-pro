@@ -23,7 +23,9 @@ This method requires you to have `git` installed on your computer. If you know y
 * At the prompt, type `cd` and the path of the location where you would like the toolbox to be.
 * Paste in `git clone https://github.com/usgs/gems-tools-pro.git`
 * `cd` to `gems-tools-pro`
-* Now, whenever you get notice of a new release or if it's just been awhile and you want to make sure you are using the most up-to-date version, go back to this folder and type `git pull`. 
+* Now, whenever you get notice of a new release or if it's just been awhile and you want to make sure you are using the most up-to-date version, go back to this folder and type `git pull`.
+
+### Configure
 * Open ArcGIS Pro and go to either the Contents or Catalog pane.
 * Under Project, right-click on Folders to add a folder connection. Navigate to the toolbox folder.
 * Note that this only saves the folder connection with the current project file. If you want to have the toolbox handy for any project that you open up,
