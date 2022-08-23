@@ -9,10 +9,21 @@ This repository contains an ArcGIS toolbox of Python 3 geoprocessing tools for c
 If you are looking for tools that work in ArcMap using Python 2.7, go to [gems-tools-arcmap](https://github.com/usgs/gems-tools-arcmap)
 
 ## Installation
+There are two ways you can get the toolbox. You can download a zip file with the contents of this repository every time there is a new release or you can clone the repository using `git` and pull the latest changes as necessary with a simple terminal command.
 
 ### Download
-* Download the [latest release](https://github.com/usgs/gems-tools-pro/releases/latest).
-* Unzip the file to a folder of your choice. This will extract a single folder named `gems-tools-pro-` followed by the version number (e.g., `gems-tools-pro-2.1`).
+* Download the [latest release](https://github.com/usgs/gems-tools-pro/releases/latest) from **Releases** or from the green **Code** button above.
+* Unzip the file to a folder of your choice. This will extract a single folder named `gems-tools-pro-` followed by either the version number (e.g., `gems-tools-pro-2.1`) if downloaded from **Releases** or `master` if downloaded from the **Code** button.
+
+### or Clone
+This method requires you to have `git` installed on your computer. If you know you do, you can skip down two steps and use that instance of it. If not, you can use the instance that was installed in the default conda environment when ArcGIS Pro was installed.
+
+* Click on 'Start' (![image](https://user-images.githubusercontent.com/5376315/186263217-79a685f5-4942-4f95-bba0-810b070b6de8.png)) in the lower-left of your desktop.
+* From the list of programs, select **ArcGIS** and then **Python Command Prompt**.
+* At the prompt, type `cd` and the path of the location where you would like the toolbox to be.
+* Paste in `git clone https://github.com/usgs/gems-tools-pro.git`
+* `cd` to `gems-tools-pro`
+* Now, whenever you get notice of a new release or if it's just been awhile and you want to make sure you are using the most up-to-date version, go back to this folder and type `git pull`. 
 * Open ArcGIS Pro and go to either the Contents or Catalog pane.
 * Under Project, right-click on Folders to add a folder connection. Navigate to the toolbox folder.
 * Note that this only saves the folder connection with the current project file. If you want to have the toolbox handy for any project that you open up,
@@ -20,6 +31,7 @@ If you are looking for tools that work in ArcMap using Python 2.7, go to [gems-t
   * select the Favorites tab
   * click Add Item
   * choose Add Folder, and navigate to the folder.
+*
 
 The documentation for these tools may not be complete or may be poorly formatted for display in either the ArcGIS Pro help popup (hover your cursor over the ? icon when looking at the tool parameter form) or metadata view (right-click on the tool from the Catalog pane and choose View Metadata), but, for the most part, the Python 3 versions produce the same results as the older Python 2.7 versions.
 
