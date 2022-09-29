@@ -11,12 +11,12 @@ sections are filled-in based on dictionaries in GeMS_Definition.py and my_defini
 process steps (created by ArcGIS every time a geoprocessing step is performed) can be removed.
 '''
 import arcpy # arcpy needed for da.Describe(gdb) and exporting metadata')
-import os
 from pathlib import Path
 from lxml import etree
 import sys
-from GeMS_Definition import *
-from GeMS_utilityFunctions import *
+import GeMS_Definition as gDef
+import GeMS_utilityFunctions as guf
+
 from osgeo import ogr  # only used in def max_bounding
 # to import adjacent python files as modules
 sys.path.append('../')
@@ -25,8 +25,8 @@ import copy
 import requests
 
 versionString = 'GeMS_FGDC1_Arc10.py, version of 9 June 2022'
-rawurl = 'https://raw.githubusercontent.com/usgs/gems-tools-pro/master/Scripts/Metadata_AGP2.py'
-checkVersion(versionString, rawurl, 'gems-tools-pro')
+rawurl = 'https://raw.githubusercontent.com/usgs/gems-tools-pro/master/Scripts/GeMS_FGDCMetadata_AGP2.py'
+guf.checkVersion(versionString, rawurl, 'gems-tools-pro')
    
 gems_full_ref = """GeMS (Geologic Map Schema)--a standard format for the digital publication of geologic maps", available at http://ngmdb.usgs.gov/Info/standards/GeMS/"""
 
@@ -150,7 +150,7 @@ def which_dict(tbl, fld):
     if fld == 'MapUnit':
         return units_dict
     elif fld == 'GeoMaterialConfidence' and tbl == 'DescriptionOfMapUnits':
-        return GeoMatConfDict
+        return gDef.GeoMatConfDict
     elif fld == 'GeoMaterial':
         return geomat_dict
     elif fld.find('SourceID') > -1:
@@ -246,8 +246,8 @@ def add_entity(fc_name, elem_dict):
     
     # if the table name is in the GeMS entityDict, this is a GeMS controlled table
     # no annotation feature classes are described in entityDict
-    if fc_name in entityDict:
-        desc = f'{entityDict[fc_name]} {append}'.strip()
+    if fc_name in gDef.entityDict:
+        desc = f'{gDef.entityDict[fc_name]} {append}'.strip()
         desc_source = gems
         
     # users might have their own tables defined in myEntityDict
@@ -339,24 +339,24 @@ def add_attributes(fc_name, detailed_node):
         # might not be used much, but is also inexpensive to implement and
         # is, at least partially, useful to catch _ID field names
         found_attrib = False
-        res = [key for key in attribDict if field.endswith(key)]
+        res = [key for key in gDef.attribDict if field.endswith(key)]
         key = None
         if res:
             key = res[0]
-            def_text = attribDict[key] # assuming here that if res isn't empty, there is only one key!
+            def_text = gDef.attribDict[key] # assuming here that if res isn't empty, there is only one key!
             source_text = gems
             found_attrib = True
             del res
             
         # look for a key ending in the field name in myAttribDict
         try:
-            res = [key for key in myAttribDict if field.endswith(key)]
+            res = [key for key in gDef.myAttribDict if field.endswith(key)]
         except:
             res = None
         if res:
             key = res[0]
-            def_text = myAttribDict[key][0]
-            source_text = myAttribDict[key][1]
+            def_text = myDef.myAttribDict[key][0]
+            source_text = myDef.myAttribDict[key][1]
             found_attrib = True
             del res
         
@@ -396,10 +396,10 @@ def add_attributes(fc_name, detailed_node):
         
         # UNREPRESENTABLE DOMAINS
         # value might be found in unrepresentableDomainDict
-        if key in unrepresentableDomainDict:
+        if key in gDef.unrepresentableDomainDict:
             attrdomv = etree.Element('attrdomv')
             udom = etree.Element('udom')
-            udom.text = unrepresentableDomainDict[key]
+            udom.text = gDef.unrepresentableDomainDict[key]
             attrdomv.append(udom)
             attr.append(attrdomv)
 
@@ -413,19 +413,19 @@ def add_attributes(fc_name, detailed_node):
             # attr.append(attrdomv)        
          
         # look for fields that have range domains
-        elif key in rangeDomainDict:
+        elif key in gDef.rangeDomainDict:
             arcpy.AddMessage("        Range value domain definition found")
             attrdomv = etree.Element('attrdomv')
             rdom = etree.Element('rdom')
-            for n, i in [['rdomin', 0], ['rdomax', 1], ['attrunit', 2]]:
+            for n, i in [['rdommin', 0], ['rdommax', 1], ['attrunit', 2]]:
                 range_attr = etree.Element(n)
-                range_attr.text = rangeDomainDict[key][i]
+                range_attr.text = gDef.rangeDomainDict[key][i]
                 rdom.append(range_attr)
             attrdomv.append(rdom)
             attr.append(attrdomv)
             
         # look for fields that have enumerated domains
-        elif key in enumeratedValueDomainFieldList:
+        elif key in gDef.enumeratedValueDomainFieldList:
             # collect a unique set of all the values of this attribute
             with arcpy.da.SearchCursor(obj_dict[fc_name]['catalogPath'], field) as cursor:
                 fld_vals = set([row[0] for row in cursor if not row[0] is None])
@@ -446,7 +446,7 @@ def add_attributes(fc_name, detailed_node):
             # and definition source into def_text and def_source
                 else:
                     val_dict = which_dict(fc_name, field)
-                    if val_dict:
+                    if val in val_dict:
                         val_text = val_dict[val][0]
                         val_source = val_dict[val][1]
                     else:
@@ -457,8 +457,10 @@ def add_attributes(fc_name, detailed_node):
                             val_text = 'MISSING'
                             val_source = 'MISSING'
                         
-                        # report the missing values
+                    # report the missing values
+                    if val_text in ['', 'MISSING']:
                         arcpy.AddWarning(f"Cannot find domain value definition for {field} in {fc_name}")
+                    if val_source in ['', 'MISSING']:
                         arcpy.AddWarning(f"Cannot find domain value definition source for {field} in {fc_name}")                 
                 
                 # build the nodes and append    
@@ -581,17 +583,17 @@ if my_defs_path.is_file():
     module = importlib.util.module_from_spec(spec)
     sys.modules['my_definitions'] = module
     spec.loader.exec_module(module)
-    from my_definitions import *
+    import my_definitions as myDef
     
     # try updating the GeMS dictionaries, but if the custom ones do not exist don't throw an
     # error, just pass
     try:
-        unrepresentableDomainDict.update(myUnrepresentableDomainDict)
+        gDef.unrepresentableDomainDict.update(myDef.myUnrepresentableDomainDict)
     except:
         pass
     
     try:
-        rangeDomainDict.update(myRangeDomainDict)
+        gDef.rangeDomainDict.update(myDef.myRangeDomainDict)
     except:
         pass
 else:
@@ -738,7 +740,7 @@ for child in child_nodes:
 # find the bounding box that covers the extent of all features
 try:
     if base_md.find('idinfo/spdom/bounding') is None:
-        arcpy.AddMessage(f"  spdom")
+        arcpy.AddMessage("  spdom")
         spdom = etree.Element('spdom')
         bounding = max_bounding(str(db_path))
         spdom.append(bounding)
@@ -754,7 +756,7 @@ except Exception as error:
 # collect the feature classes and inspect the sdtsterm
 if base_md.find('spdoinfo') is None:
     fcs = [k for k in obj_dict if 'FeatureClass' in obj_dict[k]['concat_type']]
-    arcpy.AddMessage(f"  spdoinfo")
+    arcpy.AddMessage("  spdoinfo")
     spdoinfo = su.get_spdoinfo(str(db_path), fcs[0])
     ptvctinf = spdoinfo.find('ptvctinf')
     for fc in fcs[1:]:
@@ -867,15 +869,16 @@ if Path(template_path).is_file():
     # add the node and the text
     for elem in deez_nodes['gems_nodes']:    
         check_path = deez_nodes['gems_nodes'][elem]['xpath']
-
+        
         # find the node in the automated metadata
         add_node = base_md.find(check_path)
 
         # look for the node in the template metadata
         check_node = template_root.find(check_path)
-
+    
         if check_node is not None:
-            check_node.text = check_node.text + f"\n {add_node.text}"
+            if check_node.text is not None:
+                check_node.text = check_node.text + f"\n {add_node.text}"
         else:
             extend_branch(template_root, check_path)
             new_node = template_root.find(check_path)
