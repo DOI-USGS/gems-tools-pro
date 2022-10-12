@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><link rel="canonical" href="https://example.com/Make-New-Geomorphic-Map/" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>Make new geomorphic map - GeMS documentation</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.5.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Make new geomorphic map";
+        var mkdocs_page_input_path = "Make-New-Geomorphic-Map.md";
+        var mkdocs_page_url = "/Make-New-Geomorphic-Map/";
+      </script>
+    
+    <script src="../js/jquery-3.6.0.min.js" defer></script>
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.5.0/highlight.min.js"></script>
+      <script>hljs.initHighlightingOnLoad();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> GeMS documentation
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="..">Home</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Setup</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../Keeping-up-to-date-with-new-releases/">Keeping up to date with new releases</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../Configure-Arc-Map/">Configure ArcMap</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../Hard-Drive-Hygiene/">Hard drive hygiene</a>
+                  </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../GeMS-Tools-Documentation/">Tool reference</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Workflows</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../CMU-and-DMU/">CMU's and DMU's</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../Make-Color-Polygons/">Make polygons</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="./">Make new geomorphic map</a>
+    <ul class="current">
+    </ul>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Finalize</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../Complete-Metadata/">Build Metadata</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../Topology-Check/">Topology check</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">GeMS documentation</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" alt="Docs"></a> &raquo;</li>
+          <li>Workflows &raquo;</li><li>Make new geomorphic map</li>
+    <li class="wy-breadcrumbs-aside">
+    </li>
+  </ul>
+  <hr/>
+</div>
+
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <p>This exercise was developed for a senior-level <em>GIS for Earth Sciences</em> class. It has the following objectives: </p>
+<ul>
+<li>Work with lidar topography</li>
+<li>Learn about geologic maps</li>
+<li>Learn GeMS </li>
+<li>Improve your ArcMap skills</li>
+</ul>
+<p>PRODUCT: a draft geomorphic map report. Includes 5 files:</p>
+<ol>
+<li>.gdb (database), zipped for transport</li>
+<li>.pdf of map sheet, described below</li>
+<li>a short summary earth history (perhaps a bulleted list; can be .txt, .docx, .html, or .pdf)</li>
+<li>.html output from <strong>Topology Check</strong> script</li>
+<li>.html output from <strong>Validate Database</strong> script </li>
+</ol>
+<p>REQUIREMENTS:</p>
+<ul>
+<li>Mapped area shall have an area of at least 25 million ft<sup>2</sup> (5,000 ft x 5,000 ft, about 1 mile x 1 mile)</li>
+<li>Map units shall fall into at least 3 age classes</li>
+<li>Map sheet has map graphic at a scale of circa 1:20,000, Correlation of Map Units diagram, Explanation of Symbols, Title, Author, Scale, Date, location diagram</li>
+<li>Map database (.gdb) conforms to GeMS schema: GeologicMap and CorrelationOfMapUnits feature datasets; populated DescriptionOfMapUnits, Glossary, and DataSources tables. Passes Topology Check and Validate Database scripts. <em>Note that, for this project, null values in DMU fields GeoMaterial, GeoMaterialConfidence, ParagraphStyle, AreaFillRGB, and AreaFillPatternDescription are acceptable</em></li>
+</ul>
+<p>While these instructions are for making a new geomorphic map, making a geologic map (heads-up digitizing from field sheets, aerial images, topography, and other existing maps) is similar. </p>
+<h3 id="0-geologic-map-or-geomorphic-map">0. Geologic map or geomorphic map?</h3>
+<p>A geologic map shows the distribution of earth materials which are classified—largely—by age. Such maps are both descriptive (showing observations) and predictive (suggesting the presence of materials where they have not been observed). They are of significance both for their direct utility in showing where to find granite, groundwater, and gold, and for the earth history that they disclose.  Making a geologic map generally requires a significant amount of expensive field work and is not a task that can be completed in the short time frame of this exercise. </p>
+<p>A geomorphic map shows the distribution of surfaces that form the upper bound of earth materials. In many settings such surfaces can be classified—largely—by age, and the resulting map also discloses earth history. With adequate topographic information, a geomorphic map can be made quickly.  Making a geomorphic map is good practice at seeing earth history and an excellent way to learn some of the GIS skills and tools used in geologic mapping. </p>
+<h3 id="1-read-about-directory-structure"><a href="https://github.com/usgs/GeMS_Tools/wiki/HardDriveHygiene">1. Read about directory structure</a></h3>
+<p>Check out the link above. Then decide what your file system will look like. Here's one possibility:</p>
+<pre><code>    MyFileSystem/
+​   Projects/
+​            ThisProject/
+            AnotherProject/
+        Resources/
+ ​      GeMS_Tools/
+            DEM_Library/
+</code></pre>
+<h3 id="2-download-lidar-dem-and-make-derivative-images">2. Download lidar DEM and make derivative images</h3>
+<h4 id="a-download-lidar">a.  Download lidar</h4>
+<ol>
+<li>Go to <a href="http://lidarportal.dnr.wa.gov">http://lidarportal.dnr.wa.gov</a>. Explore. Find an interesting area to interpret. Avoid built-up areas. Avoid steep mountains. Don’t choose too large an area, but get more than the 5,000 ft x 5,000 ft minimum area; perhaps a 10,000 ft x 10,000 ft area. </li>
+<li>
+<p>Select an area that shows an interesting geomorphic history. The eastern margin of the Puget Lowland provides lots of good possibilities; look in the vicinity of  http://lidarportal.dnr.wa.gov/#47.88605:-121.84979:14, http://lidarportal.dnr.wa.gov/#47.11693:-122.02841:13, and http://lidarportal.dnr.wa.gov/#47.09569:-122.15106:14. The area should have easily-discerned landforms that correspond to at least 3 stages of geomorphic/geologic history. These might be glaciation, subsequent terrace formation, and modern erosion and alluviation. Or something else, or additional stages. </p>
+</li>
+<li>
+<p>Adjust your field of view to barely encompass the area you have chosen. Select "<strong>Download Current View</strong>" (upper left corner of page). Unselect boxes until you only have the DTM (Digital terrain model). Click <strong>Download</strong>. When the download is complete, unzip your download file. </p>
+</li>
+</ol>
+<h4 id="b-mosaic-downloaded-tiles-make-images">b.   Mosaic downloaded tiles, make images</h4>
+<ol>
+<li>
+<p>Make a new, empty file .gdb, e.g., <em>MyLidarData</em>.gdb. This .gdb should be in your Projects folder, in subfolder <em>ThisProject</em> </p>
+</li>
+<li>
+<p>Start ArcMap or ArcCatalog</p>
+</li>
+<li>If download contains multiple tiles, use the ArcGIS <strong>Mosaic to New Raster</strong> tool, with output inside the file gdb; otherwise, copy the single tile into the file gdb. Name new bare-earth raster <em>myarea</em>_be</li>
+</ol>
+<p><em>If you use </em><em>Mosaic to New Raster</em><em> for lidar data, be sure to set </em><em>Pixel Type (optional)</em><em> to </em><em><u>32_BIT_FLOAT</u></em><em>. Number of Bands should be 1. When piecing together tiles from a single survey the Mosaic Operator and Mosaic Colormap Mode can be left at default values</em></p>
+<ol>
+<li>When you have successfully moved/merged the tile(s) from your lidar download into a file geodatabase, delete the zip file and the directory you unzipped it to </li>
+<li>Using ArcGIS Hillshade command, make 3 hillshades:  myarea_be_ne, myarea_be_nw, myarea_be_v10. Put them all within <em>MyLidarData</em>.gdb</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">Output  raster</th>
+<th style="text-align: center;">Input  raster</th>
+<th style="text-align: center;">azimuth</th>
+<th style="text-align: center;">altitude</th>
+<th style="text-align: center;">Z factor</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;">myarea_be_ne</td>
+<td style="text-align: center;">myarea_be</td>
+<td style="text-align: center;">45</td>
+<td style="text-align: center;">45</td>
+<td style="text-align: center;">1</td>
+</tr>
+<tr>
+<td style="text-align: center;">myarea_be_nw</td>
+<td style="text-align: center;">myarea_be</td>
+<td style="text-align: center;">315</td>
+<td style="text-align: center;">45</td>
+<td style="text-align: center;">1</td>
+</tr>
+<tr>
+<td style="text-align: center;">myarea_be_v10</td>
+<td style="text-align: center;">myarea_be</td>
+<td style="text-align: center;">anything</td>
+<td style="text-align: center;">90</td>
+<td style="text-align: center;">10</td>
+</tr>
+</tbody>
+</table>
+<h3 id="3-download-and-install-gems-tools">3. Download and install GeMS Tools</h3>
+<p>If you haven't already: </p>
+<ol>
+<li>
+<p>Go to <a href="https://github.com/usgs/GeMS_Tools">https://github.com/usgs/GeMS_Tools</a>  </p>
+</li>
+<li>
+<p>Partway down left side of page, find button that says “Branch: master”.  Tap the button, select the Tags tab, and select “06Jan2018” (or the most recent tag). The button should now say “Tag: 06Jan2018”</p>
+</li>
+<li>
+<p>At the right side of the page, find the green “Clone or download” button. Tap it, and select “Download ZIP”</p>
+</li>
+<li>
+<p>After the download is completed, find your downloaded file, unzip it, and place the resulting GeMS_Tools_<em>date</em> folder within your Resources (or similar) directory </p>
+</li>
+</ol>
+<h3 id="4-start-arcmap">4. Start ArcMap</h3>
+<ol>
+<li>Add the lidar bare-earth DEM and the derivative images you made to the map composition.  Turn off all of the layers except a NE or NW hillshade.  <strong>SAVE</strong> the map composition into your ThisProject folder. Name might be ThisProject-edit.mxd</li>
+<li>
+<p><a href="https://github.com/usgs/GeMS_Tools/wiki/ConfigureArcMap">Configure ArcMap</a>. Note that you won't be able to set Snap-to-sketch until you have added a line feature class to your map composition</p>
+</li>
+<li>
+<p>Open the ArcToolbox window. If <strong>GeMS Tools</strong> is not listed, <a href="https://github.com/usgs/GeMS_Tools/wiki/ConfigureArcMap#add-gems_tools">add the GeMS_Tools toolbox</a></p>
+</li>
+<li>
+<p>Expand <strong>GeMS Tools</strong> and make an empty GeMS-style database with the <a href="https://github.com/usgs/GeMS_Tools/wiki/GeMS_ToolsDocumentation#create-new-database">Create New Database</a> script</p>
+</li>
+<li>Output workspace is your ThisProject folder. Name of new geodatabase could be ThisProject.gdb  </li>
+<li>For Spatial Reference System, click the select folder icon at right, open <strong>Layers</strong>, and take the option presented (which will be the Spatial Reference System for your lidar DEM and derivatives)</li>
+<li>Check the following optional elements: CorrelationOfMapUnits, MiscellaneousMapInformation</li>
+<li>Ensure that <strong>Add fields for cartographic representations</strong> is unchecked </li>
+<li>Check <strong>Add LTYPE and PTTYPE</strong></li>
+<li>Check <strong>Add standard confidence values</strong>  </li>
+<li><strong>Enable edit tracking</strong> can be checked or unchecked  </li>
+<li><strong>OK</strong>. Script will run </li>
+<li>Add ContactsAndFaults24K.lyr to the map composition</li>
+<li>Click on the Add Data button, navigate to the Resources folder of our GeMS_Tools directory, and select ContactsAndFaults24K.lyr. This will add a group of 4 layers to your map composition</li>
+<li>Right-click on layer LTYPE and select <strong>Data</strong> &gt; <strong>Repair data source</strong>... Set the data source to the ContactsAndFaults layer within the GeologicMap feature dataset of your newly-created database. <strong>SAVE</strong></li>
+<li>Add ThisProject.gdb/GeologicMap/MapUnitPolys to your map composition. <strong>SAVE</strong></li>
+<li>Finish configuring ArcMap </li>
+<li>On the Editor toolbar, click the <strong>Editor▼</strong> dropdown and select <strong>Start Editing</strong></li>
+<li>On the Snapping toolbar, click the <strong>Snapping</strong>▼ dropdown and ensure that <strong>Snap To Sketch</strong> is checked. <strong>SAVE</strong></li>
+</ol>
+<h3 id="5-map-geomorphology">5. Map geomorphology</h3>
+<h4 id="a-think">a.  Think</h4>
+<p>What are your map units? Make a list of geomorphic surface types (for example, glaciated surface, hillslope, alluvial flat). This list may grow as you explore the DEM. As you map, you may discover that you can subdivide some surface types (especially alluvial flats) on the basis of cross-cutting relations and elevation differences that require different ages for different instances of the same surface type. For example, old alluvial flat, young alluvial flat, younger alluvial flat.</p>
+<p>How well can you locate contacts that separate different surface types? Most such contacts are breaks in slope and, where not rounded by subsequent history, can be located within a few raster cells, commonly within 3-5 meters. Poor DEM quality or human modification may obscure some contacts, decreasing the accuracy of location. Some contacts are subtle textural changes, or hard-to-define boundaries between assemblages of features (a worst case: ice melt-out terrain adjacent to landslide), and locational error will be greater. In this landscape, with an excellent lidar DEM, the most significant limit to the accuracy of your map is likely to be the care with which you digitize boundaries. </p>
+<p>Human-modified surfaces are (for this exercise) generally uninteresting. Try to see through such modifications and map the surface before humans modified it. If there are areas where you cannot see through human modification, map “modified ground”. There will be small areas that are dominated by artifacts in the lidar DEM—mostly ‘crystal forest’ that is the result of very dense vegetation, very few ground returns, and inaccurate discrimination of ground and vegetation returns. Try to ignore such artifacts.</p>
+<h4 id="b-digitize-contacts">b. Digitize contacts</h4>
+<p>Your task is to outline the map area and divide it into areas that will become map-unit polygons. You need not digitize all contacts at once. It is quite reasonable to digitize part of the map, check topology, make and color polygons, and then return to digitize more contacts. </p>
+<ol>
+<li>If you are not already in edit mode in the GeologicMap feature dataset, go to the <strong>Table of Contents</strong> pane, right-click on ContactsAndFaults24K--LTYPE and select <strong>Edit Features</strong> &gt; <strong>Start editing</strong>. </li>
+<li>On the toolbar, click the <strong>Editor▼</strong>  dropdown and select <strong>Editing Windows</strong> &gt; <strong>Create Features</strong> </li>
+<li>Click the <strong>Snapping▼</strong> dropdown on the ArcMap toolbar and ensure that <strong>Use Snapping</strong> is set. This is important! Click the <strong>Snapping</strong> dropdown again and ensure that <strong>Snap To Sketch</strong> is checked. <strong>SAVE</strong></li>
+<li>Digitize your map boundary first </li>
+<li>Select the “contact  10 m” template and digitize the boundary</li>
+<li>With the Edit Tool (tail-less arrow to right of <strong>Editor</strong>▼ on the Editing toolbar), select the just-digitized boundary. Right-click and select Attributes…  Set Type = "map boundary”. Set IsConcealed = "N". Set ExistenceConfidence and IdentityConfidence = "certain". Set LocationConfidenceMeters = 0.  (<em>Why?</em>)  Select the map boundary and, using the Split tool (on Editor toolbar), break it into a couple of pieces </li>
+<li>Select an appropriate feature template from the LTYPE list in the <strong>Create Features</strong> pane and start digitizing. Work from younger to older, mostly. 1st line is map boundary; 2nd set of lines might be waterlines; 3rd, boundaries of modified land (if you map any)</li>
+<li>As you work, note whether the width of the grey LocationConfidenceMeters envelope is appropriate.  If not, <ol>
+<li>Right-click on the arc, select <strong>Attributes…</strong>, and change the value of LocationConfidenceMeters</li>
+<li>Next time, select a more appropriate feature template</li>
+</ol>
+</li>
+<li><strong>Editor▼</strong> &gt; <strong>Save Edits</strong> frequently</li>
+<li>At the end of each digitizing session, or whenever you change the source material (lidar, scanned field sheet, aerial image, etc.), set DataSourceID values<ol>
+<li>Open the ContactsAndFaults2k--LTYPE attribute table</li>
+<li>RIght-click on column header DataSourceID and Sort Ascending</li>
+<li>Select rows with no value for DataSourceID</li>
+<li>Use the Field Calculator... to set DataSourceID to an appropriate value<ol>
+<li>Note that you need to double-quote "  " the value, as it is a string</li>
+<li>Value will correspond to an entry (that need not yet exist) in table DataSources</li>
+<li>Value might be "DAS02", or "lidar", or "ESRI World Imagery", or ...</li>
+</ol>
+</li>
+</ol>
+</li>
+</ol>
+<h4 id="c-check-topology">c.  Check topology</h4>
+<p>When you have digitized a number of contacts it is useful to check that they have correct topology (no dangles, no overlaps, no self-intersections) before you make polygons. Topology is not difficult to build from scratch using the ArcGIS Topology wizard, but you may find it easier to use the GeMS <a href="https://github.com/usgs/GeMS_Tools/wiki/GeMS_ToolsDocumentation#make-topology">Make Topology</a> script: </p>
+<ol>
+<li>Open the ArcToolbox window. Expand GeMS Tools. Double-click on <strong>Make Topology</strong>. </li>
+<li>For <strong>Input feature dataset</strong>, select the GeologicMap feature dataset of your geodatabase. <strong>Use MUP rules</strong> may be checked or unchecked--at this point it may be moot, as you may have no map-unit polygons </li>
+<li>
+<p>OK </p>
+</li>
+<li>
+<p>Add the resulting topology class to your map composition  </p>
+<ol>
+<li>Click on the Add Data button on the ArcMap toolbar, navigate to ThisProject.gdb/GeologicMap, and select GeologicMap_topology </li>
+<li>Add </li>
+<li>You will be asked if you wish to add the participating feature classes—select NO </li>
+</ol>
+</li>
+<li>
+<p>If you are not already in Edit mode: In <strong>Table of Contents</strong> pane, right-click on ContactsAndFaults24K--LTYPE and select <strong>Edit Features</strong> &gt; <strong>Start Editing</strong></p>
+</li>
+<li>Pan and zoom around looking for topology errors, or use the Error Inspector window, available on the Topology toolbar. Fix any errors, especially dangles, that will interfere with building polygons </li>
+<li><strong>Editor</strong>▼&gt; <strong>Save Edits</strong></li>
+</ol>
+<h4 id="d-make-and-color-polygons">d. Make and color polygons</h4>
+<ol>
+<li>
+<p>There are at least three ways to <a href="https://github.com/usgs/GeMS_Tools/wiki/MakeColorPolygons#make-polygons">make polygons</a>.  Here we review just one (digitize arcs/build polys as you go) </p>
+<ol>
+<li>If you are not already in edit mode, start editing within the GeologicMap feature dataset</li>
+<li>Select lines that bound one or more polygons-to-be</li>
+<li>Use the Make polygons tool (wrench over box in Advanced Editing toolbar) [[WikiImages/MakePolygonsTool.png]]</li>
+<li>If necessary, select and delete duplicate polygons</li>
+<li>Select each newly-created polygon, right-click and select <strong>Attributes...</strong>, and type in a value for MapUnit. This will be a short (1-4 character) tag that identifies the map unit (for example, modified land = m, hillslope = h, alluvial flat = al, ...). If you are uncertain about the identity of the polygon (for example, it <u>might</u> be a landslide), enter "uncertain" as a value for IdentityConfidence. If you are certain, leave this value blank. </li>
+</ol>
+</li>
+<li>
+<p>While you are in the early stages of developing your map, <a href="https://github.com/usgs/GeMS_Tools/wiki/MakeColorPolygons#color-by-categories-using-mapunit">color MapUnitPolys by categories using MapUnit</a></p>
+</li>
+<li>While still viewing the <strong>Layer Properties</strong> window for MapUnitPolys, go to the <strong>Display</strong> tab and set <strong>Transparent:</strong> to 50% </li>
+<li>While still viewing the <strong>Layer Properties</strong> window, you might wish to click the <strong>Labels</strong> tab, check the box <strong>Label features in this layer</strong>, and set <strong>Label Field:</strong> to MapUnit</li>
+</ol>
+<p><em>These colors and labels are convenient kludges. Eventually you will <a href="https://github.com/usgs/GeMS_Tools/wiki/MakeColorPolygons#match-symbol-to-style">assign Symbol values to each polygon with the Set Symbol Values script and color using these values</a>. Labels will be explicitly calculated and stored, so that we add queries (“?”) to labels for polygons with IdentityConfidence = questionable. You will get a better map graphic if you then convert these labels to annotation so that they can be precisely positioned.</em></p>
+<h4 id="e-save-your-work">e. Save your work</h4>
+<ol>
+<li><strong>Editor</strong>▼&gt; <strong>Save Edits</strong>. <strong>Editor</strong>▼&gt; <strong>Stop Editing</strong></li>
+<li><strong>SAVE</strong> .mxd </li>
+<li><a href="https://github.com/usgs/GeMS_Tools/wiki/GeMS_ToolsDocumentation#compact-and-back-up">Compact and back up</a></li>
+</ol>
+<h4 id="f-repeat-steps-a-e-until-area-is-mapped">f. Repeat steps a-e until area is mapped</h4>
+<h3 id="6-cmu-and-dmu">6. CMU and DMU</h3>
+<p>What are your map units? What are their relations to each other, by age, facies, or otherwise? </p>
+<p>Before you can check the details of map topology (beyond what ArcGIS can natively do), or set final map-unit symbolization and labels, it helps to partly complete the DescriptionOfMapUnits table (DMU). The CorrelationOfMapUnits diagram (CMU), represented in GeMS as a separate feature dataset, corresponds closely to the DMU; most of us find it easier to sketch out the CMU before tackling the DMU. </p>
+<p><a href="https://github.com/usgs/GeMS_Tools/wiki/CMUandDMU">Follow this link</a> for advice on building a CMU and DMU. While you need not complete the DMU at this time, you do need a row for each unit on your map with values of MapUnit, Name, Label, and HierarchyKey. </p>
+<h3 id="7-topology-check">7. Topology Check</h3>
+<p>Run the <strong>Topology Check</strong> script on your database.  <a href="https://github.com/usgs/GeMS_Tools/wiki/TopologyCheck">Follow this link for further instructions</a>. Use these inputs:</p>
+<p>​   <strong>Geodatabase</strong>:  <em>ThisProject</em>.gdb </p>
+<p>​   <strong>Validate topology of all feature datasets (optional)</strong>:   unchecked (default)</p>
+<p>​   <strong>Validate topology of specified datasets (optional)</strong>:  no entries</p>
+<p>​   next 5 check boxes: checked (default)</p>
+<p>​   <strong>Identify short lines, small polys, and sliver polys</strong>: uncheck</p>
+<p>​   <strong>Map scale denominator</strong>: 20000</p>
+<p>​   minima for line length, poly area, and poly width: accept defaults</p>
+<p>​   <strong>Force exit with error</strong>: unchecked (default)</p>
+<h3 id="8-symbolization-and-labeling">8. Symbolization and Labeling</h3>
+<p>At this point your lines may be symbolized primarily via <strong>LTYPE</strong> and your map-unit polys are colored and labled by <strong>MapUnit</strong>. The GeMS default is that all features are symbolized on Symbol, and that MapUnit polys are labeled with <strong>Label</strong>.  <a href="https://github.com/usgs/GeMS_Tools/wiki/SymbolsAndLabels">Follow this link for instructions</a>. </p>
+<h3 id="9-complete-metadata">9. <a href="https://github.com/usgs/GeMS_Tools/wiki/CompleteMetadata">Complete metadata</a></h3>
+<h3 id="10-finalize-database">10. Finalize database</h3>
+<p>​Has the DMU been revised? If yes, insert new values (name, fullname, description, ...). Has unit hierarchy changed? Fix HierarchyKey values.   </p>
+<p>Then follow instructions to <a href="https://github.com/usgs/GeMS_Tools/wiki/FinalizeDatabase">finalize your database</a>.</p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../Make-Color-Polygons/" class="btn btn-neutral float-left" title="Make polygons"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../Complete-Metadata/" class="btn btn-neutral float-right" title="Build Metadata">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+    
+      <span><a href="../Make-Color-Polygons/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../Complete-Metadata/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script>var base_url = '..';</script>
+    <script src="../js/theme_extra.js" defer></script>
+    <script src="../js/theme.js" defer></script>
+      <script src="../search/main.js" defer></script>
+    <script defer>
+        window.onload = function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        };
+    </script>
+
+</body>
+</html>

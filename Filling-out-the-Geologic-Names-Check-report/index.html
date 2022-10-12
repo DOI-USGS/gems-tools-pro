@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><link rel="canonical" href="https://example.com/Filling-out-the-Geologic-Names-Check-report/" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>Filling out the Geologic Names Check report - GeMS documentation</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.5.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Filling out the Geologic Names Check report";
+        var mkdocs_page_input_path = "Filling-out-the-Geologic-Names-Check-report.md";
+        var mkdocs_page_url = "/Filling-out-the-Geologic-Names-Check-report/";
+      </script>
+    
+    <script src="../js/jquery-3.6.0.min.js" defer></script>
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.5.0/highlight.min.js"></script>
+      <script>hljs.initHighlightingOnLoad();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> GeMS documentation
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="..">Home</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Setup</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../Keeping-up-to-date-with-new-releases/">Keeping up to date with new releases</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../Configure-Arc-Map/">Configure ArcMap</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../Hard-Drive-Hygiene/">Hard drive hygiene</a>
+                  </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../GeMS-Tools-Documentation/">Tool reference</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Workflows</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../CMU-and-DMU/">CMU's and DMU's</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../Make-Color-Polygons/">Make polygons</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../Make-New-Geomorphic-Map/">Make new geomorphic map</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Finalize</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../Complete-Metadata/">Build Metadata</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../Topology-Check/">Topology check</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">GeMS documentation</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" alt="Docs"></a> &raquo;</li><li>Filling out the Geologic Names Check report</li>
+    <li class="wy-breadcrumbs-aside">
+    </li>
+  </ul>
+  <hr/>
+</div>
+
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <p>This tool provides a cursory check of formal geologic names applied to geologic units in a GeMS-compliant DescriptionOfMapUnits table (DMU). It allows for the semi-automated comparison of the usage, age, and extent (to the State level) of the unit names in the DMU with the information compiled in the U.S.Geologic Names Lexicon, or <a href="https://ngmdb.usgs.gov/Geolex/search#:~:text=The%20U.S.%20Geologic%20Names%20Lexicon,and%20descriptions%20of%20geologic%20units.">Geolex</a>. </p>
+<p>The script queries Geolex to identify possible matches with any formal geologic names that are among the map unit names in the DMU and then creates a spreadsheet for review by the map author. If submitted to the NGMDB, the secretary of the Geologic Names Committee (GNC) will then evaluate and compile into Geolex the information from the author-provided comments and references and(or) from the map (when published).</p>
+<p>Input to the tool is a DMU table although the table need not be a in a file geodatabase — Excel and CSV files are also acceptable — nor are all GeMS fields required. The minimum fields required are <code>HierarchyKey</code>, <code>MapUnit</code>, <code>Name</code>, <code>FullName</code>, and  <code>Age</code>. In addition, the extent of the map features as one or more comma-separated state abbreviations must be provided.</p>
+<p>The output of the tool is an Excel spreadsheet that reports the results of posting each <code>Name</code> in the DMU to the Geolex search API and is organized into three sections:</p>
+<h4 id="green-dmu-contents">Green - DMU Contents</h4>
+<p>This section shows the contents of the required fields from the DMU. <code>Name</code> is the field first evaluated by the script, but if no Geolex names are found there, <code>Fullname</code> will be evaluated. The other fields are for use by the author when comparing geologic age and extent to the values in Geolex, and to assist in providing some context if clarification of author comments is needed. The values reported in this section, except for <code>Extent</code>, come verbatim from the DMU. Extent is currently collected at runtime through the tool parameter form although it may, in the future, be calculated from features in the geodatabase. </p>
+<h4 id="yellow-geolex-results">Yellow - Geolex Results</h4>
+<p>This section shows selected fields from Geolex: <code>GeolexID</code>, <code>Name</code> (the geographic part of the geologic name), <code>Usage</code>, <code>Age</code>, <code>Extent</code>, and <code>Geolex URL</code>. If multiple usages recorded in Geolex are associated with a single name, all usages and the states in which they are used (i.e., the <code>Extent</code>) are reported. Where that occurs, the value for the DMU HierarchyKey is repeated with an appended incrementing character; those characters serve only to properly re-sort the spreadsheet if the user were to reorganize it.  The URL and Age are listed once for each Geolex Name. </p>
+<p>The value in <code>Usage</code> comes verbatim from Geolex, so it may include parenthetical phrases or symbols which clarify some property of the usage:
+* Asterisk (*) indicates published by U.S. Geological Survey authors.
+* "No current usage" (†) implies that a name has been abandoned or has fallen into disuse. Former usage and, if known, replacement name given in parentheses ( ).
+* Slash (/) indicates name does not conform with nomenclatural guidelines (CSN, 1933; ACSN, 1961, 1970; NACSN, 1983, 2005). This may be explained within brackets ([]).</p>
+<h4 id="orange-author-review">Orange - Author Review</h4>
+<p>This section includes five columns: <code>Extent Match?</code>, <code>Usage Match?</code>, <code>Age Match?</code>, <code>Remarks</code>, and <code>References</code>. If any of the state abbreviations in the DMU Extent value are found in the extent for a usage in Geolex, <code>Extent Match?</code> will be “yes” and, otherwise, “no”. </p>
+<p><code>Usage Match?</code> will need to be evaluated by the author. Enter “yes” for the usage that exactly, or most closely (e.g., is of the same nomenclatural rank), matches the name on the map.</p>
+<p>With this version of the tool, the logic for checking matches of age and status (formal vs informal usages) has not been devised.  Therefore, the author is responsible for determining if a map unit’s geologic age is within the age range specified in Geolex, and for evaluating only those map units that include formal geologic nomenclature.</p>
+<p>If there are no exact matches for Usage, please fill out the row that has the closest match, and indicate <code>Extent/Usage/Age</code> discrepancies in the <code>Remarks</code> field.</p>
+<p>The <code>Remarks</code> field is for the author to explain discrepancies between Geolex and a unit name shown in their DMU.  The <code>References</code> field is for citations that support the explanation.</p>
+<h4 id="guidance-for-the-remarks-and-references-fields">Guidance for the Remarks and Reference(s) fields</h4>
+<h5 id="if-formally-named-geologic-units-in-the-dmu-are-missing-from-geolex">If formally named geologic units in the DMU are missing from Geolex:</h5>
+<p>Please include the original or principal reference  and, if applicable, a reference to the current definition of the geologic unit (e.g., perhaps there have been changes to boundaries, rank, assignment to larger units, subdivisions). </p>
+<p>If, in your DMU or accompanying report or pamphlet, you are already citing any of the references requested here, rather than copy/pasting the information into the References field, please simply note “reference(s) cited in map.” </p>
+<p>If you are proposing a new formal geologic unit, Congratulations! Please also separately notify the Geologic Names Committee (GNC) at <a href="gnc@usgs.gov">gnc@usgs.gov</a>, and estimate when your map will be published.</p>
+<h5 id="differences-in-usage">Differences in Usage:</h5>
+<ul>
+<li>If there are differences in rank, or in the larger unit—please include the reference(s) in which the formally named geologic unit changed rank or was assigned to (or unassigned from) a larger unit.</li>
+<li>If there are differences in usage, notably for formation-rank units (e.g., Dakota Sandstone, Dakota Formation), please indicate if the usage is local or regional.</li>
+</ul>
+<p>If you find a complete match, but you are revising the unit (e.g., changing the upper or lower boundaries), please indicate the nature of the revision in the Remarks field. </p>
+<p>Note that if your map unit name includes two or more formal geologic names (e.g., indicated as “undivided” or “undifferentiated”), they should be listed separately in the results. Please evaluate each geologic name.</p>
+<h5 id="if-the-extent-does-not-match">If the Extent does not match:</h5>
+<p>Please indicate if the formal geologic unit is local (occurs in and around your study area) or regional, and if the State in which you mapped the unit should be added to Geolex’s Extent field.</p>
+<h5 id="if-the-geologic-age-indicated-in-the-dmu-is-not-within-the-age-range-indicated-in-geolex">If the geologic Age indicated in the DMU is not within the age range indicated in Geolex:</h5>
+<p>Please include the reference(s) in which the age of the formal geologic unit was changed. </p>
+<h5 id="regarding-whether-a-unit-has-formal-or-informal-status">Regarding whether a unit has Formal or Informal status:</h5>
+<ul>
+<li>If Informal in the DMU but Formal in Geolex—please include the reference  in which the formally named geologic unit was abandoned. If the geologic unit has never been formally abandoned and is considered informal by your agency, please briefly state reasons.</li>
+<li>If Formal in the DMU but Informal in Geolex—please include the original or principal reference and, if applicable, a reference to the current definition of the geologic unit (e.g., perhaps there have been changes to boundaries, rank, assignment to larger units, subdivisions).</li>
+</ul>
+<p>References should be formal publications, as defined in Article 4 of the 2005 Code (p. 1561), available online at <a href="https://ngmdb.usgs.gov/Geolex/resources/docs/AAPG_Bull-89_NACSN2005-rev2016.pdf">https://ngmdb.usgs.gov/Geolex/resources/docs/AAPG_Bull-89_NACSN2005-rev2016.pdf</a>.</p>
+              
+            </div>
+          </div><footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+    
+    
+  </span>
+</div>
+    <script>var base_url = '..';</script>
+    <script src="../js/theme_extra.js" defer></script>
+    <script src="../js/theme.js" defer></script>
+      <script src="../search/main.js" defer></script>
+    <script defer>
+        window.onload = function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        };
+    </script>
+
+</body>
+</html>

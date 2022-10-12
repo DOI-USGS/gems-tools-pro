@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><link rel="canonical" href="https://example.com/Hard-Drive-Hygiene/" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>Hard drive hygiene - GeMS documentation</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.5.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Hard drive hygiene";
+        var mkdocs_page_input_path = "Hard-Drive-Hygiene.md";
+        var mkdocs_page_url = "/Hard-Drive-Hygiene/";
+      </script>
+    
+    <script src="../js/jquery-3.6.0.min.js" defer></script>
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.5.0/highlight.min.js"></script>
+      <script>hljs.initHighlightingOnLoad();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> GeMS documentation
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="..">Home</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Setup</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../Keeping-up-to-date-with-new-releases/">Keeping up to date with new releases</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../Configure-Arc-Map/">Configure ArcMap</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="./">Hard drive hygiene</a>
+    <ul class="current">
+    </ul>
+                  </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../GeMS-Tools-Documentation/">Tool reference</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Workflows</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../CMU-and-DMU/">CMU's and DMU's</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../Make-Color-Polygons/">Make polygons</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../Make-New-Geomorphic-Map/">Make new geomorphic map</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Finalize</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../Complete-Metadata/">Build Metadata</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../Topology-Check/">Topology check</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">GeMS documentation</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" alt="Docs"></a> &raquo;</li>
+          <li>Setup &raquo;</li><li>Hard drive hygiene</li>
+    <li class="wy-breadcrumbs-aside">
+    </li>
+  </ul>
+  <hr/>
+</div>
+
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="hard-drive-hygiene">Hard drive hygiene</h1>
+<p>Goals:</p>
+<ul>
+<li>Find stuff, both now and in 5 years when you have forgotten everything</li>
+<li>Segregate <em>must-be-backed-up</em> from <em>can-be-replaced</em></li>
+<li>Consistent naming structure (easier to code for, and helps in finding stuff)</li>
+</ul>
+<p>3+ sorts of stuff:</p>
+<ul>
+<li>Tools: GeMS_Tools directory, USGS Symbols2.style, ... <em>can-be-replaced</em>; <em>not specific to any project</em></li>
+<li>Most base-map materials: DEMs, PLSS lines, scans of topo maps, ...  <em>can-be-replaced</em>; <em>some specific to a particular project</em>; <em>often bulky</em></li>
+<li>Geology: vectors (.gdb, .shp, .e00) which incorporate lots of expensive to irreplaceable hand editing, .mxd files with carefully-worked-out symbolization, scans of field sheets, ...  <em>must-be-backed-up</em>; <em>specific to a particular project</em></li>
+</ul>
+<p>Here's a suggested directory structure:</p>
+<pre><code>My_GIS_workspace/
+    Projects/
+        Suquamish/  # or whatever your project name is
+            BaseMaterials/
+                SuquamishBase.gdb/ # clipped hillshade, roads, ... for this map
+                ModifiedDEMs.gdb/
+                myquad.tif
+                myquad.tfw
+            FieldSheetScans/
+            Suquamish.gdb/
+            Suquamish_2017-03-11.gdb/
+            00Notes.docx
+            Suquamish-edit.mxd
+            Suquamish-publish.mxd
+        Tualatin/  # another project
+        ...
+    Resources/
+        DEMs/  # regional library of DEMs, not project-specific
+        GeMS_Tools-2018May03/
+            Docs/
+            Resources/
+            Scripts/
+            .gitignore
+            GeMS_ToolsArc10.tbx
+            GeMS_ToolsArc10.5.tbx
+            LICENSE.md
+            README.md   
+</code></pre>
+<p>Don't use spaces in pathnames. They can be a pain to code around. </p>
+<p>Best to back up everything. But if back-up resources are limited, back up the Projects directory and skip the Resources directory. </p>
+<p>Maintain at least two .mxds, one for editing and analysis and one for publication.  Typically these will be rather different, with a changing,  unstable .mxd for editing and a publication .mxd that records very carefully worked out symbolization.  </p>
+<p>You may find yourself <em>saving as...</em> an .mxd to clear it of accumulated cruft. If you do this, post-pend successively higher numbers to the name (Suquamish-edit2.mxd, Suquamish-edit3.mxd, ...) and always use the one with the highest number. After a while you can delete the old, lower-number versions.</p>
+<p>Don't stuff DEMs or non-Arc objects into your vector geology .gdb directories. An exception: GeMS_Tools <a href="https://github.com/usgs/GeMS_Tools/wiki/GeMS_ToolsDocumentation#create-new-database">Create New Database</a> script places 00logfile.txt in the .gdb and <a href="https://github.com/usgs/GeMS_Tools/wiki/GeMS_ToolsDocumentation#compact-and-backup">Compact and Backup</a> has an option to write to this file. You may want to use 00logfile.txt to supplement the minimal logging that ESRI provides. </p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../Configure-Arc-Map/" class="btn btn-neutral float-left" title="Configure ArcMap"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../GeMS-Tools-Documentation/" class="btn btn-neutral float-right" title="Tool reference">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+    
+      <span><a href="../Configure-Arc-Map/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../GeMS-Tools-Documentation/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script>var base_url = '..';</script>
+    <script src="../js/theme_extra.js" defer></script>
+    <script src="../js/theme.js" defer></script>
+      <script src="../search/main.js" defer></script>
+    <script defer>
+        window.onload = function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        };
+    </script>
+
+</body>
+</html>

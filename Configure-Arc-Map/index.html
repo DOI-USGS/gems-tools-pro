@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><link rel="canonical" href="https://example.com/Configure-Arc-Map/" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>Configure ArcMap - GeMS documentation</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.5.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Configure ArcMap";
+        var mkdocs_page_input_path = "Configure-Arc-Map.md";
+        var mkdocs_page_url = "/Configure-Arc-Map/";
+      </script>
+    
+    <script src="../js/jquery-3.6.0.min.js" defer></script>
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.5.0/highlight.min.js"></script>
+      <script>hljs.initHighlightingOnLoad();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> GeMS documentation
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="..">Home</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Setup</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../Keeping-up-to-date-with-new-releases/">Keeping up to date with new releases</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="./">Configure ArcMap</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#default-to-relative-path-names">Default to relative path names</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#toolbars">Toolbars</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#extensions">Extensions</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#sticky-move-tolerance">Sticky-move tolerance</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#add-gems_tools">Add GeMS_Tools</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#snapping">Snapping</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#fgdc-symbology">FGDC Symbology</a>
+    </li>
+    </ul>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../Hard-Drive-Hygiene/">Hard drive hygiene</a>
+                  </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../GeMS-Tools-Documentation/">Tool reference</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Workflows</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../CMU-and-DMU/">CMU's and DMU's</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../Make-Color-Polygons/">Make polygons</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../Make-New-Geomorphic-Map/">Make new geomorphic map</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Finalize</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../Complete-Metadata/">Build Metadata</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../Topology-Check/">Topology check</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">GeMS documentation</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" alt="Docs"></a> &raquo;</li>
+          <li>Setup &raquo;</li><li>Configure ArcMap</li>
+    <li class="wy-breadcrumbs-aside">
+    </li>
+  </ul>
+  <hr/>
+</div>
+
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="configure-arcmap">Configure ArcMap</h1>
+<p>How you configure ArcMap is a matter of preference. Here are some of mine. </p>
+<p>I strongly encourage you to set a significant <a href="#StickyMoveTolerance">Sticky-move tolerance</a> and enable <a href="#Snapping">Snapping</a>. Other suggestions below are more optional.</p>
+<h3 id="default-to-relative-path-names">Default to relative path names</h3>
+<p>Tap <strong>Customize</strong> on the ArcMap toolbar and select <strong>ArcMap Options...</strong></p>
+<p>[[WikiImages/ArcMapOptions.png]][[WikiImages/RelativePathnames.png]]</p>
+<p>On the <strong>General</strong> tab of the <strong>ArcMap Options</strong> window, ensure that <strong>Make relative paths the default for new map documents</strong> is checked. </p>
+<p>If you have already created a map document without making relative paths the default, you can set relative paths for the document by tapping <strong>File</strong> on the ArcMap toolbar, selecting <strong>Map Document Properties...</strong>, and in the <strong>Map Document Properties</strong> window checking <strong>Store relative pathnames to data sources</strong> (near bottom of window).</p>
+<h3 id="toolbars">Toolbars</h3>
+<p>Tap <strong>Customize</strong> on the ArcMap toolbar again, and select Toolbars. I choose to work with the following always enabled:</p>
+<ul>
+<li>Advanced Editing</li>
+<li>Editor</li>
+<li>Snapping</li>
+<li>Standard</li>
+<li>Tools</li>
+<li>Topology</li>
+</ul>
+<h3 id="extensions">Extensions</h3>
+<p>They are not generally relevant to GeMS, but I like to have <strong>3D Analyst</strong> and <strong>Spatial Analyst</strong> enabled.</p>
+<h3 id="sticky-move-tolerance"><a name="StickyMoveTolerance"></a>Sticky-move tolerance</h3>
+<p>On Editor toolbar, click Editor dropdown and select Options</p>
+<p>[[WikiImages/EditorOptions.png]][[WikiImages/StickyMove.png]]</p>
+<p>In the <strong>Editing Options</strong> window, on the <strong>General</strong> tab, set <strong>Sticky move tolerance:</strong> to some moderately large number (20 in the example here).  <em>If you leave it at zero, it is very easy to inadvertently move features while selecting them!</em> This can be a disaster if you, for example, move map-unit polygons relative to their bounding contacts. </p>
+<h3 id="add-gems_tools">Add GeMS_Tools</h3>
+<p>Open the <strong>ArcToolbox</strong> window </p>
+<p>[[WikiImages/ArcToolbox.png]]</p>
+<p>and right-click on an empty area to </p>
+<p>[[WikiImages/AddToolbox.png]] </p>
+<p>to bring up the Add Toolbox window. </p>
+<p>In the Add Toolbox window, navigate to your GeMS_Tools directory </p>
+<p>[[WikiImages/AddToolboxWindow.png]]</p>
+<p>and select the appropriate toolbox (.tbx) file: <strong>GeMS_ToolsArc10.5.tbx</strong> if you are using ArcGIS 10.5 or higher, <strong>GeMS_ToolsArc10.tbx</strong> if you are using Arc 10--Arc 10.4. </p>
+<p>I then usually right-click again on an empty area of the <strong>ArcToolbox</strong> window and <strong>Save Settings... To Default</strong>. But this seems to make little difference!  I find I usually have to re-add GeMS_Tools whenever I open an .mxd.</p>
+<h3 id="snapping"><a name="Snapping"></a>Snapping</h3>
+<p>Load an editable feature class, such as ContactsAndFaults. Start Editing. On the Snapping toolbar, hit the dropdown and ensure that <strong>Use Snapping</strong> is checked (red below). You may want to also check <strong>Snap to Sketch</strong> (blue below) so that single-arc loops can snap to themselves.</p>
+<p>[[WikiImages/Snapping.png]]</p>
+<h3 id="fgdc-symbology">FGDC Symbology</h3>
+<p>The GeMS schema does not require the use of any particular symbols.  But we encourage you to use the symbols defined in <a href="https://ngmdb.usgs.gov/fgdc_gds/">FGDC Digital Cartographic Standard for Geologic Map Symbolization</a>, FGDC-STD-013-2006.  These are, for the most part, implemented in </p>
+<ul>
+<li><a href="https://ngmdb.usgs.gov/Info/standards/GeMS/docs/GSC_FGDC-style.zip">style file created by Geological Survey of Canada</a> (5.7 MB, requires administrator privileges to install included fonts) </li>
+<li><a href="https://ngmdb.usgs.gov/Info/standards/GeMS/docs/AKDGGS-style_10-2013.zip">style file created by Alaska Division of Geological and Geophysical Surveys</a> (33.4 MB, no font installation required)</li>
+<li><a href="https://github.com/usgs/GeMS_Tools/blob/master/Resources/USGS_Symbols2.zip">USGS Symbols2.style</a>, included in the Resources directory of GeMS_Tools. This style combines the GSC implementation of the FGDC symbols and the WPGCMYK shadeset (fill colors).  Requires administrator privileges to install the FGDCGeoSym fonts which are included in the zip file</li>
+</ul>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../Keeping-up-to-date-with-new-releases/" class="btn btn-neutral float-left" title="Keeping up to date with new releases"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../Hard-Drive-Hygiene/" class="btn btn-neutral float-right" title="Hard drive hygiene">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+    
+      <span><a href="../Keeping-up-to-date-with-new-releases/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../Hard-Drive-Hygiene/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script>var base_url = '..';</script>
+    <script src="../js/theme_extra.js" defer></script>
+    <script src="../js/theme.js" defer></script>
+      <script src="../search/main.js" defer></script>
+    <script defer>
+        window.onload = function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        };
+    </script>
+
+</body>
+</html>

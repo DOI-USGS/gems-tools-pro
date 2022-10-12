@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><link rel="canonical" href="https://example.com/Symbols-And-Labels/" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>Symbols And Labels - GeMS documentation</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.5.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Symbols And Labels";
+        var mkdocs_page_input_path = "Symbols-And-Labels.md";
+        var mkdocs_page_url = "/Symbols-And-Labels/";
+      </script>
+    
+    <script src="../js/jquery-3.6.0.min.js" defer></script>
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.5.0/highlight.min.js"></script>
+      <script>hljs.initHighlightingOnLoad();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> GeMS documentation
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="..">Home</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Setup</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../Keeping-up-to-date-with-new-releases/">Keeping up to date with new releases</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../Configure-Arc-Map/">Configure ArcMap</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../Hard-Drive-Hygiene/">Hard drive hygiene</a>
+                  </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../GeMS-Tools-Documentation/">Tool reference</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Workflows</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../CMU-and-DMU/">CMU's and DMU's</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../Make-Color-Polygons/">Make polygons</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../Make-New-Geomorphic-Map/">Make new geomorphic map</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Finalize</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../Complete-Metadata/">Build Metadata</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../Topology-Check/">Topology check</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">GeMS documentation</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" alt="Docs"></a> &raquo;</li><li>Symbols And Labels</li>
+    <li class="wy-breadcrumbs-aside">
+    </li>
+  </ul>
+  <hr/>
+</div>
+
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <p>The GeMS default is that all features are symbolized on Symbol and that MapUnit polys are labeled with <strong>Label</strong>.  One can automate the placement of dip and inclination numbers. </p>
+<p>These instructions cover the standard GeMS feature classes ContactsAndFaults, GeologicLines, MapUnitPolys, and OrientationPoints in the GeologicMap feature dataset. Use your judgment and imagination to extend the instructions to other feature classes and other feature datasets. </p>
+<h3 id="a-supply-missing-type-mapunit-and-confidence-values">a. Supply missing Type, MapUnit, and confidence values</h3>
+<p>Step through ContactsAndFaults, MapUnitPolys, GeologicLines (if present), and OrientationPoints (if present). For each feature class,</p>
+<ol>
+<li>If necessary, <strong>Edit Features</strong> &gt; <strong>Start Editing</strong></li>
+<li><strong>Open Attribute Table</strong></li>
+<li>For attributes Type, MapUnit, IdentifyConfidence, ExistenceConfidence, LocationConfidenceMeters, and OrientationConfidenceDegrees:</li>
+<li>If attribute is present in the feature class, right-click on column header and <strong>Sort Ascending</strong> </li>
+<li>If empty or null values are present, fill them in appropriately. This may require a bit of sleuthing</li>
+<li><strong>Editor</strong>▼&gt; <strong>Save Edits</strong></li>
+</ol>
+<h3 id="b-run-set-symbol-values-script">b. Run <strong>Set Symbol Values</strong> script</h3>
+<p>The GeMS_Tools <a href="https://github.com/usgs/GeMS_Tools/wiki/GeMS_ToolsDocumentation#SetSymbolValues"><strong>Set Symbol Values</strong></a> script calculates scale- and confidence-appropriate values of Symbol that reference the GSC  and Alaska DGGS implementations of the FGDC digital geologic map symbolization standard. It works on feature classes ContactsAndFaults, GeologicLines, and OrientationPoints. If <strong>Set polygon symbols and labels</strong> is checked, the script will also assign values of Symbol and Label defined in the DMU table to each polygon in MapUnitPolys and append "?" to labels of polygons with IdentityConfidence = "questionable".  </p>
+<p>If <strong>Set Symbol Values</strong> finds unrecognized Type values, you may either:</p>
+<ol>
+<li>Edit  your local copy of <strong>Type-FgdcSymbol.txt</strong> (in the <strong>Resources</strong> folder of your <strong>GeMS_Tools</strong> folder) to include additional Type values and corresponding FGDC symbol identifiers, then re-run <strong>Set Symbol Values</strong>, or</li>
+<li>Add missing Symbol values by hand-editing the relevant feature class attribute table</li>
+</ol>
+<h3 id="c-if-feature-class-orientationpoints-is-present-and-has-rows">c. If feature class OrientationPoints is present and has rows</h3>
+<ol>
+<li>
+<p>Run GeMS_Tools script <a href="https://github.com/usgs/GeMS_Tools/wiki/GeMS_ToolsDocumentation#SetPlotAtScaleValues"><strong>Set PlotAtScale Values</strong></a>. Once you have run this script, you may add a definition query to the OrientationPoints feature class:</p>
+<p><code>[PlotAtScale] &gt;= MapScale</code></p>
+</li>
+</ol>
+<p>This will thin any too-close bedding, foliation, joint, etc, features to a density appropriate for the given map scale</p>
+<ol>
+<li>Run the GeMS_Tools <a href="https://github.com/usgs/GeMS_Tools/wiki/GeMS_ToolsDocumentation#InclinationNumbers"><strong>Inclination Numbers</strong></a> script. <strong>Inclination Numbers</strong> assumes that values of PlotAtScale exist and are appropriate! The script will </li>
+<li>Create a new point feature class OrientationPointLabels with attributes OrientationPointsID, Inclination, and PlotAtScale. All of these are taken from OrientationPoints. Positions for these points are taken from the corresponding OrientationPoints position with an offset that is calculated from the map scale, Azimuth (in OrientationPoints), and whether the point corresponds to a linear (lineation, fold axis) or planar (bedding, foliation) feature. Points are not created for OrientationPoints features with Type values that contain "horizontal" or "vertical"</li>
+<li>Creates and installs a layer that symbolizes these dip and plunge numbers</li>
+</ol>
+<h3 id="d-you-may-wish-to-reset-symbolization-for-your-map-document">d. You may wish to reset symbolization for your map document</h3>
+<p>Symbolization and labeling as described here are likely more appropriate for a publication graphic than for editing the database. Thus your next step may be, while your .mxd for editing (<em>ThisProject-edit.mxd</em>) is open in ArcMap, to <strong>Save As...</strong> <em>ThisProject-publication.mxd</em>. </p>
+<ol>
+<li>
+<p>For ContactsAndFaults, add a new layer to your map composition</p>
+<ol>
+<li><strong>Add Data</strong>, ContactsAndFaults from <em>ThisProject.gdb/GeologicMap</em></li>
+<li>On the new ContactsAndFaults layer, right-click and select <strong>Properties...</strong></li>
+<li>On the <strong>Symbolization</strong> tab, under <strong>Show:</strong>, select <strong>Categories</strong>, <strong>Match to symbols in a style</strong>. Set <strong>Value Field</strong> to Symbol. Under <strong>Match to symbols in Style</strong>, select (or <strong>Browse...</strong> to) USGS Symbols2.style. Click <strong>Match Symbols</strong>. <strong>OK</strong> to exit the Layer Properties window </li>
+<li>You can now choose to symbolize on multiple attributes (ContactsAndFaults14k.lyr group) or with publication symbology  (the new ContactsAndFaults layer). Or both, which is ugly</li>
+</ol>
+</li>
+<li>
+<p>If you have a GeologicLines layer, make similar changes </p>
+</li>
+<li>
+<p>Right-click on MapUnitPolys layer and select <strong>Properties...</strong></p>
+<ol>
+<li>On the <strong>Symbology</strong> tab, <strong>Show:</strong>, select <strong>Categories, Match to symbols in a style</strong>. Set <strong>Value Field</strong> to Symbol.  Under <strong>Match to symbols in Style</strong>, select (or <strong>Browse...</strong> to) USGS Symbols2.style. Click <strong>Match Symbols</strong></li>
+<li>For labels, you have some choices<ol>
+<li>On the <strong>Labels</strong> tab of the <strong>Layer Properties</strong> window, check <strong>Label features in this layer</strong>. Set <strong>Label Field:</strong> to Label. Make any changes to <strong>Placement Properties...</strong>, <strong>Scale Range...</strong>, etc.) you think necessary. <strong>OK</strong> to exit. <em>Or</em></li>
+<li>Add a new MapUnitPolys layer to your map composition. Rename the layer to MapUnitPolys--labels. In <strong>Layer Properties</strong> window, on the <strong>Symbology</strong> tab, <strong>Show:</strong> <strong>Features Single Symbol</strong>. Set the symbol to no color, no border color, border width = 0. On the <strong>Labels</strong> tab, check the box and set <strong>Label Field:</strong> to Label.  Go to the <strong>Definition Query</strong> tab and build a query that selects polys with Shape_Area larger than some minimum value. <strong>OK</strong></li>
+<li>Add multiple MapUnitPolys--labels layers. (Group them.)  Set different definition queries for each layer so that as you zoom in more and more polys are labeled. </li>
+</ol>
+</li>
+</ol>
+</li>
+<li>
+<p>If there are rows in feature class OrientationPoints:</p>
+</li>
+<li>On the OrientationPoints layer, right-click and select <strong>Properties...</strong></li>
+<li>On the <strong>Symbolization</strong> tab, under <strong>Show:</strong>, select <strong>Categories</strong>, <strong>Match to symbols in a style</strong>. Set <strong>Value Field</strong> to Symbol. Under <strong>Match to symbols in Style</strong>, select (or <strong>Browse...</strong> to) USGS Symbols2.style. Click <strong>Match Symbols</strong></li>
+<li>Set symbol rotation. Still on the <strong>Symbolization</strong> tab, at the lower right, click on <strong>Advanced▼</strong>&gt; <strong>Rotation...</strong> to open the <strong>Rotate</strong> window. Ensure that <strong>Rotation Style:</strong> is <strong>Geographic</strong>. Set <strong>Rotate Points by Angle in this field:</strong> to Azimuth. <strong>OK</strong> to exit the <strong>Rotate</strong> window</li>
+<li>
+<p><strong>OK</strong> to exit the Layer Properties window </p>
+</li>
+<li>
+<p><strong>Save</strong></p>
+</li>
+</ol>
+<p>​    </p>
+              
+            </div>
+          </div><footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+    
+    
+  </span>
+</div>
+    <script>var base_url = '..';</script>
+    <script src="../js/theme_extra.js" defer></script>
+    <script src="../js/theme.js" defer></script>
+      <script src="../search/main.js" defer></script>
+    <script defer>
+        window.onload = function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        };
+    </script>
+
+</body>
+</html>

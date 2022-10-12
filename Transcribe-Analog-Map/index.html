@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><link rel="canonical" href="https://example.com/Transcribe-Analog-Map/" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>Transcribe Analog Map - GeMS documentation</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.5.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Transcribe Analog Map";
+        var mkdocs_page_input_path = "Transcribe-Analog-Map.md";
+        var mkdocs_page_url = "/Transcribe-Analog-Map/";
+      </script>
+    
+    <script src="../js/jquery-3.6.0.min.js" defer></script>
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.5.0/highlight.min.js"></script>
+      <script>hljs.initHighlightingOnLoad();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> GeMS documentation
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="..">Home</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Setup</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../Keeping-up-to-date-with-new-releases/">Keeping up to date with new releases</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../Configure-Arc-Map/">Configure ArcMap</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../Hard-Drive-Hygiene/">Hard drive hygiene</a>
+                  </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../GeMS-Tools-Documentation/">Tool reference</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Workflows</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../CMU-and-DMU/">CMU's and DMU's</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../Make-Color-Polygons/">Make polygons</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../Make-New-Geomorphic-Map/">Make new geomorphic map</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Finalize</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../Complete-Metadata/">Build Metadata</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../Topology-Check/">Topology check</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">GeMS documentation</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" alt="Docs"></a> &raquo;</li><li>Transcribe Analog Map</li>
+    <li class="wy-breadcrumbs-aside">
+    </li>
+  </ul>
+  <hr/>
+</div>
+
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <p>Transcribing an existing analog map is similar to <a href="https://github.com/usgs/GeMS_Tools/wiki/MakeNewGeomorphicMap">making a new map</a> (heads-up digitizing). but without the need to think about earth history. And it is similar to translating an existing digital map in that most of the text material (map-unit descriptions, Type definitions) can be copied and pasted, perhaps with a bit of OCR thrown in. </p>
+<h3 id="1-inventory-the-map">1. Inventory the map</h3>
+<p>What feature classes will you need? Are there any cross sections? Will you digitize a <em>Correlation of Map Units</em> diagram, or save it as an image file?  Make a list of the database elements you will need. </p>
+<p>Does the <em>Explanation of Symbols</em> accurately reflect the kinds of features on the map, or will you have to add other feature types? If you will need additional feature types, note them. </p>
+<p>Where do map unit descriptions reside? Are they on the map sheet, in a separate pamphlet, or missing? Are they available as machine-comprehensible text, or will you need to feed an image of the text to Optical Character Recognition (OCR) software?  </p>
+<p>If OCR is in order, do you have OCR software?  It may be available to you in Adobe Acrobat, or perhaps it was bundled with your all-in-one printer driver.  If you need OCR software and don't have it, search the web. Free stuff (may mean lots of ads) is available. </p>
+<h3 id="2-start-arcmap-select-reference-map-and-projection-create-empty-database">2. Start ArcMap, select reference map and projection, create empty database</h3>
+<ol>
+<li>
+<p>Make a new folder for this project if you haven't done so already. See <a href="https://github.com/usgs/GeMS_Tools/wiki/HardDriveHygiene">Hard Drive Hygiene</a></p>
+</li>
+<li>
+<p><a href="https://github.com/usgs/GeMS_Tools/wiki/ConfigureArcMap">Configure ArcMap</a>, if you haven't already</p>
+</li>
+<li>
+<p>Is your geologic-map image registered or not?</p>
+</li>
+<li>
+<p>If yes (for example, you have downloaded a GeoTiff from <a href="https://ngmdb.usgs.gov/mapview/">NGMDB MapView</a>), add the registered geologic map image to your map composition (which will set the dataframe projection) and skip to step b.3</p>
+</li>
+<li>
+<p>If not, to what will you georeference the map image? (I do not recommend generating tics.) <em>For small areas (a 7.5' quad), the choice of projection at this step is generally not critical: using the right UTM zone is good enough. For larger areas (a 1:250,000-scale map), you should register the map image to a base that is in the same projection as the map image</em> </p>
+<ol>
+<li>
+<p>Georeference to the topographic map that matches (or a map that is similar to) the geologic map:</p>
+<p>Go to <a href="https://ngmdb.usgs.gov/topoview/viewer/#4/40.01/-99.93">NGMDB TopoView</a>. Navigate to your area, zoom in, filter/search as needed, and select a map. Download the GeoTiff version. Unzip. Add the map to your map composition. This will set the dataframe projection to something appropriate, give you lots of registration points, and provide a base map</p>
+</li>
+<li>
+<p>Georeference to something else, perhaps one of Esri's base maps available via <strong>Add Data▼</strong> &gt; <strong>Add Basemap...</strong></p>
+<p>Add the basemap of choice to your map composition. Is Web Mercator a suitable projection for your geologic map? (Probably not if it is a small-scale map that covers a large area)</p>
+<ol>
+<li>If yes, go to step b.3</li>
+<li>If not, right-click somewhere in the map window, select <strong>Data Frame Properties...</strong>, and go to the <strong>Coordinate System</strong> tab. Select an appropriate map projection. <strong>OK</strong></li>
+</ol>
+</li>
+</ol>
+</li>
+<li>
+<p>Run the GeMS Tools <a href="https://github.com/usgs/GeMS_Tools/wiki/GeMS_ToolsDocumentation#CreateNewDatabase">Create New Database</a> script.  For <strong>Spatial reference system</strong>, click on the select button (finger pointing to list, at right), expand the <strong>Layers</strong> option and take the offered choice. Add any optional feature classes, tables, and feature datasets you identified when you inventoried the map.  You probably don't need edit tracking. Check <strong>Add LTYPE and PTTYPE</strong>. Leave <strong>Add standard confidence values</strong> checked</p>
+</li>
+<li>
+<p><strong>Save</strong></p>
+</li>
+</ol>
+<h3 id="3-create-templates-for-map-features">3. Create templates for map features</h3>
+<p>Create a library of feature templates that correspond to the feature types present in the map you are transcribing. You should be able to use the <em>Explanation of Symbols</em> on the map as a guide to what you need. </p>
+<ol>
+<li>Add the ContactsAndFaults feature class from your new database to your map composition. Right-click on the new layer and select <strong>Edit Features</strong> &gt; <strong>Start Editing</strong>. Go to <strong>Create Features</strong> window. If it is not available, <strong>Editor▼</strong> &gt; <strong>Editing Windows</strong> &gt; <strong>Create Features</strong>.</li>
+</ol>
+<p>![1525556785636]  (C:\Users\rhaugerud\Code\GeMS_Tools.wiki\WikiImages\CreateFeatures1.png)</p>
+<p>Right-click on the ContactsAndFaults template and select Copy. Double-click on the newly-created template. </p>
+<p><img alt="1525556841629" src="C:\Users\rhaugerud\Code\GeMS_Tools.wiki\WikiImages\TemplatePropertiesCopy.png" /></p>
+<p>Edit these properties. Set <strong>Name:</strong> to a line type (for example, "fault, concealed", or "approximate contact") in the map you are transcribing. Set <strong>LTYPE</strong> to the same value. I find it helpful to pick names that alphabetize into an easily-comprehended order. </p>
+<p>Set as many of the GeMS attributes as you can: if the LTYPE is "fault" and this is a 1:24,000-scale map, Type = "fault", IsConcealed = "N", LocationConfidenceMeters = "24", ExistenceConfidence = "certain", IdentityConfidence = "certain".  Symbol = "02.01.01". DataSourceID might be "USGS I-854B" (if you are transcribing USGS I-854B). </p>
+<p>Repeat until you have made templates for all the varieties of line identified in the map explanation that will be transcribed into ContactsAndFaults.</p>
+<p>Using these templates, digitize lines, one line for each template. These can be arbitrary, bogus lines that you soon delete, or--if convenient--lines present on the source map that you will keep.</p>
+<p>Open the <strong>Layer Properties</strong> window for the ContactsAndFaults layer. Go to the <strong>Symbolization</strong> tab, and under <strong>Show:</strong> select <strong>Categories - Unique values</strong>. Set the <strong>Value</strong> Field to LTYPE. <strong>Add All Values</strong>.  For each row, double-click on the symbol shown and change it to something useful. This will reset the Drawing Symbol in the feature template. </p>
+<p>If your lines were bogus, select and delete them. </p>
+<ol>
+<li>Ditto GeologicLines, GeochronPoints, etc., as necessary</li>
+</ol>
+<p>Make templates for each feature class into which you will be digitizing feature, following the steps above.</p>
+<p>OrientationPoints gets one more step.  In the <strong>Layer Properties</strong> window, at the <strong>Symbolization</strong> tab, hit the <strong>Advanced▼</strong> dropdown, select <strong>Rotation...</strong>, and set <strong>Rotation Style:</strong> to <strong>Geographic</strong> and <strong>Rotate Points by Angle in this field:</strong> to Azimuth. </p>
+<ol>
+<li>No templates for MapUnitPolys</li>
+</ol>
+<p>Because we won't digitize polygons directly. Rather, we will construct them from ContactsAndFaults lines. </p>
+<ol>
+<li><strong>Save</strong> .mxd</li>
+</ol>
+<h3 id="4-heads-up-digitize-making-polys-as-you-go">4. Heads-up digitize, making polys as you go</h3>
+<p>See steps <a href="https://github.com/usgs/GeMS_Tools/wiki/MakeNewGeomorphicMap#b.-digitize-contacts">5b</a>, <a href="https://github.com/usgs/GeMS_Tools/wiki/MakeNewGeomorphicMap#c.-check-topology">5c</a>, and <a href="https://github.com/usgs/GeMS_Tools/wiki/MakeNewGeomorphicMap#d.-make-and-color-polygons">5d</a> in <a href="https://github.com/usgs/GeMS_Tools/wiki/MakeNewGeomorphicMap">MakeNewGeomorphicMap</a>. </p>
+<p>Save your work! </p>
+<ol>
+<li><strong>Editor</strong>▼&gt; <strong>Save Edits</strong></li>
+<li><strong>Editor</strong>▼&gt; <strong>Stop Editing</strong></li>
+<li><strong>Save</strong> .mxd </li>
+<li><a href="https://github.com/usgs/GeMS_Tools/wiki/GeMS_ToolsDocumentation#compact-and-back-up">Compact and back up</a></li>
+</ol>
+<h3 id="5-set-datasourceids-and-datasources-entry">5. Set DataSourceIDs and DataSources entry</h3>
+<p>If you have not <a href="#c.-create-templates-for-map-features">set DataSourceID values with feature templates</a>, start editing, open feature attribute tables, and use the Field Calculator to set DataSourceID (and OrientationSourceID, AnalysisSourceID, etc.) values.   </p>
+<p>Table DataSources will probably have only one entry. <strong>DataSources_ID</strong> should correspond to the DataSourceID you gave to map features. <strong>Source</strong> should be a complete reference to the map you are transcribing.  <strong>Notes</strong> should include a statement <em>Transcribed by yourname from a georeferenced image of the source map, with RMSE = xx meters.</em>  State that you assigned LCM values, and why you chose the values you did.  If you chose to not transcribe certain classes of features (isograds, borrow pits), state which classes of features you did not transcribe. </p>
+<h3 id="6-cmu-and-dmu">6. <a href="https://github.com/usgs/GeMS_Tools/wiki/CMUandDMU">CMU and DMU</a></h3>
+<h3 id="7-topology-check">7. <a href="https://github.com/usgs/GeMS_Tools/wiki/TopologyCheck">Topology Check</a></h3>
+<h3 id="8-complete-metadata">8. <a href="https://github.com/usgs/GeMS_Tools/wiki/CompleteMetadata">Complete metadata</a></h3>
+<h3 id="9-finalize-database">9. <a href="https://github.com/usgs/GeMS_Tools/wiki/FinalizeDatabase">Finalize database</a></h3>
+              
+            </div>
+          </div><footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+    
+    
+  </span>
+</div>
+    <script>var base_url = '..';</script>
+    <script src="../js/theme_extra.js" defer></script>
+    <script src="../js/theme.js" defer></script>
+      <script src="../search/main.js" defer></script>
+    <script defer>
+        window.onload = function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        };
+    </script>
+
+</body>
+</html>

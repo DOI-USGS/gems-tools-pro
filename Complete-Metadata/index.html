@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><link rel="canonical" href="https://example.com/Complete-Metadata/" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>Build Metadata - GeMS documentation</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.5.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Build Metadata";
+        var mkdocs_page_input_path = "Complete-Metadata.md";
+        var mkdocs_page_url = "/Complete-Metadata/";
+      </script>
+    
+    <script src="../js/jquery-3.6.0.min.js" defer></script>
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.5.0/highlight.min.js"></script>
+      <script>hljs.initHighlightingOnLoad();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> GeMS documentation
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="..">Home</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Setup</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../Keeping-up-to-date-with-new-releases/">Keeping up to date with new releases</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../Configure-Arc-Map/">Configure ArcMap</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../Hard-Drive-Hygiene/">Hard drive hygiene</a>
+                  </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../GeMS-Tools-Documentation/">Tool reference</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Workflows</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../CMU-and-DMU/">CMU's and DMU's</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../Make-Color-Polygons/">Make polygons</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../Make-New-Geomorphic-Map/">Make new geomorphic map</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Finalize</span></p>
+              <ul class="current">
+                  <li class="toctree-l1 current"><a class="reference internal current" href="./">Build Metadata</a>
+    <ul class="current">
+    </ul>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../Topology-Check/">Topology check</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">GeMS documentation</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" alt="Docs"></a> &raquo;</li>
+          <li>Finalize &raquo;</li><li>Build Metadata</li>
+    <li class="wy-breadcrumbs-aside">
+    </li>
+  </ul>
+  <hr/>
+</div>
+
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <p>GeMS stores metadata at three levels:</p>
+<ol>
+<li>Per-feature metadata</li>
+</ol>
+<p>These include values of DataSourceID, ExistenceConfidence, IdentityConfidence, and LocationConfidenceMeters. </p>
+<ol>
+<li>Internal metadata dictionaries</li>
+</ol>
+<p>Tables DataSources and Glossary are metadata. So are DescriptionOfMapUnits and the Correlation of MapUnits diagram, but we treat them separately.</p>
+<ol>
+<li>Formal metadata for ArcGIS objects (geodatabase, feature dataset, feature class, table)</li>
+</ol>
+<h3 id="what-you-should-do">What you should do:</h3>
+<ol>
+<li>
+<p>Keep track of DataSourceID values as you create and (or) import features. In general, for a multi-source map, it is often difficult to reconstruct data sources after the fact. Use of editor tracking, and the resulting time stamp for feature creation, can help</p>
+</li>
+<li>
+<p>Run <a href="https://github.com/usgs/GeMS_Tools/wiki/GeMS_ToolsDocumentation#ValidateDatabase">Validate Database</a> script</p>
+</li>
+<li>
+<p>Fix missing values (except for xxxID values)</p>
+</li>
+<li>Add missing entries to tables DataSources and Glossary. Remove unused entries</li>
+<li>Run the <a href="https://github.com/usgs/GeMS_Tools/wiki/GeMS_ToolsDocumentation#(re)SetIDValues">(re)Set ID Values</a> script</li>
+<li>
+<p>Repeat until there are no problems with missing values, unused entries, or duplicate ID values</p>
+</li>
+<li>
+<p>Fire up the Metadata Wizard (https://github.com/usgs/fort-pymdwizard) to create a formal metadata record for the geodatabase as a whole.  Much of the required material is present within a GeMS database, in the file <a href="https://github.com/usgs/GeMS_Tools/Scripts/GeMS_Definitions.py">GeMS_Definitions.py</a>, and in the GeMS documentation. I (RH) have a half-finished set of scripts to extract this material and supply it to the Metadata Wizard, but it's nowhere near ready</p>
+</li>
+</ol>
+<p>A couple of suggestions:</p>
+<ol>
+<li>Many geologic-map databases are parts of a larger work, and should be cited as such. Besides providing intellectual context and more complete bibliographic data, this allows more-visible credit for the creator of the database  </li>
+<li>In the Supplemental Information section, note that this is a GeMS database and provide a link to http://ngmdb.usgs.gov/Info/standards/GeMS </li>
+</ol>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../Make-New-Geomorphic-Map/" class="btn btn-neutral float-left" title="Make new geomorphic map"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../Topology-Check/" class="btn btn-neutral float-right" title="Topology check">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+    
+      <span><a href="../Make-New-Geomorphic-Map/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../Topology-Check/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script>var base_url = '..';</script>
+    <script src="../js/theme_extra.js" defer></script>
+    <script src="../js/theme.js" defer></script>
+      <script src="../search/main.js" defer></script>
+    <script defer>
+        window.onload = function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        };
+    </script>
+
+</body>
+</html>

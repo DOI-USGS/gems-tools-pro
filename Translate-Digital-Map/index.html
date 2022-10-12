@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><link rel="canonical" href="https://example.com/Translate-Digital-Map/" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>Translate Digital Map - GeMS documentation</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.5.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Translate Digital Map";
+        var mkdocs_page_input_path = "Translate-Digital-Map.md";
+        var mkdocs_page_url = "/Translate-Digital-Map/";
+      </script>
+    
+    <script src="../js/jquery-3.6.0.min.js" defer></script>
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.5.0/highlight.min.js"></script>
+      <script>hljs.initHighlightingOnLoad();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> GeMS documentation
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="..">Home</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Setup</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../Keeping-up-to-date-with-new-releases/">Keeping up to date with new releases</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../Configure-Arc-Map/">Configure ArcMap</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../Hard-Drive-Hygiene/">Hard drive hygiene</a>
+                  </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../GeMS-Tools-Documentation/">Tool reference</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Workflows</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../CMU-and-DMU/">CMU's and DMU's</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../Make-Color-Polygons/">Make polygons</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../Make-New-Geomorphic-Map/">Make new geomorphic map</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Finalize</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../Complete-Metadata/">Build Metadata</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../Topology-Check/">Topology check</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">GeMS documentation</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" alt="Docs"></a> &raquo;</li><li>Translate Digital Map</li>
+    <li class="wy-breadcrumbs-aside">
+    </li>
+  </ul>
+  <hr/>
+</div>
+
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <p>Translating an existing digital dataset into the GeMS schema can be relatively straightforward. Inventory the dataset to determine which elements will be needed in the equivalent GeMS database, make an empty database, load features into the new database, and (mostly) copy and paste to create metadata tables that are internal to GeMS. </p>
+<h3 id="1-inventory-and-plan">1. Inventory and plan</h3>
+<p>What feature classes will you need? If there are strike-and-dip measurements in the dataset, <em>OrientationPoints</em> will be needed. If there are age sample locations and analyses in the dataset, some variant of <em>GeochronPoints</em> will be needed. Structure contours dictate the use of <em>IsoValueLines</em>. And so on. Perhaps the dataset includes elements not provided for in any of the feature classes or tables defined in GeMS_definitions.py, and you will need to elaborate something new. Do not create alternate feature classes or tables for data that can be incorporated into standard GeMS containers. </p>
+<p>Are the default GeMS attributes for these feature classes sufficient, or do you need to add additional attributes?  </p>
+<p>Watch for variable-type incompatibilities. If GeMS declares an field to be a floating point number (e.g., Azimuth), you will be unable to load string values into it--you may need to create a temporary string field ("AziStr"), LOAD string data into it, and then calculate Azimuth = float(!AziStr!) (Python interpreter).</p>
+<p>Tables (and feature classes, shapefiles) that contain multiple fields for information that GeMS stores in incompatible fields, or in a single field, present a special challenge. In general, you can</p>
+<ol>
+<li>Add the input fields to the GeMS table. LOAD data into the table. Use Field Calculator (or code, or hand editing) to translate input field values into GeMS field values. Delete the input fields</li>
+</ol>
+<p>or</p>
+<ol>
+<li>Add LTYPE, PTYPE, and PTTYPE fields to the empty GeMS database. Add a surrogate field to the input table. Using Field Calculator, calc SurrogateField = str(!InputFieldA!)+'_'_str(!InputFieldB!) ...  Load data, mapping SurrogateField into LTYPE, PTYPE, or PTTYPE, as appropriate. Then use Field Calculator, your own code, or Attribute By Key Value script to assign appropriate values to GeMS fields. Delete LTYPE, PTYPE, and (or) PTTYPE fields</li>
+</ol>
+<h3 id="2-make-empty-database-load-features">2. Make empty database, load features</h3>
+<p>With your list of needed feature classes, feature datasets, and tables at hand, run the GeMS <a href="https://github.com/usgs/GeMS_Tools/wiki/GeMS_ToolsDocumentation#CreateNewDatabase">Create New Database</a> script to create an appropriate empty GeMS database. </p>
+<p>As necessary, add unusual fields and feature classes that you identified in your earlier inventory. <em>Note that if you have many datasets with similar structure, you may find it helpful to extend the feature class definitions given in your local copy of <a href="https://github.com/usgs/GeMS_Tools/blob/2018-05-18/Scripts/GeMS_Definition.py">GeMS_Definition.py</a>.</em></p>
+<p>LOAD features into their appropriate feature classes. In ArcCatalog, or the Catalog window in ArcMap, </p>
+<pre><code>1.  Right-click on target feature class and select **Load** &gt; **Load Data...** 
+2.  **Next**. Tap the folder symbol at the right of the **Input data** window and navigate to the input feature class (shapefile, coverage, table)
+3.  **Add**. **Next**
+4.  Check **I do not want to load all features into a subtype**. **Next**
+5.  Set field matching. If you are not shown the source field you expect, there may be a type incompatibility. **Next**
+6.  Check **Load all of the source data**. **Next**
+7.  **Finish**
+</code></pre>
+<p>Repeat for each set of input features. </p>
+<h3 id="3-set-attributes">3. Set Attributes</h3>
+<p>In the most common case, where single non-GeMS feature attributes (e.g., LTYPE) are to be mapped into one or multiple GeMS attributes, use script <a href="https://github.com/usgs/GeMS_Tools/wiki/GeMS_ToolsDocumentation#AttributeByKeyValues">Attribute By Key Values</a> to define and implement these translations. </p>
+<p>Create a DataSOurces row that describes the input dataset ("Source"). In the Notes field of this row, describe any translations and interpretations that you are making.  Invent a DataSource_ID value for this row (e.g., "DAS1").  Calc DataSourceID for all your newly loaded features to be this value. </p>
+<p>At this point no features will have _ID values except the one row in DataSources. Run the <a href="https://github.com/usgs/GeMS_Tools/wiki/GeMS_ToolsDocumentation#(re)SetIDValues">GeMS (re)Set ID values</a> script to assign _ID values.</p>
+<p>Scan the attribute tables for your new feature classes. What values are missing? Can you supply these missing values? If not, try to find the geologist responsible for the input data set. If all else fails and the fields are not required primary or foreign keys, assign null values. </p>
+<h3 id="4-cmu-and-dmu">4. CMU and DMU</h3>
+<p>An already-published map may have a graphic Correlation of Map Units diagram that meets the GeMS requirement for an analog (image) CMU. Or you may choose to use this image as a backdrop and digitize a vector CMU. </p>
+<p>If your source dataset has been published it likely has some sort of Description of Map Units text that you can transcribe into the DMU table. If not, see the map author(s).  </p>
+<p>See <a href="https://github.com/usgs/GeMS_Tools/wiki/CMUandDMU">CMU and DMU</a> for further advice. </p>
+<h3 id="5-topology-check">5. Topology check</h3>
+<p>This is tricky. The source digital dataset may contain topological errors. Are you going to faithfully translate these errors or fix them? </p>
+<p><a href="https://github.com/usgs/GeMS_Tools/wiki/TopologyCheck">Run the Topology Check</a> script on your database.  If you decide to fix errors, fix them and re-run Topology Check until you are satisfied. </p>
+<h3 id="6-does-your-database-match-the-source-map-image">6. Does your database match the source map image?</h3>
+<p>Many maps are plotted from the source database and then improved for publication using Adobe Illustrator. While often necessary, this is a recipe for map graphics that don't match the source database.  </p>
+<p>If you are translating the database for a published map with a graphic image, carefully examine the map image. Are all geologic elements in the image present in the database you have just translated?  If not, you may need to georeference the image to the database and heads-up digitize to capture the missing elements. See <a href="https://github.com/usgs/GeMS_Tools/wiki/TranscribeAnalogMap">transcribing an analog map</a> for further instructions. </p>
+<h3 id="7-complete-metadata">7. <a href="https://github.com/usgs/GeMS_Tools/wiki/CompleteMetadata">Complete metadata</a></h3>
+<p>Most database translation efforts will have a single data source and reference to it will constitute the Source attribute in a single-row DataSources table. Describe any database improvements you have made, such as rectification of topological errors and heads-up digitizing to capture missing features, in the accompanying Notes field. </p>
+<h3 id="8-finalize-database">8. <a href="https://github.com/usgs/GeMS_Tools/wiki/FinalizeDatabase">Finalize database</a></h3>
+              
+            </div>
+          </div><footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+    
+    
+  </span>
+</div>
+    <script>var base_url = '..';</script>
+    <script src="../js/theme_extra.js" defer></script>
+    <script src="../js/theme.js" defer></script>
+      <script src="../search/main.js" defer></script>
+    <script defer>
+        window.onload = function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        };
+    </script>
+
+</body>
+</html>

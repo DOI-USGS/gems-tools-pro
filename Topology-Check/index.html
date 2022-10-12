@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><link rel="canonical" href="https://example.com/Topology-Check/" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>Topology check - GeMS documentation</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.5.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Topology check";
+        var mkdocs_page_input_path = "Topology-Check.md";
+        var mkdocs_page_url = "/Topology-Check/";
+      </script>
+    
+    <script src="../js/jquery-3.6.0.min.js" defer></script>
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.5.0/highlight.min.js"></script>
+      <script>hljs.initHighlightingOnLoad();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> GeMS documentation
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="..">Home</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Setup</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../Keeping-up-to-date-with-new-releases/">Keeping up to date with new releases</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../Configure-Arc-Map/">Configure ArcMap</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../Hard-Drive-Hygiene/">Hard drive hygiene</a>
+                  </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../GeMS-Tools-Documentation/">Tool reference</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Workflows</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../CMU-and-DMU/">CMU's and DMU's</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../Make-Color-Polygons/">Make polygons</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../Make-New-Geomorphic-Map/">Make new geomorphic map</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Finalize</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="../Complete-Metadata/">Build Metadata</a>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="./">Topology check</a>
+    <ul class="current">
+    </ul>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">GeMS documentation</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" alt="Docs"></a> &raquo;</li>
+          <li>Finalize &raquo;</li><li>Topology check</li>
+    <li class="wy-breadcrumbs-aside">
+    </li>
+  </ul>
+  <hr/>
+</div>
+
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <p>The GeMS <strong><a href="https://github.com/usgs/GeMS_Tools/wiki/GeMS_ToolsDocumentation#TopologyCheck">Topology Check</a></strong> script examines topological aspects of a geologic map database that cannot be checked with standard topology tools in ArcGIS. As a convenience it also incorporates some standard topology checks.  </p>
+<p>The script generates an HTML report (<em>ThisProject</em>.gdb-TopologyReport.html) and a geodatabase <em>ThisProject</em>-errors.gdb. Look at both. </p>
+<p>To your map composition (ThisProject-edit.mxd), add these feature classes from database ThisProject-errors.gdb/GeologicMap:  </p>
+<ul>
+<li>ContactsAndFaults_MUPid</li>
+<li>
+<p>dups_<em>PointFeatureClass</em>, could be as many as one per each point feature class in the dataset</p>
+</li>
+<li>
+<p>errors_BadNodes</p>
+</li>
+<li>errors_GeologicMapTopology_point</li>
+<li>errors_GeologicMapTopology_line</li>
+<li>errors_GeologicMapTopology_poly</li>
+<li>errors_SgirtARcs</li>
+<li>errors_SkinnyPolys</li>
+<li>errors_SmallPolyPoints</li>
+<li>errors_SmallPolys</li>
+</ul>
+<p>Names may be different if feature datasets other than GeologicMap are evaluated. If any of these are not present in the XXX-errors database, congratulations!  </p>
+<p>Work through the following. Some errors may show up under several headings: don't be surprised that once you've fixed some line or polygon topology errors the map-unit adjacency errors are no longer relevant. You may want to save edits, stop editing, and re-run <a href="https://github.com/usgs/GeMS_Tools/wiki/GeMS_ToolsDocumentation#TopologyCheck">Topology Check</a> to refresh the lists of things to fix. </p>
+<h4 id="a-line-polygon-and-point-topology-errors">a. Line, polygon, and point topology errors</h4>
+<p>Expect to find one line error around the edge of the map. Ignore it.  Other errors need to be fixed. </p>
+<h4 id="b-node-geometry-errors_badnodes">b. Node geometry (errors_BadNodes)</h4>
+<p>Change symbolization of errors_BadNodes to a large, light-colored spot without a border. Place it (in Drawing-order view) beneath ContactsAndFaults.  If you have a reference scale set for this data frame (on ArcMap toolbar, <strong>View</strong> &gt; <strong>Data Frame Properties...</strong> &gt; <strong>General</strong> tab), change it to &lt;none&gt;. </p>
+<p>Right-click on errors_BadNodes and <strong>Open Attribute Table</strong>. If there are more than a few rows, you may find it useful to sort the table on <strong>NodeStatus</strong>, then <strong>ArcType</strong> (right-click on the <strong>NodeStatus</strong> header and select <strong>Advanced Sorting...</strong>). </p>
+<p>Your task is to work through errors_BadNodes, fixing each problem identified or convincing yourself (and eventually your map editor) that the identified problem is actually OK. </p>
+<ol>
+<li>Right-click on ContactsAndFaults--LTYPE, <strong>Edit Features</strong> &gt; <strong>Start Editing</strong> </li>
+<li>Go to the first line in the errors_BadNodes attribute table, click on the selection box at the left edge of the first row to highlight the row, and right-click <strong>Pan To</strong> or right-click <strong>Zoom To</strong></li>
+<li>Line overshoot and undershoots can be readily dealt with by Trim and Extend tools on the Advanced Editing toolbar. If a line is misplaced and needs moving:</li>
+<li>Is this your line (it won't need a new DataSourceID value if you move it)? Double-click on the line to Edit Vertices and move/add/delete vertices as needed</li>
+<li>Is this a line from another source? Best to digitize a new, intersecting line, then grab old and new lines, Planarize Lines (Advanced Editing toolbar), and delete the unneeded parts</li>
+<li>Does polygon geometry need to change to match the revised linework? Use Split Polygons (Advanced Editing toolbar) to divide the old poly(s). Then select polys to be joined and <strong>Editor ▼ Merge</strong></li>
+<li><strong>Editor</strong>▼&gt; <strong>Save Edits</strong></li>
+</ol>
+<h4 id="c-fault-direction-errors_faultdirnodes">c. Fault direction (errors_FaultDirNodes)</h4>
+<p>Fault arcs are commonly broken as they change from concealed to unconcealed, or become more or less well located, or have different DataSourceIDs.  But, especially for ornamented (thrust teeth, bar-and-ball, etc.) fault arcs for which we use directionality to control which side the ornament is on, the direction should remain the same.  Errors_FaultDirNodes identifies fault-arc junctions where the directionality does not change, that is, both fault-arc ends at that point are TO, or FROM, instead of the one TO and one FROM that we expect.  </p>
+<p>Not all of the nodes identified in errors_FaultDirNodes are truly errors. </p>
+<ol>
+<li>Where three fault arcs meet (a T or Y, one fault truncated by another), at least two of the nodes must be TO or FROM and this generates a point in errors_FaultDirNodes. This is not an error, unless it is the wrong arcs that are both TO or FROM. Three arcs that are all TO or all FROM are probably an error</li>
+<li>Representation of a scissors fault along which the down-thrown direction changes requires a node where both fault-arc directions are TO or both are FROM</li>
+</ol>
+<p>Add errors_FaultDirNodes to your map composition. Open the attribute table. Work through it, checking each identified node to see if one of the fault arcs that meet there need to be flipped. Flipping one arc may require flipping one or more additional arcs farther along the fault.  </p>
+<p><strong>Editor</strong>▼&gt; <strong>Save Edits</strong></p>
+<h4 id="d-map-unit-adjacency-tables-in-xx_topologyreporthtml">d. Map Unit adjacency (tables in xx_TopologyReport.html)</h4>
+<p>Contacts, faults, and map-unit polygons should follow several rules:</p>
+<ul>
+<li>Concealed contacts and faults should have the same map unit on each side. </li>
+<li>As a matter of practice many geologic map publishers don't draw internal contacts (e.g., one landslide against another, though this may be the most common exception). </li>
+<li>If there are no lateral, facies-dependent map-unit boundaries (e.g., wetland against alluvium), no intrusions, and no lithodemic units, map units should only be in unfaulted contact with immediately older and younger units, unless there are significant unconformities. </li>
+<li>We generally don't expect to see many faults cutting young map units. </li>
+</ul>
+<p>Inventories of contact and fault arcs categorized and organized by their adjacent map units readily disclose violations of these rules. ThisProject.gdb-TopologyReport.html contains 3 such inventories. </p>
+<ul>
+<li>Table <strong>Concealed contacts and faults</strong> should only have entries along the diagonal</li>
+<li>Table <strong>Contacts (not concealed)</strong> should have NO entries along the diagonal, unless the author/editor/publisher choose to allow internal (within map-unit) contacts</li>
+<li>Table <strong>Faults (not concealed)</strong> should have few entries in the upper left (young against young) corner</li>
+</ul>
+<p>If you see problems, fix them. I find it easiest to locate internal contacts with a selection (<em>LEFT_MapUnit = RIGHT_MapUnit</em>) on ContactsAndFaults_MUPid.  Mistaken concealed contacts (off diagonal entries in Concealed contacts and faults) can be located with <em>LEFT_MapUnit &lt;&gt; RIGHT_MapUnit AND IsConcealed = 'Y'</em>. Too-young faults can be found with <em>Type IN ('fault', 'normal fault', ...) AND LEFT_MapUnit = 'XX' AND RIGHT_MapUnit = 'YY'</em>, where values of XX and YY are read from the <strong>Faults (not concealed)</strong> table. </p>
+<p><strong>Editor</strong>▼&gt; <strong>Save Edits</strong>. <strong>Editor</strong>▼&gt; <strong>Stop Editing</strong>. </p>
+<h4 id="e-duplicate-point-features">e. Duplicate point features</h4>
+<p>Some workflows make it easy to duplicate point features. These are errors and should be fixed. In other cases (multiple samples at a single station, or multiple analyses of a single sample), coincident point features with the same Type values are common and are not errors. Check any dup_<em>pointFeatureClass</em> classes to see what you have. Fix problems. </p>
+<h4 id="f-small-feature-inventory">f. Small feature inventory</h4>
+<p>Small features are not necessarily a violation of geologic map logic. However, they can signify digitizing errors. Because they reduce the readability of the map graphic, some agencies have editorial standards that dictate that polygons be larger, or wider, than some minimum size.  </p>
+<p>What are your standards?  Does reconnaissance of the errors_SmallXXX feature classes indicate digitizing problems that need to be fixed?</p>
+<h4 id="f-repeat-until-done">f. Repeat until done</h4>
+<p>Re-run <a href="https://github.com/usgs/GeMS_Tools/wiki/GeMS_ToolsDocumentation#TopologyCheck">Topology Check</a> and fix errors until you are satisfied your database is clean. </p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="../Complete-Metadata/" class="btn btn-neutral float-left" title="Build Metadata"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+    
+      <span><a href="../Complete-Metadata/" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+  </span>
+</div>
+    <script>var base_url = '..';</script>
+    <script src="../js/theme_extra.js" defer></script>
+    <script src="../js/theme.js" defer></script>
+      <script src="../search/main.js" defer></script>
+    <script defer>
+        window.onload = function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        };
+    </script>
+
+</body>
+</html>

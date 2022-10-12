@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><link rel="canonical" href="https://example.com/Keeping-up-to-date-with-new-releases/" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>Keeping up to date with new releases - GeMS documentation</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.5.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "Keeping up to date with new releases";
+        var mkdocs_page_input_path = "Keeping-up-to-date-with-new-releases.md";
+        var mkdocs_page_url = "/Keeping-up-to-date-with-new-releases/";
+      </script>
+    
+    <script src="../js/jquery-3.6.0.min.js" defer></script>
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.5.0/highlight.min.js"></script>
+      <script>hljs.initHighlightingOnLoad();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href=".." class="icon icon-home"> GeMS documentation
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="..">Home</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Setup</span></p>
+              <ul class="current">
+                  <li class="toctree-l1 current"><a class="reference internal current" href="./">Keeping up to date with new releases</a>
+    <ul class="current">
+    <li class="toctree-l2"><a class="reference internal" href="#notifications-of-new-releases">Notifications of new releases</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#install-git"> "Install" git</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#clone-the-repo">Clone the repo</a>
+    </li>
+    <li class="toctree-l2"><a class="reference internal" href="#use-git-pull-to-get-changes"> Use git pull to get changes</a>
+    </li>
+    </ul>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../Configure-Arc-Map/">Configure ArcMap</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../Hard-Drive-Hygiene/">Hard drive hygiene</a>
+                  </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../GeMS-Tools-Documentation/">Tool reference</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Workflows</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../CMU-and-DMU/">CMU's and DMU's</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../Make-Color-Polygons/">Make polygons</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../Make-New-Geomorphic-Map/">Make new geomorphic map</a>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Finalize</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="../Complete-Metadata/">Build Metadata</a>
+                  </li>
+                  <li class="toctree-l1"><a class="reference internal" href="../Topology-Check/">Topology check</a>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="..">GeMS documentation</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href=".." class="icon icon-home" alt="Docs"></a> &raquo;</li>
+          <li>Setup &raquo;</li><li>Keeping up to date with new releases</li>
+    <li class="wy-breadcrumbs-aside">
+    </li>
+  </ul>
+  <hr/>
+</div>
+
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="keeping-up-to-date-with-new-releases">Keeping up to date with new releases</h1>
+<p>Instead of downloading new releases as zip files when you know there has been a change to a tool or a new tool has been added, instead
+1. Get automatic <a href="#notifications-of-new-releases">notifications</a> of new releases.
+2. If you don't already have git on your computer, <a href="#install">install</a> it.
+3. <a href="#clone">Clone</a> this repository to your computer.
+4. Use <a href="#pull"><code>git pull</code></a> to download changes when you get notified of a new release.</p>
+<p>If you need more information, read on:</p>
+<h2 id="notifications-of-new-releases">Notifications of new releases</h2>
+<p>New releases for the toolbox are published as-needed when solutions to issues are written or new features are added. You can find out about new releases in two ways.
+1. Notice that there is a warning in the geoprocessing messages dialog when you run a tool that it is obsolete and a revised tool has been posted.
+2. 'Watch' this repository and get an email when there is a new release.</p>
+<p>To watch the repository, first create a GitHub account. When logged in, go to the main page for this <a href="https://github.com/usgs/gems-tools-pro">repo</a> and look in the upper-right for the Watch button.</p>
+<p><img alt="image" src="https://user-images.githubusercontent.com/5376315/193160743-d7033977-d600-4730-8b7a-f1d20e2fa77f.png" /></p>
+<p>Click the drop-down button and go down to Custom</p>
+<p><img alt="image" src="https://user-images.githubusercontent.com/5376315/193160864-21b5eb0c-c782-4232-9f1c-8cbcb5a9c703.png" /></p>
+<p>and then select Releases and Apply:</p>
+<p><img alt="image" src="https://user-images.githubusercontent.com/5376315/193161579-8bc73884-20f4-4045-8829-c0913703717b.png" /></p>
+<p>To be honest, I don't know if you will get other emails from GitHub just by choosing Watch; it might be too noisy. But try it out and let us know how it works.</p>
+<h2 id="install-git"><a name="install"></a> "Install" git</h2>
+<p>If you don't already have git on your computer, here is a simple way to get and use it that doesn't involve a full-blown installation that requires elevated privileges.
+1. <a href="https://git-scm.com/download/win">Download</a> the <strong>64-bit Git for Windows Portable</strong> version. This downloads as an .exe file that, when double-clicked, extracts the git package to a folder of your choice. Put it anywhere you like and copy the path to the parent folder</p>
+<p><img alt="image" src="https://user-images.githubusercontent.com/5376315/194180266-599a8441-a934-4513-b577-b5f8c3509052.png" /></p>
+<ol>
+<li>In the Windows Search bar on your desktop type 'environment variables' and pick 'Edit environment variables for your account' from the results</li>
+</ol>
+<p><img alt="image" src="https://user-images.githubusercontent.com/5376315/194180560-0a69c9bc-ad06-42a4-bc63-388d4dac6ca4.png" /></p>
+<ol>
+<li>Click on 'Path' and then 'Edit'</li>
+</ol>
+<p><img alt="image" src="https://user-images.githubusercontent.com/5376315/194180748-b886dad0-d12c-4346-bd8c-c6fd124097d0.png" /></p>
+<ol>
+<li>Click 'New' and paste the full path in the highlighted cell to where git was extracted. Click ok.</li>
+<li>Test that this worked by opening a Windows Command Prompt window. Type 'cmd' in the Windows Search bar. When the results show up, Command Prompt is already selected, so just press Enter to open it.</li>
+</ol>
+<p><img alt="image" src="https://user-images.githubusercontent.com/5376315/194182018-8baa45d0-f0a1-48e5-b69e-1f1c172c5587.png" /></p>
+<p>Type <code>git --version</code> at the prompt and you should get a line like <code>git version 2.30.0.windows.2</code></p>
+<ol>
+<li>Another option is to ignore setting an environment variable and use git-cmd.exe whenever you need to issue git commands. This file in the \git folder you extracted earlier. It opens a command prompt window configured to work with git. You can drag this file to the taskbar to pin it there for quick access.</li>
+</ol>
+<p><img alt="image" src="https://user-images.githubusercontent.com/5376315/194182956-5c7025fb-8b9a-47ac-9acb-adf249c86023.png" /></p>
+<h2 id="clone-the-repo">Clone the repo</h2>
+<ol>
+<li>
+<p>With either command prompt window open, navigate to the parent folder where you want the toolbox folder to be using <code>cd</code></p>
+</li>
+<li>
+<p>copy and paste this command:
+<code>git clone https://github.com/usgs/gems-tools-pro.git</code></p>
+</li>
+<li>
+<p>type <code>dir</code> to see that the <code>gems-tools-pro</code> directory has been added</p>
+</li>
+</ol>
+<p>(steps 1 - 3 above)</p>
+<p><img alt="image" src="https://user-images.githubusercontent.com/5376315/194183746-f8d8d1e6-ef3c-4d43-a26d-342e9542defc.png" /></p>
+<p><em>(<strong>USGS users</strong>: when you try to clone, if you get the warning:</em></p>
+<p><em><code>fatal: unable to access 'https://github.com/usgs/gems-tools-pro.git/': SSL certificate problem: unable to get local issuer certificate</code></em></p>
+<p><em>you are probably connected to a VPN through Pulse Secure. Disconnect and try again)</em>.</p>
+<h2 id="use-git-pull-to-get-changes"><a name="pull"></a> Use <code>git pull</code> to get changes</h2>
+<p>Now, whenever you want to update the toolbox, open a command prompt, cd to <code>gems-tools-pro</code> and type <code>git pull</code>.
+To speed this up you could add <a href="https://www.makeuseof.com/tag/write-simple-batch-bat-file/">create a batch file</a> and save it in the default directory shown when the command prompt opens or <a href="https://superuser.com/questions/100249/how-to-pin-either-a-shortcut-or-a-batch-file-to-the-new-windows-7-8-and-10-task">pin</a> a shortcut to the batch file to your taskbar.</p>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href=".." class="btn btn-neutral float-left" title="Home"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="../Configure-Arc-Map/" class="btn btn-neutral float-right" title="Configure ArcMap">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+    
+      <span><a href=".." style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="../Configure-Arc-Map/" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script>var base_url = '..';</script>
+    <script src="../js/theme_extra.js" defer></script>
+    <script src="../js/theme.js" defer></script>
+      <script src="../search/main.js" defer></script>
+    <script defer>
+        window.onload = function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        };
+    </script>
+
+</body>
+</html>
