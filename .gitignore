@@ -1,6 +1,4 @@
-<<<<<<< HEAD
 *.pyc
+mkdocs.yml
+site/
 
-=======
-*.pyc
->>>>>>> names-check
