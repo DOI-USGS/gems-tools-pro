@@ -1,17 +1,8 @@
-# GeMS Documentation
+# GeMS Tools
+Documentation for the [ArcGIS toolbox](https://github.com/usgs/gems-tools-pro) of geoprocessing tools for working with [GeMS](https://ngmdb.usgs.gov/Info/standards/GeMS/)-compliant geodatabases.
 
-For full documentation visit [NGMDB GeMS](https://ngmdb.usgs.gov/Info/standards/GeMS/).
+The latest version of the toolbox works with ArcGIS Pro 2.9 and earlier. Download it [here](https://camo.githubusercontent.com/6ae0d8ddbce54e310b083b98b9b7e238f11c11f1f8645af153c9bbcb8c2056c3/68747470733a2f2f696d672e736869656c64732e696f2f6769746875622f762f72656c656173652f757367732f67656d732d746f6f6c732d70726f). It requires the default python environment installed with ArcGIS Pro.
 
-## Introduction
+## [License](https://github.com/usgs/gems-tools-pro/blob/master/LICENSE.md)
 
-* `mkdocs new [dir-name]` - Create a new project.
-* `mkdocs serve` - Start the live-reloading docs server.
-* `mkdocs build` - Build the documentation site.
-* `mkdocs -h` - Print help message and exit.
-
-## Project layout
-
-    mkdocs.yml    # The configuration file.
-    docs/
-        index.md  # The documentation homepage.
-        ...       # Other markdown pages, images and other files.
+## [Disclaimer](https://github.com/usgs/gems-tools-pro/blob/master/DISCLAIMER.md)
