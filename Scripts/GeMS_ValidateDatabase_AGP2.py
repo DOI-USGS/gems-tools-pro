@@ -905,6 +905,7 @@ mp_path = os.path.join(resources_path, 'mp.exe')
 if not arcpy.Exists(refgmd):
     addMsgAndPrint('Cannot find reference GeoMaterialDict table at '+refgmd)
     forceExit()
+
 try:
     arcpy.env.workspace = inGdb
 except:
@@ -962,39 +963,50 @@ else:
             scanTable(tb)
         else:
             schemaErrorsMissingElements.append(f'Table <span class="table">{tb}</span>')
-    gMap_MapUnits = []
-    if not arcpy.Exists('GeologicMap'):
-        gMapSRF = ''
-        schemaErrorsMissingElements.append('Feature dataset <span class="table">GeologicMap</span>')
-    else:
-        srf = arcpy.Describe('GeologicMap').spatialReference
-        gMapSRF = srf.name
 
-        # check for NAD83 or WGS84
-        if srf.type == 'Geographic':
-            pcsd = srf.datumName
-        else: # is projected
-            pcsd = srf.PCSName
-        if pcsd.find('World_Geodetic_System_1984') < 0 and pcsd.find('NAD_1983') < 0:
-            SRFWarnings.append(f'Spatial reference framework is {pcsd}. Consider reprojecting this dataset to NAD83 or WGS84')                       
-        arcpy.env.workspace = 'GeologicMap'
-        gMap_MapUnits = []
-        for fc in requiredGeologicMapFeatureClasses:
-            if arcpy.Exists(fc):
-                mapUnits = scanTable(fc)
-                appendValues(gMap_MapUnits,mapUnits)
+    gMap_MapUnits = []
+    geomaps = arcpy.ListDatasets('*GeologicMap*', 'Feature')
+    if len(geomaps) ==0:
+        gMapSRF = ''
+        schemaErrorsMissingElements.append('<span class="table">GeologicMap</span> feature dataset')
+    else:
+        for geomap in geomaps:
+            arcpy.env.workspace = os.path.join(inGdb, geomap)
+            srf = arcpy.Describe(os.path.join(inGdb, geomap)).spatialReference
+            gMapSRF = srf.name
+
+            # check for NAD83 or WGS84
+            if srf.type == 'Geographic':
+                pcsd = srf.datumName
+            else: # is projected
+                pcsd = srf.PCSName
+            if pcsd.find('World_Geodetic_System_1984') < 0 and pcsd.find('NAD_1983') < 0:
+                SRFWarnings.append(f'Spatial reference framework is {pcsd}. Consider reprojecting this dataset to NAD83 or WGS84')
+
+            # check for required feature classes                       
+            gMap_MapUnits = []
+            req_fcs = {}
+            mup_fc = arcpy.ListFeatureClasses('*MapUnitPolys*', 'Polygon')
+            if mup_fc:
+                req_fcs['MapUnitPolys'] = mup_fc[0]
             else:
-                schemaErrorsMissingElements.append(f'Feature class <span class="table">GeologicMap/{fc}</span>')
-        isMap,MUP,CAF = isFeatureDatasetAMap('GeologicMap')
-        if isMap:
-            if skipTopology == 'false':
-                nTopoErrors = checkTopology(workdir, inGdb, outErrorsGdb, 'GeologicMap', MUP, CAF, 2)
-                if nTopoErrors > 0:
-                    topologyErrors.append(str(nTopoErrors)+' Level 2 errors in <span class="table">GeologicMap</span>')
+                req_fcs['MapUnitPolys'] = None
+            
+            caf_fc = arcpy.ListFeatureClasses('*ContactsAndFaults*', 'Polyline')
+            if caf_fc:
+                req_fcs['ContactsAndFaults'] = caf_fc[0]
             else:
-                addMsgAndPrint('  skipping topology check')
-                topologyErrors.append('Level 2 topology check was skipped')
-        arcpy.env.workspace = inGdb
+                req_fcs['ContactsAndFaults'] = None
+
+            for k, v in req_fcs.items():
+                if v:
+                    mapUnits = scanTable(v)
+                    appendValues(gMap_MapUnits, mapUnits)
+                else:
+                    schemaErrorsMissingElements.append(f'Feature class <span class="table">{fd}/{fc}</span>')
+            isMap, MUP, CAF = isFeatureDatasetAMap(geomap)
+    
+    arcpy.env.workspace = inGdb
     
     addMsgAndPrint('  getting unused, missing, and duplicated key values')
     unused, missing, plainUnused  = matchRefs(dataSources_IDs, allDataSourcesRefs)
@@ -1027,9 +1039,9 @@ else:
         if tb not in requiredTables:
             mapUnits = scanTable(tb)
     # check for other stuff at top level of gdb
-    findOtherStuff(inGdb,tables)
+    findOtherStuff(inGdb, tables)
     fds_MapUnits = []
-    fds = arcpy.ListDatasets('*','Feature')
+    fds = [fd for fd in arcpy.ListDatasets('*','Feature') if not 'GeologicMap' in fd]
     for fd in fds:
         fdSRF = arcpy.Describe(fd).spatialReference.name
         if fdSRF != gMapSRF:
