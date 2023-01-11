@@ -22,7 +22,6 @@ Args:
 import arcpy
 import GeMS_utilityFunctions as guf
 import subprocess
-import sys
 
 version_string = "GeMS_SubmissionTree.py, version of 10 January 2023"
 rawurl = "https://raw.githubusercontent.com/usgs/gems-tools-pro/master/Scripts/GeMS_SubmissionTree.py"
