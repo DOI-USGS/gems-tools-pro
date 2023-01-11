@@ -21,7 +21,6 @@ Args:
 
 import arcpy
 import GeMS_utilityFunctions as guf
-from pathlib import Path
 import subprocess
 import sys
 
