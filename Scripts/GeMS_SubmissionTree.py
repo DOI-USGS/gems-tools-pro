@@ -32,10 +32,6 @@ guf.checkVersion(version_string, rawurl, "gems-tools-pro")
 
 def make_tree(parent_dir, postal_code, year, mapped_area, version, basedata):
 
-    if not Path(parent_dir).exists():
-        arcpy.AddError("Output directory does not exist")
-        sys.exit()
-
     if version != "":
         name = f"{postal_code}_{year}_{mapped_area}_{version}"
     else:
