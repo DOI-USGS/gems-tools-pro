@@ -32,9 +32,9 @@ mkdir "%parent%/%fullname%-Submittal/%fullname%"
 
 REM check the length of a path using the fullname
 REM if too long, use the abbreviated name
-set temppath="%parent%/%fullname%-Submittal/%fullname%/%fullname%-Pub"
+set temppath="%parent%/%fullname%-Submittal/%fullname%/%abbname%-Pub/%abbname%-DB/Resources"
 call :strlen result %temppath%
-if %result% LSS 200 (
+if %result% LSS 226 (
 	set abbname=%fullname%
 	)
 
