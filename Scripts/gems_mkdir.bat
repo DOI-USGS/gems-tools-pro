@@ -6,7 +6,7 @@ REM		1. path to parent folder
 REM 	2. name of submission (see 'File structure and naming conventions'
 REM 		in GeMS Submittal requirements document 
 REM		3. abbreviated name 
-REM 	4. should a basedata folder be created? Can be any value; yes, true, 1, a, etc.
+REM 	4. should a basedata folder be created? Use 'y' or 'n'
 
 set argC=0
 for %%x in (%*) do Set /A argC+=1
@@ -18,7 +18,7 @@ if not %argC%==4 (
 	echo 	1. path to parent folder
 	echo 	2. ST_YYYY_AREA_VER name of submission 
 	echo 	3. abbreviated name for use in the case of long paths
-	echo 	4. should a BASEDATA folder be created; yes or no
+	echo 	4. should a BASEDATA folder be created? Use 'y' or 'n'.
 	goto end
 	)
 	
@@ -34,7 +34,7 @@ REM check the length of a path using the fullname
 REM if too long, use the abbreviated name
 set temppath="%parent%/%fullname%-Submittal/%fullname%/%abbname%-Pub/%abbname%-DB/Resources"
 call :strlen result %temppath%
-if %result% LSS 226 (
+if %result% LSS 230 (
 	set abbname=%fullname%
 	)
 
@@ -46,10 +46,10 @@ mkdir "%parent%/%fullname%-Submittal/%fullname%/%abbname%-Pub/%abbname%-DB"
 mkdir "%parent%/%fullname%-Submittal/%fullname%/%abbname%-Pub/%abbname%-DB/Resources"
 
 REM Include a basedata folder?
-if not "%basedata%"=="" (
+if "%basedata%"=="y" (
 	mkdir "%parent%/%fullname%-Submittal/%fullname%/%abbname%-Pub/%abbname%-DB/Basedata"
 	mkdir "%parent%/%fullname%-Submittal/%fullname%/%abbname%-Pub/%abbname%-DB/Basedata/Resources"
-	
+	)
 REM shapefile folder
 mkdir "%parent%/%fullname%-Submittal/%fullname%/%abbname%-Pub/%abbname%-SHP"
 

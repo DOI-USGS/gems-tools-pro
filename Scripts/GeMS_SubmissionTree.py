@@ -24,7 +24,7 @@ import GeMS_utilityFunctions as guf
 import subprocess
 
 version_string = "GeMS_SubmissionTree.py, version of 10 January 2023"
-rawurl = "https://raw.githubusercontent.com/usgs/gems-tools-pro/master/Scripts/GeMS_SubmissionTree.py"
+rawurl = "https://raw.githubusercontent.com/usgs/gems-tools-pro/tree-tool/Scripts/GeMS_SubmissionTree.py"
 guf.checkVersion(version_string, rawurl, "gems-tools-pro")
 
 
@@ -35,11 +35,13 @@ def make_tree(parent_dir, postal_code, year, mapped_area, abbname, version, base
     else:
         name = f"{postal_code}_{year}_{mapped_area}"
 
-    # if basedata:
-    #     bd = 'yes'
-    # else:
-    #     bd = 'no'
-    subprocess.run(["gems_mkdir.bat", parent_dir, name, abbname, basedata], shell=True)
+    if basedata:
+        bd = "y"
+    else:
+        bd = "n"
+
+    subprocess.run(["gems_mkdir.bat", parent_dir, name, abbname, bd], shell=True)
+
     arcpy.AddMessage("Done")
 
 
@@ -57,13 +59,13 @@ if __name__ == "__main__":
     else:
         version = ""
 
-    if arcpy.GetParameterAsText(5) != "#":
+    if arcpy.GetParameterAsText(5) != "":
         abbname = arcpy.GetParameterAsText(5)
         if len(abbname) > 5:
             abbname = abbname[:5]
     else:
         abbname = mapped_area[:5]
 
-    basedata = guf.convert_bool(arcpy.GetParameterAsText(5))
+    basedata = guf.convert_bool(arcpy.GetParameterAsText(6))
 
     make_tree(parent_dir, postal_code, year, mapped_area, abbname, version, basedata)
