@@ -58,7 +58,7 @@ import arcpy, os, sys, math, os.path, operator, time
 from GeMS_utilityFunctions import *
 
 # see gems-tools-pro version<=2.2.2 to get earlier TopologyCheck tool
-versionString = 'GeMS_TopologyCheck_Arc10.py, version of 1 February 2022'
+versionString = 'GeMS_TopologyCheck_Arc10.py, version of 24 January 2023'
 rawurl = 'https://raw.githubusercontent.com/usgs/gems-tools-pro/master/Scripts/GeMS_TopologyCheck_AGP2.py'
 checkVersion(versionString, rawurl, 'gems-tools-pro')
 
@@ -789,7 +789,7 @@ inCaf = getCaf(inFds)
 fdsToken = os.path.basename(inCaf).replace('ContactsAndFaults', '')
 inMup = inCaf.replace('ContactsAndFaults', 'MapUnitPolys')
 zeroValue = 2 * arcpy.Describe(inCaf).spatialReference.XYTolerance
-hKeyTestValue = '2'
+#hKeyTestValue = '2'
 DMU = inGdb + '/DescriptionOfMapUnits'
 outGdbName = os.path.basename(inGdb)[:-4] + '_TopologyCheck.gdb'
 outGdb = os.path.join(outWksp, outGdbName)
