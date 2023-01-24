@@ -23,7 +23,7 @@ import arcpy
 import GeMS_utilityFunctions as guf
 import subprocess
 
-version_string = "GeMS_SubmissionTree.py, version of 10 January 2023"
+version_string = "GeMS_SubmissionTree.py, version of 24 January 2023"
 rawurl = "https://raw.githubusercontent.com/usgs/gems-tools-pro/tree-tool/Scripts/GeMS_SubmissionTree.py"
 guf.checkVersion(version_string, rawurl, "gems-tools-pro")
 
@@ -39,7 +39,9 @@ def make_tree(parent_dir, postal_code, year, mapped_area, abbname, version, base
         bd = "y"
     else:
         bd = "n"
-
+    #parent_dir = f'"{parent_dir}"'
+    arcpy.AddMessage(f'Creating tree in {parent_dir}')
+    arcpy.AddMessage(subprocess.list2cmdline(["gems_mkdir.bat", parent_dir, name, abbname, bd]))
     subprocess.run(["gems_mkdir.bat", parent_dir, name, abbname, bd], shell=True)
 
     arcpy.AddMessage("Done")

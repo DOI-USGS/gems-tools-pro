@@ -10,7 +10,7 @@ REM 	4. should a basedata folder be created? Use 'y' or 'n'
 
 set argC=0
 for %%x in (%*) do Set /A argC+=1
-rem echo %argC%
+echo %argC%
 
 if not %argC%==4 (
 	echo Makes an empty directory tree in preparation for submission of GeMS files to NGMDB
@@ -21,8 +21,8 @@ if not %argC%==4 (
 	echo 	4. should a BASEDATA folder be created? Use 'y' or 'n'.
 	goto end
 	)
-	
-set parent=%1
+
+set parent=%~1
 set fullname=%2
 set abbname=%3
 set basedata=%4
@@ -32,26 +32,26 @@ mkdir "%parent%/%fullname%-Submittal/%fullname%"
 
 REM check the length of a path using the fullname
 REM if too long, use the abbreviated name
-set temppath="%parent%/%fullname%-Submittal/%fullname%/%abbname%-Pub/%abbname%-DB/Resources"
+set temppath=%parent%/%fullname%-Submittal/%fullname%/%abbname%-Pub/%abbname%-DB/Resources
 call :strlen result %temppath%
 if %result% LSS 230 (
 	set abbname=%fullname%
 	)
 
 REM publication folder
-mkdir "%parent%/%fullname%-Submittal/%fullname%/%abbname%-Pub"
+mkdir "%parent%"/%fullname%-Submittal/%fullname%/%abbname%-Pub
 
 REM database folder
-mkdir "%parent%/%fullname%-Submittal/%fullname%/%abbname%-Pub/%abbname%-DB"
-mkdir "%parent%/%fullname%-Submittal/%fullname%/%abbname%-Pub/%abbname%-DB/Resources"
+mkdir "%parent%/%fullname%-Submittal/%fullname%/%abbname%-Pub/%abbname%-DB
+mkdir "%parent%/%fullname%-Submittal/%fullname%/%abbname%-Pub/%abbname%-DB/Resources
 
 REM Include a basedata folder?
 if "%basedata%"=="y" (
-	mkdir "%parent%/%fullname%-Submittal/%fullname%/%abbname%-Pub/%abbname%-DB/Basedata"
-	mkdir "%parent%/%fullname%-Submittal/%fullname%/%abbname%-Pub/%abbname%-DB/Basedata/Resources"
+	mkdir "%parent%/%fullname%-Submittal/%fullname%/%abbname%-Pub/%abbname%-DB/Basedata
+	mkdir "%parent%/%fullname%-Submittal/%fullname%/%abbname%-Pub/%abbname%-DB/Basedata/Resources
 	)
 REM shapefile folder
-mkdir "%parent%/%fullname%-Submittal/%fullname%/%abbname%-Pub/%abbname%-SHP"
+mkdir "%parent%"/%fullname%-Submittal/%fullname%/%abbname%-Pub/%abbname%-SHP
 
 REM ********* function *****************************
 :strlen <resultVar> <stringVar>
