@@ -584,6 +584,7 @@ if my_defs_path.is_file():
     sys.modules['my_definitions'] = module
     spec.loader.exec_module(module)
     import my_definitions as myDef
+    myEntityDict = myDef.myEntityDict
     
     # try updating the GeMS dictionaries, but if the custom ones do not exist don't throw an
     # error, just pass

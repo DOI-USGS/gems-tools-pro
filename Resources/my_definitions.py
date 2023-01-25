@@ -39,7 +39,7 @@ myAttribDict = {
 # 'name of table': ['definition', 'definition source']
 myEntityDict = {
     'C14Points':['Table that documents locales, sample and analytic information, and significance of selected radiocarbon ages from map area.', 'SIGMA'],
-    'PitsQuarriesPoints': ['Point locations of anthropogenic pist and quarries', 'SIGMA']
+    'PitsQuarriesPoints': ['Point locations of anthropogenic pist and quarries', 'SIGMA'],
     }
 
 # no definition source necessary for unrepresentable domains
