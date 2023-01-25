@@ -24,7 +24,7 @@ import Resources.spatial_utils as su
 import copy
 import requests
 
-versionString = 'GeMS_FGDC1_Arc10.py, version of 9 June 2022'
+versionString = 'GeMS_FGDCMetadata_AGP2.py, version of 24 January 2023'
 rawurl = 'https://raw.githubusercontent.com/usgs/gems-tools-pro/master/Scripts/GeMS_FGDCMetadata_AGP2.py'
 guf.checkVersion(versionString, rawurl, 'gems-tools-pro')
    
