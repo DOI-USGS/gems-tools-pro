@@ -350,7 +350,7 @@ def add_attributes(fc_name, detailed_node):
             
         # look for a key ending in the field name in myAttribDict
         try:
-            res = [key for key in gDef.myAttribDict if field.endswith(key)]
+            res = [key for key in myDef.myAttribDict if field.endswith(key)]
         except:
             res = None
         if res:
