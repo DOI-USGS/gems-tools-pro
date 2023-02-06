@@ -637,6 +637,7 @@ for fc_path in point_fcs:
                 rowObliquity = round(oblique, 2)
                 vals[n('ApparentInclination')] = round(appInc, 2)
                 vals[n('Azimuth')] = round(plotAzi, 2)
+                vals[n('Obliquity')] = rowObliquity
                 
             # {out_name}_ID is last item   
             vals[-1] = f'{id_pref}{str(i)}'
