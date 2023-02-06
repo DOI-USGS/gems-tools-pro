@@ -16,18 +16,7 @@
 import arcpy
 import GeMS_Definition as gdef
 from pathlib import Path
-import io
-from osgeo import osr
 
-def canonical_name(prj_string):
-    srs = osr.SpatialReference()
-    srs.ImportFromWkt(prj_string)
-    if srs.IsProjected:
-        sr_name = srs.GetAttrValue("projcs")
-    else:
-        sr_name = srs.GetAttrValue("geogcs")
-    sr = arcpy.SpatialReference(sr_name)
-    return sr
 
 def process(gdb, value_table):
     # if gdb doesn't exist, make it
@@ -38,15 +27,10 @@ def process(gdb, value_table):
 
     # although the parameter form collects a Coordinate System object, it is
     # converted to a prj string when saved within the ValueTable.
-    # Since prj strings are not acceptable as input to arcpy.SpatialReference
-    # (.prj file paths are but I could not transform the string into a file-path
-    # nor is it easy to extract the display name, canonical name, or factory code
-    # from the string.), we'll use osgeo.osr
     for i in range(0, value_table.rowCount):
         sr = arcpy.SpatialReference()
         sr.loadFromString(value_table.getValue(i, 1))
         arcpy.AddMessage(sr.name)
-
 
 
 if __name__ == "__main__":
