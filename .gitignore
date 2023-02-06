@@ -1,6 +1,4 @@
-<<<<<<< HEAD
 *.pyc
-
-=======
-*.pyc
->>>>>>> names-check
+Scripts/.vscode/
+mkdocs.yml
+site/

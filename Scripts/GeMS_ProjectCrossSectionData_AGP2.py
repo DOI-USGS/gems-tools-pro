@@ -512,6 +512,7 @@ if point_fcs:
     guf.addMsgAndPrint('projecting point feature classes:')
     #guf.addMsgAndPrint(f'buffering {xs_name} to get selection polygon')
     temp_buffer = os.path.join(scratch_fd, f"CS{token}_buffer")
+    guf.testAndDelete(temp_buffer)
     arcpy.Buffer_analysis(zm_line, temp_buffer, buffer_distance, 'FULL', 'FLAT')
 
 # for each input point feature class:
@@ -551,7 +552,11 @@ for fc_path in point_fcs:
         # add DistanceFromSection and LocalXsAzimuth
         arcpy.AddField_management(loc_points, 'DistanceFromSection', 'FLOAT')
         arcpy.AddField_management(loc_points, 'LocalCSAzimuth', 'FLOAT')
-             
+
+        # with all fields set, collect a list of the names for the cursors below
+        fld_obj = arcpy.ListFields(loc_points)
+        flds = [f.name for f in fld_obj if f.type != 'Geometry']
+        
         # set isOrientationData
         guf.addMsgAndPrint('checking for Azimuth and Inclination fields')
         if 'Azimuth' in flds and 'Inclination' in flds:
@@ -561,13 +566,7 @@ for fc_path in point_fcs:
                 flds.append(n)                         
         else:
             isOrientationData = False
-            
-        # with all fields set, collect a list of the names for the cursors below
-        # and append the SHAPE@ token
-        fld_obj = arcpy.ListFields(loc_points)
-        flds = [f.name for f in fld_obj if f.type != 'Geometry']
-        flds.append('SHAPE@')
-            
+
         # create empty feature class, with unknown SR, in the original gdb
         out_name = f'CS{token}_{fc_name}'
         out_path = os.path.join(out_fds, out_name)
@@ -579,6 +578,8 @@ for fc_path in point_fcs:
         
         # prepare cursors
         # for in_rows, use flds as listed based on the template feature class
+        # append the geometry token SHAPE@ so it is at the end of the list of field names
+        flds.append('SHAPE@')
         in_rows = arcpy.da.SearchCursor(loc_points, flds)
        
         # but for out_rows, append a {out_name}_ID field
