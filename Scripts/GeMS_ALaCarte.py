@@ -19,6 +19,15 @@ from pathlib import Path
 import io
 from osgeo import osr
 
+def canonical_name(prj_string):
+    srs = osr.SpatialReference()
+    srs.ImportFromWkt(prj_string)
+    if srs.IsProjected:
+        sr_name = srs.GetAttrValue("projcs")
+    else:
+        sr_name = srs.GetAttrValue("geogcs")
+    sr = arcpy.SpatialReference(sr_name)
+    return sr
 
 def process(gdb, value_table):
     # if gdb doesn't exist, make it
@@ -34,16 +43,10 @@ def process(gdb, value_table):
     # nor is it easy to extract the display name, canonical name, or factory code
     # from the string.), we'll use osgeo.osr
     for i in range(0, value_table.rowCount):
-        prj = value_table.getValue(i, 1)
+        sr = arcpy.SpatialReference()
+        sr.loadFromString(value_table.getValue(i, 1))
+        arcpy.AddMessage(sr.name)
 
-        srs = osr.SpatialReference()
-        srs.ImportFromWkt(prj)
-        if srs.IsProjected:
-            sr_name = srs.GetAttrValue("projcs")
-        else:
-            sr_name = srs.GetAttrValue("geogcs")
-
-        sr = arcpy.SpatialReference(sr_name)
 
 
 if __name__ == "__main__":
