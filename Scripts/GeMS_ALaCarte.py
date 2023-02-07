@@ -25,12 +25,18 @@ def process(gdb, value_table):
         name = Path(gdb).stem
         arcpy.CreateFileGDB_management(folder, name)
 
-    # although the parameter form collects a Coordinate System object, it is
-    # converted to a prj string when saved within the ValueTable.
+    arcpy.AddMessage(value_table)
+
+    # collect the values from the valuetable
     for i in range(0, value_table.rowCount):
+        fd = value_table.getValue(i, 0)
+        sr_prj = value_table.getValue(i, 1)
+        fc = value_table.getValue(i, 2)
+
+        # if not fd in ['', ' ', '#', None:
+
         sr = arcpy.SpatialReference()
         sr.loadFromString(value_table.getValue(i, 1))
-        arcpy.AddMessage(sr.name)
 
 
 if __name__ == "__main__":
