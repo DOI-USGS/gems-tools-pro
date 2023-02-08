@@ -98,9 +98,9 @@ def process(gdb, value_table):
         name = Path(gdb).stem
         arcpy.CreateFileGDB_management(folder, name)
 
-    out_path = gdb
     # collect the values from the valuetable
     for i in range(0, value_table.rowCount):
+        out_path = gdb
         fd = value_table.getValue(i, 0)
         sr_prj = value_table.getValue(i, 1)
         sr = eval_prj(sr_prj, fd)
