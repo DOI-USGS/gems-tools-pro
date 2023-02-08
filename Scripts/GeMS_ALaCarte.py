@@ -15,37 +15,48 @@
 
 import arcpy
 import GeMS_Definition as gdef
+import GeMS_CreateDatabase_AGP2 as cd
 from pathlib import Path
 
-gdb_dict = {
-    "CMULines": "line",
-    "CMUMapUnitPolys": "polygon",
-    "CMUPoints": "point",
-    "CartographicLines": "line",
-    "ContactsAndFaults": "line",
-    "DataSourcePolys": "polygon",
+geom_dict = {
+    "CMULines": "Polyline",
+    "CMUMapUnitPolys": "Polygon",
+    "CMUPoints": "Point",
+    "CartographicLines": "Polyline",
+    "ContactsAndFaults": "Polyline",
+    "DataSourcePolys": "Polygon",
     "DataSources": "table",
     "DescriptionOfMapUnits": "table",
-    "FossilPoints": "point",
-    "GenericPoints": "point",
+    "FossilPoints": "Point",
+    "GenericPoints": "Point",
     "GenericSamples": "point",
     "GeoMaterialDict": "table",
     "GeochronPoints": "point",
-    "GeologicLines": "line",
+    "GeologicLines": "Polyline",
     "Glossary": "table",
-    "IsoValueLines": "line",
+    "IsoValueLines": "Polyline",
     "LayerList": "table",
-    "MapUnitLines": "line",
-    "MapUnitOverlayPolys": "polygon",
-    "MapUnitPoints": "point",
-    "MapUnitPolys": "polygon",
+    "MapUnitLines": "Polyline",
+    "MapUnitOverlayPolys": "Polygon",
+    "MapUnitPoints": "Point",
+    "MapUnitPolys": "Polygon",
     "MiscellaneousMapInformation": "table",
-    "OrientationPoints": "point",
-    "OverlayPolys": "polygon",
-    "PhotoPoints": "point",
+    "OrientationPoints": "Point",
+    "OverlayPolys": "Polygon",
+    "PhotoPoints": "Point",
     "RepurposedSymbols": "table",
     "StandardLithology": "table",
-    "Stations": "point",
+    "Stations": "Point",
+}
+
+transDict = {
+    "String": "TEXT",
+    "Single": "FLOAT",
+    "Double": "DOUBLE",
+    "NoNulls": "NULLABLE",  # NB-enforcing NoNulls at gdb level creates headaches; instead, check while validating
+    "NullsOK": "NULLABLE",
+    "Optional": "NULLABLE",
+    "Date": "DATE",
 }
 
 
@@ -67,6 +78,19 @@ def eval_prj(prj_str, fd):
     return sr
 
 
+def find_temp(fc):
+    names = geom_dict.keys()
+    n = []
+    for name in names:
+        if name in fc:
+            n = [name, geom_dict[name]]
+            break
+    if n:
+        return n[0], n[1]
+    else:
+        return None, None
+
+
 def process(gdb, value_table):
     # if gdb doesn't exist, make it
     if not Path(gdb).exists:
@@ -75,7 +99,6 @@ def process(gdb, value_table):
         arcpy.CreateFileGDB_management(folder, name)
 
     out_path = gdb
-
     # collect the values from the valuetable
     for i in range(0, value_table.rowCount):
         fd = value_table.getValue(i, 0)
@@ -83,11 +106,79 @@ def process(gdb, value_table):
         sr = eval_prj(sr_prj, fd)
         fc = value_table.getValue(i, 2)
 
-        if not fd == "#":
+        # feature dataset
+        if not fd == "":
             fd_path = Path(gdb) / fd
-            if not arcpy.Exists(str(fd_path)):
+            if arcpy.Exists(str(fd_path)):
+                arcpy.AddMessage(f"Found existing {fd} feature dataset")
+            else:
                 arcpy.CreateFeatureDataset_management(gdb, fd, sr)
-                out_path = str(fd_path)
+                arcpy.AddMessage(f"New feature dataset {fd} created")
+            out_path = str(fd_path)
+
+        # feature class or table
+        if not fc == "":
+            fc_path = Path(out_path) / fc
+            if arcpy.Exists(str(fc_path)):
+                arcpy.AddWarning(f"{fc} already exists")
+            else:
+                arcpy.AddMessage(f"Creating {fc}")
+                if fc == "GeoMaterialDict":
+                    geomat_csv = str(Path(__file__).parent / "GeoMaterialDict.csv")
+                    arcpy.TableToTable_conversion(
+                        geomat_csv, out_path, "GeoMaterialDict"
+                    )
+                else:
+                    template, shape = find_temp(fc)
+                    if template:
+                        if shape == "table":
+                            arcpy.CreateTable_management(out_path, fc, template)
+                        else:
+                            arcpy.CreateFeatureclass_management(
+                                out_path, fc, shape, spatial_reference=sr
+                            )
+
+                        # add fields as defined in GeMS_Definition
+                        field_defs = gdef.startDict[template]
+                        for fDef in field_defs:
+                            try:
+                                arcpy.AddMessage(f"Adding field {fDef[0]}")
+                                if fDef[1] == "String":
+                                    # note that we are ignoring fDef[2], NullsOK or NoNulls
+                                    arcpy.AddField_management(
+                                        str(fc_path),
+                                        fDef[0],
+                                        transDict[fDef[1]],
+                                        "#",
+                                        "#",
+                                        fDef[3],
+                                        "#",
+                                        "NULLABLE",
+                                    )
+                                else:
+                                    # note that we are ignoring fDef[2], NullsOK or NoNulls
+                                    arcpy.AddField_management(
+                                        str(fc_path),
+                                        fDef[0],
+                                        transDict[fDef[1]],
+                                        "#",
+                                        "#",
+                                        "#",
+                                        "#",
+                                        "NULLABLE",
+                                    )
+                            except:
+                                arcpy.AddMessage(
+                                    f"Failed to add field {fDef[0]} to feature class {fc}"
+                                )
+
+                        # add a _ID field
+                        arcpy.AddMessage(f"Adding field {fc}_ID")
+                        arcpy.AddField_management(
+                            str(fc_path), f"{fc}_ID", "TEXT", field_length=50
+                        )
+
+            # add domains
 
 
 if __name__ == "__main__":
