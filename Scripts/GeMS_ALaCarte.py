@@ -6,15 +6,15 @@
     Attributes:
         gdb (string): path to an existing file geodatbase. Use the new file
         geodatabase context menu option when browsing to a folder to create 
-        an new empty geodatabase
+        a new empty geodatabase
 
         gdb_items (list): a list of new GeMS ojbects to add to the gdb. Each list
         can have three items;
         [[new or existing feature dataset, spatial reference of fd, table]]
     
     Returns:
-        A feature dataset or a featureclass/nonspatial table either within 
-        a feature dataset, if included, or within the file geodatabase, if no
+        A feature dataset or a featureclass/non-spatial table either within 
+        a feature dataset, if included, or within the file geodatabase if no
         feature dataset is included. 
         
         Feature dataset or table names picked from the dropdown may include 
@@ -25,6 +25,9 @@
         not delete the word 'Generic'. This is necessary for the tool to find the
         correct template name. In the resulting feature class, 'Generic' will be
         omitted.
+
+        DataSources and Glossary tables will be added even if not picked on the
+        parameter form.
 """
 
 import arcpy
