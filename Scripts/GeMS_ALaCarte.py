@@ -221,17 +221,23 @@ def process(gdb, value_table):
                 else:
                     template, shape = find_temp(fc)
                     if template:
-                        if shape == "table":
-                            arcpy.CreateTable_management(out_path, fc_name)
-                        else:
-                            arcpy.CreateFeatureclass_management(
-                                out_path,
-                                fc_name,
-                                shape,
-                                spatial_reference=sr,
-                            )
+                        try:
+                            if shape == "table":
+                                arcpy.CreateTable_management(out_path, fc_name)
+                            else:
+                                arcpy.CreateFeatureclass_management(
+                                    out_path,
+                                    fc_name,
+                                    shape,
+                                    spatial_reference=sr,
+                                )
+                        except Exception:
+                            e = sys.exc_info()[1]
+                            arcpy.AddWarning(e.args[0])
                     else:
-                        arcpy.AddWarning(f"No GeMS template found for {fc_name}")
+                        arcpy.AddWarning(
+                            f"GeMS template for {fc_name} could not be found"
+                        )
             fc_tab = "  "
 
             # add fields as defined in GeMS_Definition
