@@ -304,3 +304,11 @@ def gdb_object_dict(gdb_path):
                 v["gems_equivalent"] = a
 
     return new_dict
+
+
+def camel_to_snake(s):
+    if "CMU" in s:
+        s = s[3:]
+        return f"cmu_{''.join(['_'+c.lower() if c.isupper() else c for c in s]).lstrip('_')}"
+    else:
+        return "".join(["_" + c.lower() if c.isupper() else c for c in s]).lstrip("_")
