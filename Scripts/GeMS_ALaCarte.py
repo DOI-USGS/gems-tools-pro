@@ -92,6 +92,8 @@ def eval_prj(prj_str, fd):
     else:
         sr = arcpy.SpatialReference()
         sr.loadFromString(prj_str)
+        if sr.name == "":
+            sr = ""
 
     return sr
 
@@ -141,7 +143,9 @@ def add_geomaterial(gdb, out_path, padding):
     # if they are not found in gdb. The table and domain will be added if
     # 1. GeoMaterialDict is requested or
     # 2. if a version of MapUnitPolys (with GeoMaterial field) is requested
+    arcpy.env.workspace = gdb
     if not "GeoMaterialDict" in arcpy.ListTables(gdb):
+        arcpy.AddMessage("did not find GeoMaterials")
         geomat_csv = str(Path(__file__).parent / "GeoMaterialDict.csv")
         arcpy.TableToTable_conversion(geomat_csv, out_path, "GeoMaterialDict")
 
@@ -221,19 +225,15 @@ def process(gdb, value_table):
                 else:
                     template, shape = find_temp(fc)
                     if template:
-                        try:
-                            if shape == "table":
-                                arcpy.CreateTable_management(out_path, fc_name)
-                            else:
-                                arcpy.CreateFeatureclass_management(
-                                    out_path,
-                                    fc_name,
-                                    shape,
-                                    spatial_reference=sr,
-                                )
-                        except Exception:
-                            e = sys.exc_info()[1]
-                            arcpy.AddWarning(e.args[0])
+                        if shape == "table":
+                            arcpy.CreateTable_management(out_path, fc_name)
+                        else:
+                            arcpy.CreateFeatureclass_management(
+                                out_path,
+                                fc_name,
+                                shape,
+                                spatial_reference=sr,
+                            )
                     else:
                         arcpy.AddWarning(
                             f"GeMS template for {fc_name} could not be found"
@@ -293,21 +293,21 @@ def process(gdb, value_table):
                             )
 
                     if fDef[0] == "GeoMaterial":
-                        try:
-                            this_field = arcpy.ListFields(fc_path, "GeoMaterial")[0]
-                            if not this_field.domain == "GeoMaterials":
-                                # double-check GeoMaterialDict and related domains
-                                add_geomaterial(gdb, out_path)
-                                arcpy.AssignDomainToField_management(
-                                    str(fc_path), fDef[0], "GeoMaterials"
-                                )
-                                arcpy.AddMessage(
-                                    f"{fd_tab}{fc_tab}{fld_tab}GeoMaterials domain assigned to field GeoMaterial"
-                                )
-                        except:
-                            arcpy.AddWarning(
-                                f"Failed to assign domain GeoMaterials to field GeoMaterial"
+                        #try:
+                        this_field = arcpy.ListFields(fc_path, "GeoMaterial")[0]
+                        if not this_field.domain == "GeoMaterials":
+                            # double-check GeoMaterialDict and related domains
+                            add_geomaterial(gdb, out_path, f"{fd_tab}{fc_tab}{fld_tab}")
+                            arcpy.AssignDomainToField_management(
+                                str(fc_path), fDef[0], "GeoMaterials"
                             )
+                            arcpy.AddMessage(
+                                f"{fd_tab}{fc_tab}{fld_tab}GeoMaterials domain assigned to field GeoMaterial"
+                            )
+                        # except:
+                        #     arcpy.AddWarning(
+                        #         f"Failed to assign domain GeoMaterials to field GeoMaterial"
+                        #     )
 
                     # add domain for GeoMaterialConfidence
                     if fDef[0] == "GeoMaterialConfidence":
@@ -317,7 +317,7 @@ def process(gdb, value_table):
                             )[0]
                             if not this_field.domain == "GeoMaterialConfidenceValues":
                                 # double-check GeoMaterialDict and related domains
-                                add_geomaterial(gdb, out_path)
+                                add_geomaterial(gdb, out_path,  f"{fd_tab}{fc_tab}{fld_tab}")
                                 arcpy.AssignDomainToField_management(
                                     str(fc_path), fDef[0], "GeoMaterialConfidenceValues"
                                 )
