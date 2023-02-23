@@ -8,8 +8,8 @@
         geodatabase context menu option when browsing to a folder to create 
         a new empty geodatabase
 
-        gdb_items (list): a list of new GeMS ojbects to add to the gdb. Each list
-        can have three items;
+        gdb_items (list): a list of new GeMS ojbects to add to the gdb. Each object
+        can have three items:
         [[new or existing feature dataset, spatial reference of fd, table]]
     
     Returns:
@@ -145,7 +145,7 @@ def add_geomaterial(gdb, out_path, padding):
     # 2. if a version of MapUnitPolys (with GeoMaterial field) is requested
     arcpy.env.workspace = gdb
     if not "GeoMaterialDict" in arcpy.ListTables(gdb):
-        arcpy.AddMessage("did not find GeoMaterials")
+        arcpy.AddMessage("Creating GeoMaterialDict")
         geomat_csv = str(Path(__file__).parent / "GeoMaterialDict.csv")
         arcpy.TableToTable_conversion(geomat_csv, out_path, "GeoMaterialDict")
 
