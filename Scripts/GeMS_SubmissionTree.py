@@ -28,7 +28,7 @@ rawurl = "https://raw.githubusercontent.com/usgs/gems-tools-pro/tree-tool/Script
 guf.checkVersion(version_string, rawurl, "gems-tools-pro")
 
 
-def make_tree(parent_dir, postal_code, year, mapped_area, abbname, version, basedata):
+def make_tree(parent_dir, postal_code, year, mapped_area, version, basedata):
 
     if version != "":
         name = f"{postal_code}_{year}_{mapped_area}_{version}"
@@ -61,13 +61,7 @@ if __name__ == "__main__":
     else:
         version = ""
 
-    if arcpy.GetParameterAsText(5) != "":
-        abbname = arcpy.GetParameterAsText(5)
-        if len(abbname) > 5:
-            abbname = abbname[:5]
-    else:
-        abbname = mapped_area[:5]
 
     basedata = guf.convert_bool(arcpy.GetParameterAsText(6))
 
-    make_tree(parent_dir, postal_code, year, mapped_area, abbname, version, basedata)
+    make_tree(parent_dir, postal_code, year, mapped_area, version, basedata)
