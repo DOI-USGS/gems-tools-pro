@@ -15,7 +15,7 @@ Args:
     year (str): year of award
     mapped_area (str): state, quad, region, etc. of mapped area
     version (str): major-minor
-    basedata (boolean): should a basedata directory be created?
+    basedata (boolean): should a basedata directory be created? y or n.
 
 """
 
@@ -24,7 +24,7 @@ import GeMS_utilityFunctions as guf
 import subprocess
 from pathlib import Path
 
-version_string = "GeMS_SubmissionTree.py, version of 27 February 2023"
+version_string = "GeMS_SubmissionTree.py, version of 28 February 2023"
 rawurl = "https://raw.githubusercontent.com/usgs/gems-tools-pro/tree-tool/Scripts/GeMS_SubmissionTree.py"
 guf.checkVersion(version_string, rawurl, "gems-tools-pro")
 
@@ -98,7 +98,7 @@ def make_tree(parent_dir, postal_code, year, mapped_area, version, basedata):
         bd = "y"
     else:
         bd = "n"
-    # parent_dir = f'"{parent_dir}"'
+
     arcpy.AddMessage(f"Creating tree in {parent_dir}")
     arcpy.AddMessage(subprocess.list2cmdline(["gems_mkdir.bat", parent_dir, name, bd]))
     subprocess.run(["gems_mkdir.bat", parent_dir, name, bd], shell=True)
