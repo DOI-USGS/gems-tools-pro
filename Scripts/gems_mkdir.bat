@@ -28,13 +28,13 @@ REM top-level submittal folder and fullname child folder
 mkdir "%parent%/%fullname%-submittal/%fullname%"
 
 REM database folder
-mkdir "%parent%/%fullname%-submittal/%fullname%/%abbname%-database
-mkdir "%parent%/%fullname%-submittal/%fullname%/%abbname%-database/resources
+mkdir "%parent%/%fullname%-submittal/%fullname%/%fullname%-database
+mkdir "%parent%/%fullname%-submittal/%fullname%/%fullname%-database/resources
 
 REM Include a basedata folder?
 if "%basedata%"=="y" (
-	mkdir "%parent%/%fullname%-submittal/%fullname%/%abbname%-database/basedata
-	mkdir "%parent%/%fullname%-submittal/%fullname%/%abbname%-database/basedata/resources
+	mkdir "%parent%/%fullname%-submittal/%fullname%/%fullname%-database/basedata
+	mkdir "%parent%/%fullname%-submittal/%fullname%/%fullname%-database/basedata/resources
 	)
 REM shapefile folder
-mkdir "%parent%"/%fullname%-submittal/%fullname%/%abbname%-shapefile
+mkdir "%parent%"/%fullname%-submittal/%fullname%/%fullname%-shapefile
