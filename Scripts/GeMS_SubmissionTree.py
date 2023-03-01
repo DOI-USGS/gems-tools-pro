@@ -53,7 +53,6 @@ db_readme = [
     "  Required:\n",
     "    .gdb file geodatabase\n",
     "    .mapx or .mxd (preferred)\n",
-    "    mapXYZ.pdf publication pamphlet\n",
     "  As-needed:\n",
     "    mapXYZ.pdf publication pamphlet\n",
     "  Optional:\n",
