@@ -80,6 +80,7 @@ schemaExtensions = ['<i>Some of the extensions to the GeMS schema identified her
 schemaErrorsMissingElements = ['Missing required elements']
 schemaErrorsMissingFields = ['Missing or mis-defined fields']
 
+
 missingRequiredValues = ['Fields that are missing required values']    #  entries are [field, table]
 
 all_IDs = []  #  entries are [_IDvalue, table]
