@@ -24,9 +24,10 @@ import GeMS_utilityFunctions as guf
 import subprocess
 from pathlib import Path
 
-version_string = "GeMS_SubmissionTree.py, version of 28 February 2023"
+version_string = "GeMS_SubmissionTree.py, version of 20 March 2023"
 rawurl = "https://raw.githubusercontent.com/usgs/gems-tools-pro/tree-tool/Scripts/GeMS_SubmissionTree.py"
 guf.checkVersion(version_string, rawurl, "gems-tools-pro")
+
 
 sub_readme = [
     "Add the following files to this folder:\n",
@@ -45,7 +46,7 @@ map_readme = [
     "    mapXYZ.pdf publication pamphlet\n",
     "  Optional:\n",
     "    Folder of the map data in an open source format, e.g.,\n",
-    "    fullname-geopaackage, fullname-spatialite, etc."
+    "    fullname-geopaackage, fullname-spatialite, etc.",
 ]
 
 db_readme = [
@@ -56,7 +57,7 @@ db_readme = [
     "  As-needed:\n",
     "    mapXYZ.pdf publication pamphlet\n",
     "  Optional:\n",
-    "    files for viewing the data with free software, e.g., QGIS project, KML files, etc."
+    "    files for viewing the data with free software, e.g., QGIS project, KML files, etc.",
 ]
 
 resources_readme = [
@@ -68,7 +69,7 @@ resources_readme = [
     "    Figures as editable graphics files, e.g., PDF, AI, EPS, etc."
     "    Tables as editable Excel, CSV, etc.\n",
     "  Optional:\n",
-    "    Formatted DMU or LMU document"
+    "    Formatted DMU or LMU document",
 ]
 
 shp_readme = [
@@ -76,15 +77,17 @@ shp_readme = [
     "  Shapefile for each feature class\n",
     "  .dbf for each nonspatial table\n",
     "  text file (CSV) for each table with contents over 254 characters in length\n",
-    "  README-like text file describin file and field names"
+    "  README-like text file describin file and field names",
 ]
 
-readme_dict = {"fullname-submittal" : sub_readme,
-               "fullname-submittal/fullname" : map_readme,
-               "fullname-submittal/fullname/fullname-database" : db_readme,
-               "fullname-submittal/fullname/fullname-database/resources" : resources_readme,
-               "fullname-submittal/fullname/fullname-shapefile" : shp_readme
-               }
+readme_dict = {
+    "fullname-submittal": sub_readme,
+    "fullname-submittal/fullname": map_readme,
+    "fullname-submittal/fullname/fullname-database": db_readme,
+    "fullname-submittal/fullname/fullname-database/resources": resources_readme,
+    "fullname-submittal/fullname/fullname-shapefile": shp_readme,
+}
+
 
 def make_tree(parent_dir, postal_code, year, mapped_area, version, basedata):
 
@@ -112,13 +115,12 @@ def crawl_readmes(parent_dir, name):
         folder = k.replace("fullname", name)
         folder_path = Path(parent_dir) / folder
         if folder_path.exists():
-            readme_path = folder_path / 'add these files.txt'
+            readme_path = folder_path / "add these files.txt"
             write_readme(readme_path, [n.replace("fullname", name) for n in v])
 
 
-
 def write_readme(f_path, readme_list):
-    with open(f_path, 'w') as f:
+    with open(f_path, "w") as f:
         f.writelines(readme_list)
         f.write("\n\nDelete this file before submission.")
 
