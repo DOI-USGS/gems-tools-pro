@@ -1,6 +1,8 @@
 # utility functions for scripts that work with GeMS geodatabase schema
 
 import arcpy, os.path, time, glob
+import GeMS_Definition as gdef
+
 
 editPrefixes = ("xxx", "edit_", "errors_", "ed_")
 debug = False
@@ -237,9 +239,86 @@ def checkVersion(vString, rawurl, toolbox):
         )
 
 
+<<<<<<< HEAD
 def convert_bool(boo):
     # converts boolean-like strings to Type boolean
     if boo in [True, "True", "true", "Yes", "yes", "Y", "y", 1]:
         return True
     else:
         return False
+=======
+def gdb_object_dict(gdb_path):
+    """Returns a dictionary of table_name: da.Describe_table_properties
+    when used on a geodatabase. GDB's will have tables, feature classes,
+    and feature datasets listed under GDB['children']. But feature
+    datasets will also have a 'children' key with their own children.
+    gdb_object_dict() finds ALL children, regardless of how they are nested,
+    and puts the information into a dictionary value retrieved by the name
+    of the table.
+    Works on geodatabases and geopackages!
+    da.Describe is pretty fast (faster for gpkg, why?) and verbose
+    """
+    desc = arcpy.da.Describe(gdb_path)
+    if desc["children"]:
+        children = {child["name"]: child for child in desc["children"]}
+        for child, v in children.items():
+            # adding an entry for the feature dataset the item is in, if there is one
+            v["feature_dataset"] = ""
+            if children[child]["children"]:
+                fd = children[child]["name"]
+                more_children = {n["name"]: n for n in children[child]["children"]}
+                for k, v in more_children.items():
+                    v["feature_dataset"] = fd
+                children = {**children, **more_children}
+
+    # and sanitize names that come from geopackages that start with "main."
+    # trying to modify the children dictionary in-place wasn't producing expected results
+    # we'll build a new dictionary with modified names
+    if gdb_path.endswith(".gpkg"):
+        new_dict = {}
+        for child in children:
+            if "." in child:
+                new_name = child.split(".")[1]
+                new_dict[new_name] = children[child]
+    else:
+        new_dict = children
+    # new_dict = children
+
+    # adding an entry for 'concatenated type' that will concatenate
+    # featureType, shapeType, and dataType. eg
+    # Simple Polygon FeatureClass
+    # Simple Polyline FeatureClass
+    # Annotation Polygon FeatureClass
+    # this will go into Entity_Type_Definition
+    for k, v in new_dict.items():
+        if v["dataType"] == "Table":
+            v["concat_type"] = "Nonspatial Table"
+        elif v["dataType"] == "FeatureClass":
+            v["concat_type"] = f"{v['featureType']} {v['shapeType']} {v['dataType']}"
+        else:
+            v["concat_type"] = v["dataType"]
+
+        # for objects that are based on a GeMS object but have a
+        # prefix or suffix, record the name of the required GeMS object
+        # on which they are based
+        # initialize gems_equivalent key to nothing
+        v["gems_equivalent"] = ""
+        tableDict_keys = list(gdef.tableDict.keys())
+        tableDict_keys.append("GeoMaterialDict")
+        for a in tableDict_keys:
+            # if the CamelCase or snake_case version of a gems object
+            # is found in the table name
+            if any(n in k.lower() for n in (a.lower(), camel_to_snake(a))):
+                # set the gems_equivalent key to the GeMS CamelCase name
+                v["gems_equivalent"] = a
+
+    return new_dict
+
+
+def camel_to_snake(s):
+    if "CMU" in s:
+        s = s[3:]
+        return f"cmu_{''.join(['_'+c.lower() if c.isupper() else c for c in s]).lstrip('_')}"
+    else:
+        return "".join(["_" + c.lower() if c.isupper() else c for c in s]).lstrip("_")
+>>>>>>> alacarte
