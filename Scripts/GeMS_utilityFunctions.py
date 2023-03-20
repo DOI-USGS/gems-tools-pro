@@ -239,14 +239,6 @@ def checkVersion(vString, rawurl, toolbox):
         )
 
 
-<<<<<<< HEAD
-def convert_bool(boo):
-    # converts boolean-like strings to Type boolean
-    if boo in [True, "True", "true", "Yes", "yes", "Y", "y", 1]:
-        return True
-    else:
-        return False
-=======
 def gdb_object_dict(gdb_path):
     """Returns a dictionary of table_name: da.Describe_table_properties
     when used on a geodatabase. GDB's will have tables, feature classes,
@@ -321,4 +313,3 @@ def camel_to_snake(s):
         return f"cmu_{''.join(['_'+c.lower() if c.isupper() else c for c in s]).lstrip('_')}"
     else:
         return "".join(["_" + c.lower() if c.isupper() else c for c in s]).lstrip("_")
->>>>>>> alacarte
