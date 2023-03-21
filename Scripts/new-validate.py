@@ -54,7 +54,7 @@ import validate_html as vh
 
 
 version_string = "GeMS_ValidateDatabase_AGP2.py, version of 18 April 2022"
-rawurl = "https://raw.githubusercontent.com/usgs/gems-tools-pro/master/Scripts/GeMS_ValidateDatabase_AGP2.py"
+rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/master/Scripts/GeMS_ValidateDatabase_AGP2.py"
 
 py_path = __file__
 scripts_dir = Path.cwd()

@@ -25,7 +25,7 @@ import subprocess
 from pathlib import Path
 
 version_string = "GeMS_SubmissionTree.py, version of 20 March 2023"
-rawurl = "https://raw.githubusercontent.com/usgs/gems-tools-pro/tree-tool/Scripts/GeMS_SubmissionTree.py"
+rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/tree-tool/Scripts/GeMS_SubmissionTree.py"
 guf.checkVersion(version_string, rawurl, "gems-tools-pro")
 
 

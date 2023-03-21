@@ -1,4 +1,4 @@
-﻿"""Add GeMS objects a la carte to a geodatabase
+﻿"""Add GeMS objects a la carte to a geodatabased
 
     Create or augment a GeMS or GeMS-like file geodatabase by adding one or more
     objects as needed
@@ -32,8 +32,13 @@
 
 import arcpy
 import GeMS_Definition as gdef
+import GeMS_AttributeByKeyValues_AGP2 as guf
 from pathlib import Path
 import sys
+
+versionString = "GeMS_ALaCarte.py, version of 21 March 2023"
+rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/master/Scripts/GeMS_ALaCarte.py"
+guf.checkVersion(versionString, rawurl, "gems-tools-pro")
 
 geom_dict = {
     "CMULines": "Polyline",
@@ -293,7 +298,7 @@ def process(gdb, value_table):
                             )
 
                     if fDef[0] == "GeoMaterial":
-                        #try:
+                        # try:
                         this_field = arcpy.ListFields(fc_path, "GeoMaterial")[0]
                         if not this_field.domain == "GeoMaterials":
                             # double-check GeoMaterialDict and related domains
@@ -317,7 +322,9 @@ def process(gdb, value_table):
                             )[0]
                             if not this_field.domain == "GeoMaterialConfidenceValues":
                                 # double-check GeoMaterialDict and related domains
-                                add_geomaterial(gdb, out_path,  f"{fd_tab}{fc_tab}{fld_tab}")
+                                add_geomaterial(
+                                    gdb, out_path, f"{fd_tab}{fc_tab}{fld_tab}"
+                                )
                                 arcpy.AssignDomainToField_management(
                                     str(fc_path), fDef[0], "GeoMaterialConfidenceValues"
                                 )
