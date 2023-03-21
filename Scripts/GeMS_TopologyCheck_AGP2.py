@@ -59,13 +59,13 @@ from GeMS_utilityFunctions import *
 
 # see gems-tools-pro version<=2.2.2 to get earlier TopologyCheck tool
 versionString = "GeMS_TopologyCheck_Arc10.py, version of 24 January 2023"
-rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/master/Scripts/GeMS_TopologyCheck_AGP2.py"
+rawurl = ""
 checkVersion(versionString, rawurl, "gems-tools-pro")
 
 htmlStart = """<html>\n
     <head>\n
         <meta http-equiv="content-type" content="text/html; charset=ISO-8859-1">\n
-    </head>\n
+    https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/master/Scripts/GeMS_TopologyCheck_AGP2.py</head>\n
         <body>\n"""
 htmlEnd = "         </body>\n   </html>\n"
 ValidateTopologyNote = """Note that not all geologic-map topology errors will be identified in this report.
