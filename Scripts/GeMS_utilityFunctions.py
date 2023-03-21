@@ -313,3 +313,11 @@ def camel_to_snake(s):
         return f"cmu_{''.join(['_'+c.lower() if c.isupper() else c for c in s]).lstrip('_')}"
     else:
         return "".join(["_" + c.lower() if c.isupper() else c for c in s]).lstrip("_")
+
+
+def convert_bool(boo):
+    # converts boolean-like strings to Type boolean
+    if boo in [True, "True", "true", "Yes", "yes", "Y", "y", 1]:
+        return True
+    else:
+        return False
