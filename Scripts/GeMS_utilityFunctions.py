@@ -1,12 +1,15 @@
 # utility functions for scripts that work with GeMS geodatabase schema
 
-import arcpy, os.path, time, glob
+import arcpy
+import os
+import os.path
+import time
+import glob
+import requests
 import GeMS_Definition as gdef
-
 
 editPrefixes = ("xxx", "edit_", "errors_", "ed_")
 debug = False
-import requests
 
 # I. General utilities
 
@@ -239,6 +242,14 @@ def checkVersion(vString, rawurl, toolbox):
         )
 
 
+def eval_bool(boo):
+    # converts boolean-like strings to Type boolean
+    if boo in [True, "True", "true", "Yes", "yes", "Y", "y", 1]:
+        return True
+    else:
+        return False
+
+
 def gdb_object_dict(gdb_path):
     """Returns a dictionary of table_name: da.Describe_table_properties
     when used on a geodatabase. GDB's will have tables, feature classes,
@@ -297,12 +308,25 @@ def gdb_object_dict(gdb_path):
         v["gems_equivalent"] = ""
         tableDict_keys = list(gdef.tableDict.keys())
         tableDict_keys.append("GeoMaterialDict")
+        tableDict_keys.append("GeologicMap")
         for a in tableDict_keys:
             # if the CamelCase or snake_case version of a gems object
             # is found in the table name
             if any(n in k.lower() for n in (a.lower(), camel_to_snake(a))):
                 # set the gems_equivalent key to the GeMS CamelCase name
                 v["gems_equivalent"] = a
+
+        if (
+            any(k.endswith(p) for p in ("Points", "_points"))
+            and v["gems_equivalent"] == ""
+        ):
+            v["gems_equivalent"] == "GenericPoints"
+
+        if (
+            any(k.endswith(s) for s in ("Samples", "_samples"))
+            and v["gems_equivalent"] == ""
+        ):
+            v["gems_equivalent"] == "GenericSamples"
 
     return new_dict
 
@@ -315,9 +339,46 @@ def camel_to_snake(s):
         return "".join(["_" + c.lower() if c.isupper() else c for c in s]).lstrip("_")
 
 
-def convert_bool(boo):
-    # converts boolean-like strings to Type boolean
-    if boo in [True, "True", "true", "Yes", "yes", "Y", "y", 1]:
+def not_empty(x):
+    # will converting x to string ever return an unexpected value?
+    if x != None and str(x).strip() != "":
         return True
     else:
         return False
+
+
+def empty(x):
+    if x == None:
+        return True
+    try:
+        if str(x).strip() == "":
+            return True
+        else:
+            return False
+    except:  # Fail because we tried to strip() on a non-string value
+        return False
+
+
+def is_bad_null(x):
+    try:
+        if str(x).lower() == "<null>" or str(x) == "" or str(x).strip() == "":
+            return True
+    except:
+        return False
+    else:
+        return False
+
+
+def fix_null(x):
+    # x = x.encode('ascii','xmlcharrefreplace')
+    if x.lower() == "<null>":
+        return "&lt;Null&gt;"
+    else:
+        return x
+
+
+def get_duplicates(table_path, field):
+    vals = [r[0] for r in arcpy.da.SearchCursor(table_path, field)]
+    dups = list(set([n for n in vals if vals.count(n) > 1]))
+    dups.sort()
+    return dups

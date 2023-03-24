@@ -7,19 +7,18 @@
 import arcpy, os, os.path, sys
 from GeMS_utilityFunctions import *
 
-versionString = "GeMS_FixStrings_AGP2.py, version of 8 September 2021"
-rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/master/Scripts/GeMS_FixStrings_AGP2.py"
-checkVersion(versionString, rawurl, "gems-tools-pro")
-
+versionString = 'GeMS_FixStrings_AGP2.py, version of 8 September 2021'
+rawurl = 'https://raw.githubusercontent.com/usgs/gems-tools-pro/master/Scripts/GeMS_FixStrings_AGP2.py'
+checkVersion(versionString, rawurl, 'gems-tools-pro')
 
 def fixTableStrings(fc):
-    fields1 = arcpy.ListFields(fc, "", "String")
-    fields = ["OBJECTID"]
+    fields1 = arcpy.ListFields(fc,'','String')
+    fields = ['OBJECTID']
     for f in fields1:
         fields.append(f.name)
     with arcpy.da.UpdateCursor(fc, fields) as cursor:
         for row in cursor:
-            trash = ""
+            trash = ''
             updateRowFlag = False
             row1 = [row[0]]
             for f in row[1:]:
@@ -29,7 +28,7 @@ def fixTableStrings(fc):
                     if f != f.strip():
                         f = f.strip()
                         updateFieldFlag = True
-                    if f.lower() == "<null>" or f == "":
+                    if f.lower() == '<null>' or f == '':
                         f = None
                         updateFieldFlag = True
                     if updateFieldFlag:
@@ -39,9 +38,8 @@ def fixTableStrings(fc):
                 try:
                     cursor.updateRow(row1)
                 except Exception as error:
-                    addMsgAndPrint(f"\u200B  Row {str(row[0])}. {error}")
-
-
+                    addMsgAndPrint(f'\u200B  Row {str(row[0])}. {error}')
+    
 #########################
 
 db = sys.argv[1]
@@ -55,8 +53,8 @@ for tb in tables:
     addMsgAndPrint(os.path.basename(tb))
     fixTableStrings(tb)
 
-datasets = arcpy.ListDatasets(feature_type="feature")
-datasets = [""] + datasets if datasets is not None else []
+datasets = arcpy.ListDatasets(feature_type='feature')
+datasets = [''] + datasets if datasets is not None else []
 
 for ds in datasets:
     for fc in arcpy.ListFeatureClasses(feature_dataset=ds):
@@ -66,4 +64,4 @@ for ds in datasets:
         except Exception as error:
             addMsgAndPrint(error)
 
-addMsgAndPrint("DONE")
+addMsgAndPrint('DONE')

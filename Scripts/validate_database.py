@@ -43,6 +43,12 @@ GLOBAL_CONSTANT_NAME, global_var_name, instance_var_name, function_parameter_nam
 local_var_name, query_proper_noun_for_thing, send_acronym_via_https
 """
 
+# every level 2 or 3 errors list needs to contain
+# [the message that will appear in the pass/fail cell of -Validation file if the rule fails,
+# the header for the rule section in -ValidationErrors file,
+# the name of the anchor in the -ValidationErrors file for the rule,
+# error1, error2, error3, errori...]
+
 import arcpy
 import os
 import sys
@@ -50,10 +56,22 @@ import time
 from pathlib import Path
 import GeMS_utilityFunctions as guf
 import GeMS_Definition as gdef
-import validate_html as vh
+import topology as tp
+from lxml import etree
+import requests
+from jinja2 import Environment, FileSystemLoader
 
+from importlib import reload
+
+reload(gdef)
+reload(tp)
+
+val = {}
 
 version_string = "GeMS_ValidateDatabase_AGP2.py, version of 18 April 2022"
+val["version_string"] = version_string
+val["datetime"] = time.asctime(time.localtime(time.time()))
+
 rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/master/Scripts/GeMS_ValidateDatabase_AGP2.py"
 
 py_path = __file__
@@ -61,44 +79,13 @@ scripts_dir = Path.cwd()
 toolbox_path = scripts_dir.parent
 resources_path = toolbox_path / "Resources"
 
-metadata_suffix = "-vFgdcMetadata.txt"
-metadata_errors_suffix = "-vFgdcMetadataErrors.txt"
-
-space6 = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp"
-space4 = "&nbsp;&nbsp;&nbsp;&nbsp;"
-space2 = "&nbsp;&nbsp;"
-
 ap = guf.addMsgAndPrint
-
-geologic_names_disclaimer = """, pending completion of a peer-reviewed Geologic 
-Names report that includes identification of any suggested modifications to 
-<a href="https://ngmdb.usgs.gov/Geolex/">Geolex</a>. '
-"""
 
 lc_standard_fields = []
 for f in gdef.standard_fields:
     lc_standard_fields.append(f.lower())
 
 metadata_checked = False  # script will set to True if metadata record is checked
-
-schema_extensions = [
-    """<i>Some of the extensions to the GeMS schema identified here may be 
-    necessary to capture geologic content and are entirely appropriate. 
-    <b>Please document these extensions in metadata for the database, any 
-    accompanying README file, and (if applicable) any transmittal letter that 
-    accompanies the dataset.</b> Other extensions may be intermediate datasets, 
-    fields, or files that should be deleted before distribution of the database.</i><br>
-    """
-]
-
-
-topology_errors = ["Feature datasets with bad basic topology"]
-topology_error_note = """
-<i>Note that the map boundary commonly gives an unavoidable "Must Not Have Gaps" line error.
-Other errors should be fixed. Level 2 errors are also Level 3 errors. Errors are
-identified in feature classes within XXX-Validation.gdb</i><br><br>
-"""
-
 
 other_warnings = []
 
@@ -109,9 +96,9 @@ def check_sr(db_obj):
 
     # check for NAD83 or WGS84
     if sr.type == "Geographic":
-        pcsd = srf.datumName
+        pcsd = sr.datumName
     else:  # is projected
-        pcsd = srf.PCSName
+        pcsd = sr.PCSName
     if pcsd.find("World_Geodetic_System_1984") < 0 and pcsd.find("NAD_1983") < 0:
         sr_warnings.append(
             f"Spatial reference framework of {db_obj} is {pcsd}. Consider reprojecting this dataset to NAD83 or WGS84"
@@ -119,6 +106,18 @@ def check_sr(db_obj):
 
     if sr_warnings:
         return sr_warnings
+
+
+def compare_sr(obj1, obj2):
+    sr_warnings = []
+    sr1 = db_dict[obj1]["spatialReference"].name
+    sr2 = db_dict[obj1]["spatialReference"].name
+    if sr1 != sr2:
+        sr_warnings = [f"{obj1} and {obj2} have different spatial references"]
+    else:
+        sr_warnings = "ok"
+
+    return sr_warnings
 
 
 def values(table, field, what):
@@ -143,105 +142,70 @@ def values(table, field, what):
     return vals
 
 
-def n_or_missing(n, l):
-    if n in l:
-        return n
-    else:
-        return f"__missing__{n}"
-
-
-def find_topology_pairs(fcs):
-    # collect prefix, suffix tuple pairs
-    fd_tags = []
-    for fc in fcs:
-        for s in (("MapUnitPolys", 12), ("ContactsAndFaults", 17)):
-            if s[0] in fc:
-                i = fc.find(s[0])
-                prefix = fc[0:i]
-                suffix = fc[i + s[1] :]
-                fd_tags.append((prefix, suffix))
-
-    req = ("MapUnitPolys", "ContactsAndFaults")
-    pairs = []
-    for fd_tag in tuple(set(fd_tags)):
-        mup = f"{fd_tag[0]}{req[0]}{fd_tag[1]}"
-        caf = f"{fd_tag[0]}{req[1]}{fd_tag[1]}"
-        pairs.append(n_or_missing(mup, fcs), n_or_missing(caf, fcs))
-
-    return pairs
-
-
 def rule2_1(db_dict):
     """Has required elements: nonspatial tables DataSources, DescriptionOfMapUnits,
     GeoMaterialDict; feature dataset GeologicMap with feature classes ContactsAndFaults
     and MapUnitPolys"""
-    schema_errors_missing_elements = ["Missing required elements"]
-    db_tables = set(
-        [k for k, v in db_dict.items() if v["gems_equivalent"] in gdef.rule2_1_elements]
-    )
-    req_els = set(gdef.rule2_1_elements)
+    tp_pairs = []
+    sr_warnings = []
+    errors = ["items(s) missing", "Missing required elements", "MissingElements"]
 
-    if not (db_tables == req_els):
-        for el in list(req_els - db_tables):
-            schema_errors_missing_elements.append(
-                f'Table <span class="table">{el}</span>'
-            )
-
-    # evaluate the existence of and the spatial reference of the
-    # 'GeologicMap' feature datasets.
-    topology_fds = []
-    topology_pairs = []
+    # first look for GeologicMap feature dataset
     if not is_gpkg:
-        # look for GeologicMap feature datasets
         gmaps = [k for k, v in db_dict.items() if v["gems_equivalent"] == "GeologicMap"]
         if not gmaps:
-            schema_errors_missing_elements.append(
-                'Feature dataset <span class="table">GeologicMap</span>'
-            )
+            errors.append(f'Feature dataset <span class="table">GeologicMap</span>)')
         else:
+            # check the spatial reference of each 'GeologicMap' feature dataset
             for gmap in gmaps:
-                # check the spatial reference
-                sr_warnings = check_sr(gmap)
-                if sr_warnings:
-                    schema_errors_missing_elements.extend(sr_warnings)
+                check_sr_result = check_sr(gmap)
+                if check_sr_result:
+                    sr_warnings.extend(check_sr_result)
 
-                # in each GeologicMap feature dataset, there needs to be
-                # ContactsAndFaults and MapUnitPolys
-                is_map = False
-                children = gmap["children"]
-                gems_fc = [c["gems_equivalent"] for c in children]
-                if set(gdef.required_geologic_map_feature_classes).issubset(gems_fc):
-                    is_map = True
-                    topology_fds.append(gmap)
+    fcs = [
+        k
+        for k, v in db_dict.items()
+        if v["gems_equivalent"] in gdef.required_geologic_map_feature_classes
+    ]
+    # find_topology_pairs returns [GeologicMap feature dataset(if gdb), fd_tag_name, mapunitpolys, contactsandfaults]
+    possible_pairs = tp.find_topology_pairs(fcs, is_gpkg, db_dict)
+    if possible_pairs:
+        # check each tagged name pair in the case of no feature dataset (pair[0])
+        for pair in possible_pairs:
+            # warning about missing feature class:
+            for n in pair[2:]:
+                if "_missing_" in n:
+                    errors.append(
+                        f'Feature class <span class="table"</span>{n.replace("__missing__", "")}</span>'
+                    )
+                else:
+                    # check each feature class for old datum
+                    check_sr_result = check_sr(n)
+                    if check_sr_result:
+                        sr_warnings.extend(check_sr_result)
 
-                if not is_map:
-                    for fc in gems_fc:
-                        if not fc in gdef.required_geologic_map_feature_classes:
-                            schema_errors_missing_elements.append(
-                                f'Feature class <span class="table">{gmap}/{fc}</span>'
-                            )
+            if all(n.find("__missing__") == -1 for n in pair[2:]):
+                compare_results = compare_sr(pair[2], pair[3])
+                if not compare_results == "ok":
+                    sr_warnings.append(compare_results)
+                else:
+                    # if both required feature classes are in the pair,
+                    # and have the same sr
+                    # add to tp_pairs to be evaluated for topology in rule 2.3
+                    tp_pairs.append(pair)
     else:
-        # in geopackages MapUnitPolys and ContactsAndFaults pairs must have the same prefix
-        # suffix; eg, Bedrock_MapUnitPolys_Map1. I don't care what those are, and there may be
-        # multiple pairs, but they must match
-        # these pairs will be tested for topology
-        fcs = [
-            k
-            for k, v in db_dict.items()
-            if v["gems_equivalent"] in gdef.required_geologic_map_feature_classes
-        ]
-        topology_pairs = find_topology_pairs(fcs)
+        for n in ("MapUnitPolys", "ContactsAndFaults"):
+            errors.append(f'Feature class <span class="table">{n}</span>')
 
-        # evaluate pairs
-        if topology_pairs:
-            for pair in topology_pairs:
-                for n in pair:
-                    if "_missing_" in n:
-                        schema_errors_missing_elements.append(
-                            f'Feature class <span class="table">{n}</span>'
-                        )
+    # consider non-spatial tables
+    db_tables = set(
+        [k for k, v in db_dict.items() if v["gems_equivalent"] in gdef.required_tables]
+    )
+    if set(db_tables) != set(gdef.required_tables):
+        for n in set(gdef.required_tables).difference(set(db_tables)):
+            errors.append(f'Table <span class="table">{n}</span>')
 
-    return (schema_errors_missing_elements, topology_fds, topology_pairs)
+    return (errors, tp_pairs, sr_warnings)
 
 
 def check_fields(db_dict, level):
@@ -249,7 +213,11 @@ def check_fields(db_dict, level):
     right now this only looks at controlled fields in tables that have been tagged
     with a gems_equivalent.
     """
-    schema_errors_missing_fields = ["Missing or mis-defined fields"]
+    errors = [
+        "missing or mis-defined field(s)",
+        "Missing or mis-defined fields",
+        "MissingFields",
+    ]
     if level == 2:
         # only required tables and fcs
         req_tables = [t for t in gdef.rule2_1_elements if t != "GeologicMap"]
@@ -271,8 +239,8 @@ def check_fields(db_dict, level):
         f_field_names = [f.name for f in found_fields]
         for field in req_fields:
             if not field[0] in f_field_names:
-                schema_errors_missing_fields.append(
-                    f'<span class="table">{table}</span>, field <span class="field">{field}</span> is missing'
+                errors.append(
+                    f'<span class="table">{table}</span>, field <span class="field">{field[0]}</span> is missing'
                 )
             else:
                 req_type = field[1]
@@ -282,64 +250,97 @@ def check_fields(db_dict, level):
                 else:
                     req_length = None
 
-                if req_type != found_fields[field].type:
-                    schema_errors_missing_fields.append(
+                if req_type != field[1]:
+                    errors.append(
                         f'<span class="table">{table}</span>, field <span class="field">{field}</span> should be type {req_type}'
                     )
-                if req_null != found_fields[field].nulls:
-                    schema_errors_missing_fields.append(
+                if req_null != field[2]:
+                    errors.append(
                         f'<span class="table">{table}</span>, field <span class="field">{field}</span> should  be {req_null}'
                     )
                 if req_length:
-                    if found_fields[field].length < req_length:
-                        schema_errors_missing_fields.append(
+                    if field[3] < req_length:
+                        errors.append(
                             f'<span class="table">{table}</span>, field <span class="field">{field}</span> should be at least {req_length} long'
                         )
 
-    return schema_errors_missing_fields
+    return errors
 
 
-def check_topology(gmap_fds, topo_pairs, level):
+def check_topology(topo_pairs):
     """2.3 GeologicMap topology: no internal gaps or overlaps in MapUnitPolys, boundaries of
     MapUnitPolys are covered by ContactsAndFaults 3.2 All map-like feature datasets obey
     topology rules. No MapUnitPolys gaps or overlaps. No ContactsAndFaults overlaps, self-overlaps,
     or self-intersections. MapUnitPoly boundaries covered by ContactsAndFaults"""
-if 
+    has_been_validated = False
+    if topo_pairs:
+        for topo_pair in topo_pairs:
+            make_topology = False
+            gmap = topo_pair[0]
+            if gmap:
+                children = db_dict[gmap]["children"]
+                tops = [c["name"] for c in children if c["dataType"] == "Topology"]
+                if tops:
+                    ap(f"\tTopology in {gmap} found")
+                    top_path = db_dict[tops[0]]["catalogPath"]
+                    has_been_validated = tp.has_been_validated(top_path)
+                else:
+                    make_topology = True
+            else:
+                make_topology = True
 
-    # checking for topology
-    if is_map:
-        if not skip_topology:
-            children = db_dict[gmap]["children"]
-            tops = [c["name"] for c in children if c["dataType"] == "Topology"]
-            if tops:
-                n_topo_errors = check_topology(
-                    workdir,
-                    gdb_path,
-                    gmap,
-                    2,
-                )
-                if n_topo_errors > 0:
-                    topology_errors.append(
-                        str(n_topo_errors)
-                        + ' Level 2 errors in <span class="table">GeologicMap</span>'
-                    )
-        else:
-            ap("  skipping topology check")
-            topology_errors.append("Level 2 topology check was skipped")
+        if make_topology:
+            ap(f"\tNo topology found in {gmap}")
+            top_path, has_been_validated = tp.make_topology(workdir, topo_pair, db_dict)
+            top_name = Path(top_path).stem
+
+    # evaluate the topology
+    # eval_topology returns (level_2, level_3, missing_rules, top_errors)
+    # do we need to validate first?
+    # look for DirtyAreas
+    if not has_been_validated:
+        ap("\tValidating topology")
+        arcpy.ValidateTopology_management(top_path)
+
+    ap("\tLooking at validation results for errors")
+
+    # topologies have to be in feature dataset, so topology.parent.parent
+    # gets the file geodatabase, whether the original or the Topology.gdb copy
+    gmap = Path(top_path).parent.stem
+    topo_gdb = Path(top_path).parent.parent
+    level_2_errors, level_3_errors = tp.eval_topology(
+        str(topo_gdb), top_name, db_dict, gmap
+    )
+
+    return level_2_errors, level_3_errors
 
 
 def check_map_units(db_dict, level):
     """All MapUnits entries can be found in DescriptionOfMapUnits table
     Rules 2.4 and 3.8"""
-    missing_dmu_map_units = [
-        "MapUnits missing from DMU. Only one reference to each missing unit is cited"
+    if not "DescriptionOfMapUnits" in db_dict:
+        message = [
+            "DescriptionOfMapUnits cannot be found. See Rule 2.1",
+            None,
+        ]
+        missing = message
+        unused = message
+
+        return (missing, unused)
+
+    missing = [
+        "map unit(s) missing in DMU",
+        "MapUnits missing from DMU. Only one reference to each missing unit is cited",
+        "dmuComplete",
     ]
 
-    unused_dmu_map_units = [
-        "MapUnits in DMU that are not present on map, in CMU, or elsewhere"
+    unused = [
+        "missing map unit(s) in DMU",
+        "MapUnits in DMU that are not present on map, in CMU, or elsewhere",
+        "MissingMapUnits",
     ]
 
-    dmu_units = list(set(values("DescriptionOfMapUnits", "MapUnit", "list")))
+    dmu_units = set(values("DescriptionOfMapUnits", "MapUnit", "list"))
 
     if level == 2:
         # just checking MapUnitPolys
@@ -376,25 +377,27 @@ def check_map_units(db_dict, level):
             all_map_units = list(set(all_map_units))
 
     if not set(all_map_units).issubset(set(dmu_units)):
-        missing_dmu_map_units.extend(list(set(all_map_units) - set(dmu_units)))
+        missing.extend(list(set(all_map_units) - set(dmu_units)))
     else:
-        missing_dmu_map_units = None
+        missing = None
 
     if set(dmu_units).issubset(set(all_map_units)):
-        unused_dmu_map_units.extend(list(set(dmu_units) - set(all_map_units)))
+        unused.extend(list(set(dmu_units) - set(all_map_units)))
     else:
-        missing_dmu_map_units = None
+        missing
 
     if level == 2:
-        return missing_dmu_map_units
+        return missing
     else:
-        return [missing_dmu_map_units, unused_dmu_map_units]
+        return (missing, unused)
 
 
 def glossary_check(db_dict, level):
     """Certain field values within required elements have entries in Glossary table"""
     missing_glossary_terms = [
-        "Missing terms in Glossary. Only one reference to each missing term is cited"
+        "term(s) missing in Glossary",
+        "Missing terms in Glossary. Only one reference to each missing term is cited",
+        "MissingGlossary",
     ]
 
     # decide which tables to check
@@ -450,7 +453,9 @@ def glossary_check(db_dict, level):
 
 def sources_check(db_dict, level, all_sources):
     missing_source_ids = [
-        "Missing DataSources entries. Only one reference to each missing entry is cited"
+        "entry(ies) missing in DataSources",
+        "Missing DataSources entries. Only one reference to each missing entry is cited",
+        "MissingDataSources",
     ]
 
     # decide which tables to check
@@ -500,7 +505,11 @@ def rule3_3(db_dict):
         if not db_dict[k]["gems_equivalent"] == ""
         and not db_dict[k]["dataType"] == "FeatureDataset"
     ]
-    missing_required_values = ["Fields that are missing required values"]
+    missing_required_values = [
+        "missing required value(s)",
+        "Fields that are missing required values",
+        "MissingReqValues",
+    ]
     for table in tables:
         # collect all NoNulls fields
         gems_eq = db_dict[table]["gems_equivalent"]
@@ -524,11 +533,17 @@ def rule3_5_and_7(terms, table):
     3.7 No unnecessary sources in DataSources"""
     if table == "glossary":
         terms = set(values("Glossary", "Term", "list"))
-        unused_terms = ["Terms in Glossary that are not otherwise used in geodatabase"]
+        unused_terms = [
+            "unnecessary term(s) in Glossary",
+            "Terms in Glossary that are not otherwise used in geodatabase",
+            "ExcessGlossary",
+        ]
     elif table == "datasources":
         terms = set(values("Glossary", "Term", "list"))
         unused_terms = [
-            "DataSource_IDs in DataSources that are not otherwise used in geodatabase"
+            "unnecessary source(s) in DataSources",
+            "DataSource_IDs in DataSources that are not otherwise used in geodatabase",
+            "ExcessDataSources",
         ]
 
     all_vals = set(terms)
@@ -542,7 +557,7 @@ def rule3_10():
     ap("Checking DescriptionOfMapUnits HKey values")
     # hkey_err_list = []
     # all_dmu_key_values = []
-    hkey_errors = ["HierarchyKey errors, DescriptionOfMapUnits"]
+    hkey_errors = ["HierarchyKey error(s) in DMU", "HierarchyKey errors", "hkey_errors"]
 
     dmu_path = db_dict["DescriptionOfMapUnits"]["catalogPath"]
     hks = [r[0] for r in arcpy.da.SearchCursor(dmu_path, "HierarchyKey")]
@@ -637,6 +652,7 @@ def rule3_10():
 
 def rule3_11():
     """All values of GeoMaterial are defined in GeoMaterialDict."""
+    errors = ["GeoMaterial error(s)", "GeoMaterial Errors", "gm_errors"]
     geomat_tables = []
     db_tables = [
         k
@@ -657,12 +673,16 @@ def rule3_11():
     ref_geomats = values("GeoMaterialDict", "GeoMaterial", "list")
     unused_geomats = list(set(all_geomat_vals) - set(ref_geomats))
 
-    return unused_geomats
+    return errors.extend(unused_geomats)
 
 
 def rule3_12():
     """No duplicate _ID values"""
-    duplicate_ids = ["Duplicated _ID values"]
+    duplicate_ids = [
+        "duplicated _ID value(s)",
+        "Duplicated _ID Values",
+        "duplicate_ids",
+    ]
     id_tables = []
     db_tables = [
         k
@@ -692,7 +712,9 @@ def rule3_12():
 def rule3_13():
     """No zero-length or whitespace-only strings"""
     zero_length_strings = [
-        'Zero-length, whitespace-only, or "&ltNull&gt" text values that probably should be &lt;Null&gt;'
+        "zero-length or whitespace string(s)",
+        'Zero-length, whitespace-only, or "&ltNull&gt" text values that probably should be &lt;Null&gt;',
+        "zero_length_strings",
     ]
 
     leading_trailing_spaces = ["Text values with leading or trailing spaces:"]
@@ -720,7 +742,60 @@ def rule3_13():
                 html = f'<span class="table">{table}</span>, field <span class="field"> {field}</span>, OID: {str(n)}'
                 leading_trailing_spaces.append(html)
 
-    return leading_trailing_spaces
+    return zero_length_strings, leading_trailing_spaces
+
+
+def validate_online(md_record):
+    """validate the xml metadata against the USGS metadata validation service API"""
+    # send the temp file to the API
+    url = r"https://www1.usgs.gov/mp/service.php"
+    with open(md_record, "rb") as f:
+        r = requests.post(url, files={"input_file": f})
+
+    if r.ok:
+        # collect the 'link' array
+        links = r.json()["output"]["link"]
+
+        # save the output xml to disk
+        req = requests.get(links["xml"])
+        with open(mr_xml, "wb") as f:
+            f.write(req.content)
+
+        # the intermediate xml sent to the API likely had some out-of-order
+        # elements, but mp corrects those mistakes so the output xml doesn't have
+        # them but the error file reports them. Instead of sending the
+        # XML output to the API to be validated only to get a new error file,
+        # just edit the error file to remove out-of-order warnings
+        err_name = f"{str(mr_xml.stem)}-errors.txt"
+        err_path = db_dir / err_name
+        req = requests.get(links["error_txt"])
+        with open(err_path, "wt") as f:
+            for line in req.iter_lines():
+                if not b"appears in unexpected order within" in line:
+                    f.write(f"{line.decode('utf-8')}\n")
+
+        # print the error file contents to the geoprocessing window
+        with open(err_path, "r") as f:
+            arcpy.AddMessage(f.read())
+
+        # final report
+        arcpy.AddMessage(f"Output files have been saved to {db_dir}")
+        arcpy.AddMessage(
+            f"Open {mr_xml} in a xml or metadata editor to complete the record"
+        )
+
+        # cleanup
+        return True
+    else:
+        arcpy.AddError("Could not write metadata to disk!")
+        arcpy.AddWarning(r.reason)
+
+
+def write_html(template, out_file):
+    environment = Environment(loader=FileSystemLoader(scripts_dir))
+    validation_template = environment.get_template(template)
+    with open(out_file, mode="w", encoding="utf-8") as results:
+        results.write(validation_template.render(val=val))
 
 
 ##############start here##################
@@ -730,9 +805,11 @@ guf.checkVersion(version_string, rawurl, "gems-tools-pro")
 args_len = len(sys.argv)
 
 # we already know sys.argv[1] exists, no check
-# gdb_path = Path(sys.argv[1])
-gdb_path = Path(r"C:\_AAA\gems\testing\testbed\dummy.gdb")
+gdb_path = Path(sys.argv[1])
+# gdb_path = Path(r"C:\_AAA\gems\testing\testbed\dummy.gdb")
 gdb_name = gdb_path.name
+val["db_path"] = gdb_path
+val["db_name"] = gdb_name
 
 # bail early if we don't have a gdb or gpkg
 if gdb_path.suffix not in [".gdb", ".gpkg"]:
@@ -764,6 +841,7 @@ if 3 < args_len:
         metadata_file = None
 else:
     metadata_file = None
+val["metadata"] = str(metadata_file)
 
 # skip topology?
 if 4 < args_len:
@@ -789,13 +867,12 @@ if 7 < args_len:
 else:
     compact_db = False
 
-errors_name = f"{gdb_name}-ValidationErrors.html"
+val["report_path"] = workdir / f"{gdb_name}-Validation.html"
+val["errors_name"] = f"{gdb_name}-ValidationErrors.html"
+val["errors_path"] = str(workdir / f"{gdb_name}-ValidationErrors.html")
 
 # make the database dictionary
 db_dict = guf.gdb_object_dict(str(gdb_path))
-
-# make a list of MapUnits found in the DMU
-dmu_units = values("DescriptonOfMapUnits", "MapUnit", "list")
 
 # edit session?
 if guf.editSessionActive(gdb_path):
@@ -839,6 +916,7 @@ if refresh_gmd:
                     arcpy.management.AssignDomainToField(
                         dmu_path, f.name, "GeoMaterials"
                     )
+val["gm_errors"] = geo_material_errors
 
 # look for geodatabase version
 # not implemented yet
@@ -850,63 +928,88 @@ if "PublicationTable" in db_dict.keys():
     else:
         gdb_ver = ""
 
-# md_txt_file = workdir / f'{gdb_name}{metadata_suffix}'
-# md_err_file = workdir / f'{gdb_name}{metadata_errors_suffix}'
-# md_xml_file = str(md_txt_file)[:-3] + "xml"
-
-# delete errors gdb if it exists and make a new one
-# gdb_val = f"{gdb_name[:-4]}_Validation.gdb"
-# out_errors_gdb = workdir / gdb_val
-# if not arcpy.Exists(str(out_errors_gdb)):
-#     arcpy.management.CreateFileGDB(str(workdir), gdb_val)
-
 # level 2 compliance
 ap("Looking at level 2 compliance")
 # check 2.1
-"""Has required elements: nonspatial tables DataSources, DescriptionOfMapUnits, GeoMaterialDict; feature dataset GeologicMap with feature classes ContactsAndFaults and MapUnitPolys"""
-txt_1 = """2.1 Has required elements: nonspatial tables DataSources, 
+ap(
+    """Rule 2.1 - Has required elements: nonspatial tables DataSources, 
     DescriptionOfMapUnits, GeoMaterialDict; feature dataset GeologicMap with 
     feature classes ContactsAndFaults and MapUnitPolys"""
-# rule 2_1 returns schema_errors_missing_elements (list),
-# topology_fds (list of names of Geologic map feature datasets), and
-# topology_pairs (list of pairs (MapUnitPolys, ContactsAndFaults) of
-# geologic map feature classes in geopackages that need to be checked for topology
+)
 rule2_1_results = rule2_1(db_dict)
-schema_errors_missing_elements = rule2_1_results[0]
+val["rule2_1"] = rule2_1_results[0]
 
 # rule 2.2
 # Required fields within required elements are present and correctly defined
-schema_errors_missing_fields = check_fields(db_dict, 2)
+ap(
+    "Rule 2.2 - Required fields within required elements are present and correctly defined"
+)
+val["rule2_2"] = check_fields(db_dict, 2)
 
 # rule 2.3 topology
-check_topology(rule2_1_results[1], rule2_1_results[2], 2)
+ap(
+    """Rule 2.3 - GeologicMap topology: no internal gaps or overlaps in MapUnitPolys, 
+    boundaries of MapUnitPolys are covered by ContactsAndFaults"""
+)
+
+if skip_topology:
+    level_2_errors = ["Topology check was skipped", None]
+    level_3_errors = ["Topology check was skipped", None]
+    ap("Topology check was skipped")
+elif not rule2_1_results[1]:
+    level_2_errors = [
+        "No MapUnitPolys and ContactAndFaults pairs on which to check topology",
+        None,
+    ]
+    level_3_errors = [
+        "No MapUnitPolys and ContactAndFaults pairs on which to check topology",
+        None,
+    ]
+    ap("No MapUnitPolys and ContactAndFaults pairs on which to check topology")
+else:
+    # returns (level_2_errors, level_3_errors
+    topo_results = check_topology(rule2_1_results[1])
+    level_2_errors = topo_results[0]
+    level_3_errors = topo_results[1]
+
+val["rule2_3"] = level_2_errors
 
 # rule 2.4
 # All map units in MapUnitPolys have entries in DescriptionOfMapUnits table
-mup_results = check_map_units(db_dict, dmu_units, 2)
+# make a list of MapUnits found in the DMU
+# dmu_units = values("DescriptonOfMapUnits", "MapUnit", "list")
+mup_results = check_map_units(db_dict, 2)
+val["rule2_4"] = mup_results[0]
+
+write_html("report_template.jinja", val["report_path"])
+write_html("errors_template.jinja", val["errors_path"])
+os.startfile(val["report_path"])
+sys.exit()
 
 # rule 2.5
 # No duplicate MapUnit values in DescriptionOfMapUnit table
 dmu_map_units_duplicates = ["Duplicated MapUnit values in DescriptionOfMapUnits"]
 dmu_path = db_dict["DescriptionOfMapUnits"]["catalogPath"]
 dmu_map_units_duplicates.extend(guf.get_duplicates(dmu_path, "MapUnit"))
+val["dup_mus"] = dmu_map_units_duplicates
 
 # rule 2.6
 # Certain field values within required elements have entries in Glossary table
 results = glossary_check(db_dict, 2)
-missing_glossary_terms = results[0]
+val["missing_gloss"] = results[0]
 
 # rule 2.7
 # No duplicate Term values in Glossary table
 glossary_term_duplicates = ["Duplicated terms in Glossary"]
 gloss_path = db_dict["Glossary"]["catalogPath"]
 glossary_term_duplicates.extend(guf.get_duplicates(gloss_path, "Term"))
+val["gloss_dups"] = glossary_term_duplicates
 
 # rule 2.8
 # All xxxSourceID values in required elements have entries in DataSources table
 all_sources = []
 sources_results = sources_check(db_dict, 2, all_sources)
-missing_source_ids = sources_results[0]
+val["missing_source_ids"] = sources_results[0]
 all_sources = sources_results[1]
 
 # rule 2.9
@@ -914,479 +1017,65 @@ all_sources = sources_results[1]
 duplicated_source_ids = ["Duplicated source_IDs in DataSources"]
 ds_path = db_dict["DataSources"]["catalogPath"]
 duplicated_source_ids.extend(guf.get_duplicates(ds_path, "DataSources_ID"))
+val["duplicated_source_ids"] = duplicated_source_ids
 
 ap("Looking at Level 3 compliance")
 # rule 3.1
 # Table and field definitions conform to GeMS schema
-schema_errors_missing_fields = check_fields(db_dict, 3)
+val["missing_elements3"] = check_fields(db_dict, 3)
 
 # rule 3.2
-# Topology
+# val["topo_errors"] = topology_errors
 
 # rule 3.3
 # No missing required values
-missing_required_values = rule3_3(db_dict)
+val["missing_values"] = rule3_3(db_dict)
 
 # rule 3.4
 # No missing terms in Glossary
 gloss_results = glossary_check(db_dict, 3)
-missing_glossary_terms = gloss_results[0]
+val["missing_gloss_vals"] = gloss_results[0]
 
 # rule 3.5
 # No unnecessary terms in Glossary
-unused_glossary_terms = rule3_5_and_7("glossary", results[1])
+val["excess_gloss"] = rule3_5_and_7("glossary", results[1])
 
 # rule 3.6
 # No missing sources in DataSources
 sources_results = sources_check(db_dict, 3, all_sources)
-missing_source_ids = sources_results[1]
+val["missing_source_ids"] = sources_results[1]
 
 # rule 3.7
 # No unnecessary sources in DataSources
-unused_source_ids = rule3_5_and_7("datasources", sources_results[1])
+val["extra_ds"] = rule3_5_and_7("datasources", sources_results[1])
 
 # rule 3.8
 # No map units without entries in DescriptionOfMapUnits
 results = check_map_units(db_dict, 3)
-missing_dmu_map_units = results[0]
+val["mu_not_in_dmu"] = results[0]
 
 # rule 3.9
 # No unnecessary map units in DescriptionOfMapUnits
-unused_dmu_map_units = results[1]
+val["extra_mu_dmu"] = results[1]
 
 # rule 3.10
 # HierarchyKey values in DescriptionOfMapUnits are unique and well formed
-hkey_errors = rule3_10()
+val["hkey_errors"] = rule3_10()
 
 # 3.11
 # All values of GeoMaterial are defined in GeoMaterialDict.
-geo_material_errors.extend(rule3_11())
+val["gm_errors"] = geo_material_errors.extend(rule3_11())
 
 # 3.12
 # No duplicate _ID values
-duplicate_ids = rule3_12()
+val["duplicate_ids"] = rule3_12()
 
 # 3.13
 # No zero-length or whitespace-only strings
-zero_length_strings = rule3_13()
+val["zero_length_strings"] = rule3_13()
 
-
-# arcpy.env.workspace = gdb_path
-ap("  getting unused, missing, and duplicated key values")
-
-unused, missing, plain_used = match_refs(data_sources_ids, all_data_sources_refs)
-append_values(missing_source_ids, missing)
-
-for d in get_duplicates(data_sources_ids):
-    duplicated_source_ids.append(f'<span class="value">{d}</span>')
-unused, missing, plain_used = match_refs(glossary_terms, all_glossary_refs)
-append_values(missing_glossary_terms, missing)
-
-for d in get_duplicates(glossary_terms):
-    glossary_term_duplicates.append(f'<span class="value">{d}</span>')
-unused, missing, plain_used = match_refs(dmu_map_units, hkey_index)
-append_values(missing_dmu_map_units, missing)
-
-for d in get_duplicates(dmu_map_units):
-    dmu_map_units_duplicates.append(f'<span class="value">{d}</span>')
-is_level_2, summary_2, errors_2 = write_output_level_2(errors_name)
-
-# reset some stuff
-topology_errors = ["Feature datasets with bad basic topology"]
-missing_source_ids = [
-    "Missing DataSources entries. Only one reference to each missing entry is cited"
-]
-missing_glossary_terms = [
-    "Missing terms in Glossary. Only one reference to each missing term is cited"
-]
-missing_dmu_map_units = [
-    "MapUnits missing from DMU. Only one reference to each missing unit is cited"
-]
-
-# level 3 compliance
-ap("Looking at level 3 compliance")
-tables = arcpy.ListTables()
-for tb in tables:
-    if tb not in gdef.required_tables:
-        map_units = scan_table(tb)
-# check for other stuff at top level of gdb
-find_other_stuff(gdb_path, tables)
-fds_mapunits = []
-# change fds below to a list or dictionary of catalogPaths to feature datasets
-fds = arcpy.ListDatasets("*", "Feature")
-for fd in fds:
-    fd_srf = arcpy.Describe(fd).spatialReference.name
-    if fd_srf != gmap_srf:
-        srf_warnings.append(
-            f"Spatial reference framework of {fd} does not match that of GeologicMap"
-        )
-    arcpy.env.workspace = fd
-    fcs = arcpy.ListFeatureClasses()
-    find_other_stuff(gdb_path + "/" + fd, fcs)
-    if fd == "GeologicMap":
-        fd_map_unit_list = gmap_mapunits
-    else:
-        fd_map_unit_list = []
-    for fc in fcs:
-        if not fc in gdef.required_geologic_map_feature_classes:
-            dsc = arcpy.Describe(fc)
-            if dsc.featureType == "Simple":
-                map_units = scan_table(fc, fd)
-                append_values(fd_map_unit_list, map_units)
-            else:
-                ap(
-                    "  ** skipping data set "
-                    + fc
-                    + ", featureType = "
-                    + dsc.featureType
-                )
-    is_map, mup, caf = is_feature_dataset_a_map(fd)
-    if is_map:
-        if skip_topology == "false":
-            n_topo_errors = check_topology(
-                workdir, gdb_path, out_errors_gdb, fd, mup, caf, 3
-            )
-            if n_topo_errors > 0:
-                topology_errors.append(
-                    str(n_topo_errors)
-                    + ' Level 3 errors in <span class="table">'
-                    + fd
-                    + "</span>"
-                )
-        else:
-            ap("  skipping topology check")
-            topology_errors.append("Level 3 topology check was skipped")
-    fds_mapunits.append([fd, fd_map_unit_list])
-    arcpy.env.workspace = gdb_path
-check_geo_material_dict(gdb_path)
-
-ap("  getting unused, missing, and duplicated key values")
-
-unused, missing, plain_used = match_refs(data_sources_ids, all_data_sources_refs)
-if delete_extra == "true":
-    delete_extra_rows("DataSources", "DataSources_ID", plain_used)
-else:
-    append_values(unused_source_ids, unused)
-append_values(missing_source_ids, missing)
-
-unused, missing, plain_used = match_refs(glossary_terms, all_glossary_refs)
-if delete_extra == "true":
-    delete_extra_rows("Glossary", "Term", plain_used)
-else:
-    append_values(unused_glossary_terms, unused)
-append_values(missing_glossary_terms, missing)
-
-unused, missing, plain_used = match_refs(dmu_map_units, hkey_index)
-append_values(unused_dmu_map_units, unused)
-append_values(missing_dmu_map_units, missing)
-
-append_values(duplicate_ids, get_duplicate_ids(all_ids))
-append_values(
-    hkey_errors, get_hkey_errors(all_dmu_key_values)
-)  # getHKeyErrors collects values with bad separators, bad element sizes, duplicates, and missing sequential values
-
-if metadata_file:
-    metadata_checked, passes_mp = check_metadata(workdir, metadata_file)
-else:
-    metadata_checked = False
-
-check_for_lock_files(gdb_path)
-
-is_level_3, summary_3, errors_3 = write_output_level_3()
-
-metadataTxt = os.path.basename(gdb_path + metadata_suffix)
-metadataErrs = os.path.basename(gdb_path + metadata_errors_suffix)
-
-### assemble output
-ap("Writing output")
-ap("  writing summary header")
-
-# output files
-
-errors_file = workdir / errors_name
-errors = open(errors_file, "w")
-
-summary_name = f"{gdb_name}-Validation.html"
-sum_file = workdir / summary_name
-summary = open(sum_file, "w", errors="xmlcharrefreplace")
-summary.write(vh.style)
-summary.write(
-    """<h2><a name="overview"><i>GeMS validation of </i> '
-    {gdb_name}{gdb_ver}</a></h2>\n"""
-)
-
-summary.write('<div class="report">Database path: ' + gdb_path + "<br>\n")
-summary.write("File written by <i>" + version_string + "</i><br>\n")
-summary.write(time.asctime(time.localtime(time.time())) + "<br><br>\n")
-summary.write(
-    "This file should be accompanied by "
-    + errors_name
-    + ", "
-    + metadataTxt
-    + ", and "
-    + metadataErrs
-    + ", all in the same directory.<br><br>\n"
-)
-if is_level_3 and is_level_2:
-    summary.write(
-        'This database is <a href=#Level3><font size="+1"><b>LEVEL 3 COMPLIANT</b></a></font>'
-        + geologic_names_disclaimer
-        + "\n"
-    )
-elif is_level_2:
-    summary.write(
-        'This database is <a href=#Level2><font size="+1"><b>LEVEL 2 COMPLIANT</b></a></font>'
-        + geologic_names_disclaimer
-        + "\n"
-    )
-else:  # is level 1
-    summary.write(
-        'This database may be <a href=#Level1><font size="+1"><b>LEVEL 1 COMPLIANT</b></a>. </font>\n'
-    )
 if metadata_checked:
-    if passes_mp:
-        summary.write(
-            'The database-level FGDC metadata are formally correct. The <a href="'
-            + metadataTxt
-            + '">metadata record</a> should be examined by a human to verify that it is meaningful.<br>\n'
-        )
-    else:  # metadata fails mp
-        summary.write(
-            'The <a href="'
-            + metadataTxt
-            + '">FGDC metadata record</a> for this database has <a href="'
-            + metadataErrs
-            + '">formal errors</a>. Please fix! <br>\n'
-        )
-else:  # metadata not checked
-    summary.write("FGDC metadata for this database have not been checked. <br>\n")
-
-###ERRORS HEADER
-ap("  writing errors header")
-errors.write(vh.style)
-errors.write(
-    '<h2><a name="overview">'
-    + os.path.basename(gdb_path)
-    + "-ValidationErrors</a></h2>\n"
-)
-errors.write('<div class="report">Database path: ' + gdb_path + "<br>\n")
-errors.write("This file written by <i>" + version_string + "</i><br>\n")
-errors.write(time.asctime(time.localtime(time.time())) + "<br>\n")
-errors.write(
-    """
-    </div>
-    <div id="back-to-top"><a href="#overview">Back to Top</a></div>
-"""
-)
-errors.write(vh.color_codes)
-
-###CONTENTS
-anchorRoot = os.path.basename(summary_name) + "#"
-summary.write(
-    """
-    </div>
-    <div id="back-to-top"><a href="#overview">Back to Top</a></div>
-    <h3>Contents</h3>
-    <div class="report" id="contents">
-"""
-)
-summary.write(
-    '          <a href="'
-    + anchorRoot
-    + 'Compliance_Criteria">Compliance Criteria</a><br>\n'
-)
-summary.write(
-    '          <a href="'
-    + anchorRoot
-    + 'Extensions">Content not specified in GeMS schema</a><br>\n'
-)
-summary.write(
-    '          <a href="'
-    + anchorRoot
-    + 'MapUnits_Match">MapUnits in DescriptionOfMapUnits table, GeologicMap feature dataset, and other feature datasets</a><br>\n'
-)
-summary.write(
-    '          <a href="'
-    + anchorRoot
-    + 'Contents_Nonspatial">Contents of Nonspatial Tables</a><br>\n'
-)
-tables.sort()
-for tb in tables:
-    if tb != "GeoMaterialDict":
-        summary.write(
-            '&nbsp;&nbsp;&nbsp;&nbsp;<a href="'
-            + anchorRoot
-            + tb
-            + '">'
-            + tb
-            + "</a><br>\n"
-        )
-summary.write(
-    '    <a href="' + anchorRoot + 'Database_Inventory">Database Inventory</a><br>\n'
-)
-summary.write("        </div>\n")
-
-###COMPLIANCE CRITERIA
-summary.write('<h3><a name="Compliance_Criteria"></a>Compliance Criteria</h3>\n')
-summary.write(vh.rdiv)
-summary.write('<h4><a name="Level1">LEVEL 1</a></h4>\n')
-summary.write(
-    """
-<i>Criteria for a LEVEL 1 GeMS database are:</i>
-<ul>
-<li>No overlaps or internal gaps in map-unit polygon layer</li>
-<li>Contacts and faults in single feature class</li>
-<li>Map-unit polygon boundaries are covered by contacts and faults lines</li>
-</ul>
-<i>Databases with a variety of schema may meet these criteria. This script cannot confirm LEVEL 1 compliance.</i>\n"""
-)
-ap("  writing Level 2")
-summary.write('<h4><a name="Level2">LEVEL 2--MINIMALLY COMPLIANT</a></h4>\n')
-summary.write(
-    "<i>A LEVEL 2 GeMS database is accompanied by a peer-reviewed Geologic Names report, including identification of suggested modifications to Geolex, and meets the following criteria:</i><br><br>\n"
-)
-for aln in summary_2:
-    summary.write(aln + "\n")
-errors.write("<h3>Level 2 errors</h3>\n")
-for aln in errors_2:
-    errors.write(aln + "\n")
-ap("  writing Level 3")
-summary.write('<h4><a name="Level3">LEVEL 3--FULLY COMPLIANT</a></h4>\n')
-summary.write("<i>A LEVEL 3 GeMS database meets these additional criteria:</i><br>\n")
-for aln in summary_3:
-    summary.write(aln + "\n")
-errors.write("<h3>Level 3 errors</h3>\n")
-for aln in errors_3:
-    errors.write(aln + "\n")
-###Warnings
-summary.write("<br>\n")
-nWarnings = -1  # leading_trailing_spaces has a header line
-for w in srf_warnings, leading_trailing_spaces, other_warnings:
-    for aw in w:
-        nWarnings = nWarnings + 1
-summary.write(
-    '<a href="'
-    + os.path.basename(errors_name)
-    + '#Warnings">There are '
-    + str(nWarnings)
-    + " warnings<br></a>\n"
-)
-errors.write('<h3><a name="Warnings">Warnings</a></h3>\n')
-errors.write(vh.rdiv)
-for w in srf_warnings, other_warnings:
-    for aw in w:
-        errors.write(aw + "<br>\n")
-if len(leading_trailing_spaces) > 1:
-    for aw in leading_trailing_spaces:
-        errors.write(aw + "<br>\n")
-errors.write(vh.divend)
-summary.write(vh.divend)
-
-###EXTENSIONS TO SCHEMA
-ap("  listing schema extensions")
-summary.write(
-    '<h3><a name="Extensions"></a>Content not specified in GeMS schema</h3>\n'
-)
-summary.write(vh.rdiv)
-if len(schema_extensions) > 1:
-    summary.write(schema_extensions[0] + "<br>\n")
-    for i in schema_extensions[1:]:
-        summary.write(space4 + i + "<br>\n")
-else:
-    summary.write("None<br>\n")
-summary.write(vh.divend)
-
-###MAPUNITS MATCH
-ap("  writing table of MapUnit presence/absence")
-summary.write(
-    '<h3><a name="MapUnits_Match"></a>MapUnits in DescriptionOfMapUnits table, GeologicMap feature dataset, and other feature datasets</h3>\n'
-)
-fds_mapunits.sort()  # put feature datasets in alphabetical order
-# fds_mapunits = [ [dataset name [included map units]],[dsname, [incMapUnit]] ]
-summary.write(vh.rdiv)
-summary.write(
-    '<table class="ess-tables"; style="text-align:center"><tr><th>MapUnit</th><th>&nbsp; DMU &nbsp;</th>'
-)
-for f in fds_mapunits:
-    summary.write("<th>" + f[0] + "</th>")
-summary.write("</tr>\n")
-# open search cursor on DMU sorted by HKey
-sql = (None, "ORDER BY HierarchyKey")
-with arcpy.da.SearchCursor(
-    "DescriptionOfMapUnits", ("MapUnit", "HierarchyKey"), None, None, False, sql
-) as cursor:
-    for row in cursor:
-        mu = row[0]
-        if guf.not_empty(mu):
-            summary.write(
-                "<tr><td>" + mu + "</td><td>X</td>"
-            )  #  2nd cell: value is, by definition, in DMU
-            for f in fds_mapunits:
-                if mu in f[1]:
-                    summary.write("<td>X</td>")
-                else:
-                    summary.write("<td>---</td>")
-            summary.write("</tr>\n")
-# for mapunits not in DMU
-for aline in missing_dmu_map_units[1:]:
-    mu = aline.split(",")[0]
-    summary.write("<tr><td>" + str(mu) + "</td><td>---</td>")
-    for f in fds_mapunits:
-        if mu in f[1]:
-            summary.write("<td>X</td>")
-        else:
-            summary.write("<td>---</td>")
-    summary.write("</tr>\n")
-summary.write("</table>\n")
-summary.write(vh.divend)
-
-###CONTENTS OF NONSPATIAL TABLES
-ap("  dumping contents of nonspatial tables")
-summary.write(
-    '<h3><a name="Contents_Nonspatial"></a>Contents of Nonspatial Tables</h3>\n'
-)
-for tb in tables:
-    if tb != "GeoMaterialDict":
-        summary.write(vh.rdiv)
-        summary.write('<h4><a name="' + tb + '"></a>' + tb + "</h4>\n")
-        vh.table_to_html(tb, summary)
-        summary.write(vh.divend)
-###DATABASE INVENTORY
-ap("  writing database inventory")
-summary.write('<h3><a name="Database_Inventory"></a>Database Inventory</h3>\n')
-summary.write(vh.rdiv)
-summary.write(
-    "<i>This summary of database content is provided as a convenience to GIS analysts, reviewers, and others. It is not part of the GeMS compliance criteria.</i><br><br>\n"
-)
-for tb in tables:
-    summary.write(
-        tb + ", nonspatial table, " + str(guf.numberOfRows(tb)) + " rows<br>\n"
-    )
-fds.sort()
-for fd in fds:
-    summary.write(fd + ", feature dataset <br>\n")
-    arcpy.env.workspace = fd
-    fcs = arcpy.ListFeatureClasses()
-    fcs.sort()
-    for fc in fcs:
-        dsc = arcpy.Describe(fc)
-        if dsc.featureType == "Annotation":
-            shp = "annotation"
-        elif dsc.featureType != "Simple":
-            shp = dsc.featureType
-        else:
-            shp = dsc.shapeType.lower()
-        summary.write(
-            space4
-            + fc
-            + ", "
-            + shp
-            + " feature class, "
-            + str(guf.numberOfRows(fc))
-            + " rows<br>\n"
-        )
-    arcpy.env.workspace = gdb_path
-summary.write(vh.divend)
+    validate_online(metadata_file)
 
 ### Compact DB option
 if compact_db == "true":
@@ -1397,13 +1086,3 @@ else:
 summary.close()
 errors.close()
 ap("DONE")
-
-
-"""
-To be done:
-
-    eliminate hard-coded path to ref_gmd (GeoMaterialDict as shipped with GeMS tool kit)
-
-    Also:
-      Maybe check for incorrectly-set up relationship classes?
-"""

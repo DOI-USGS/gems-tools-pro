@@ -1,0 +1,80 @@
+.report {
+  font-family: Courier New, Courier, monospace;
+  margin-left: 20px;
+  margin-right: 20px;
+}
+
+h2,
+h3 {
+  background-color: lightgray;
+  padding: 5px;
+  border-radius: 4px;
+  font-family: "Century Gothic", CenturyGothic, AppleGothic, sans-serif;
+}
+
+h4 {
+  margin-bottom: 4px;
+  font-size: larger;
+}
+
+.ess-tables {
+  width: 95%;
+  margin-left: 20px;
+}
+
+.table-header:hover {
+  cursor: pointer;
+}
+
+table,
+th,
+td {
+  border: 1px solid gray;
+  border-collapse: collapse;
+  padding: 3px;
+}
+
+.table {
+  color: darkorange;
+  font-weight: bold;
+}
+
+.field {
+  color: darkblue;
+  font-weight: bold;
+}
+
+.value {
+  color: darkgreen;
+  font-weight: bold;
+}
+
+.highlight {
+  background-color: #f2fcd6;
+  padding: 0 2px;
+  border-radius: 3px;
+  border-bottom: 1px solid gray;
+}
+
+li {
+  list-style: disc;
+  margin-top: 1px;
+  margin-bottom: 1px;
+}
+
+#back-to-top {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  padding: 10px;
+  margin: 10px;
+  background-color: rgba(250, 250, 250, 0.7);
+  border-radius: 5px;
+}
+
+.tab {
+  display: inline-block;
+  margin-left: 40px;
+}
+
+</style>
