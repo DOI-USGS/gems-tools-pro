@@ -68,7 +68,7 @@ reload(tp)
 
 val = {}
 
-version_string = "GeMS_ValidateDatabase_AGP2.py, version of 18 April 2022"
+version_string = "GeMS_ValidateDatabase_AGP2.py, version of 24 March 2023"
 val["version_string"] = version_string
 val["datetime"] = time.asctime(time.localtime(time.time()))
 
