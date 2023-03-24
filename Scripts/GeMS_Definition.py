@@ -6,7 +6,7 @@
 #  Ralph Haugerud, 19 August 2016
 #
 
-versionString = "GeMS_Definition.py, version of 30 June 2021"
+versionString = "GeMS_Definition.py, version of 24 March 2023"
 
 # fixes errors in Station feature class definition
 # 16 Jan 2014: added ObservedMapUnit to Station feature class definition
