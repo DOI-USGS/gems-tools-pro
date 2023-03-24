@@ -32,7 +32,7 @@
 
 import arcpy
 import GeMS_Definition as gdef
-import GeMS_AttributeByKeyValues_AGP2 as guf
+import GeMS_utilityFunctions as guf
 from pathlib import Path
 import sys
 
