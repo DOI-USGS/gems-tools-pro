@@ -87,7 +87,7 @@
 {% else %}
 {# if error is only one item, there is no list of errors to post to
 -ValidationErrors, just FAIL and print error[0]#}
-{% if errors[1] == None %}
+{% if errors|length == 1 %}
 <td valign="top">
   <font color="#ff0000">FAIL {{errors[0]}}</font>
 </td>

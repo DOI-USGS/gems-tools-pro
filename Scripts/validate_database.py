@@ -158,6 +158,7 @@ def rule2_1(db_dict):
         else:
             # check the spatial reference of each 'GeologicMap' feature dataset
             for gmap in gmaps:
+                arcpy.AddMessage(gmap)
                 check_sr_result = check_sr(gmap)
                 if check_sr_result:
                     sr_warnings.extend(check_sr_result)
@@ -321,7 +322,6 @@ def check_map_units(db_dict, level):
     if not "DescriptionOfMapUnits" in db_dict:
         message = [
             "DescriptionOfMapUnits cannot be found. See Rule 2.1",
-            None,
         ]
         missing = message
         unused = message
@@ -953,8 +953,8 @@ ap(
 )
 
 if skip_topology:
-    level_2_errors = ["Topology check was skipped", None]
-    level_3_errors = ["Topology check was skipped", None]
+    level_2_errors = ["Topology check was skipped"]
+    level_3_errors = ["Topology check was skipped"]
     ap("Topology check was skipped")
 elif not rule2_1_results[1]:
     level_2_errors = [
