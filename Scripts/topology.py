@@ -209,32 +209,32 @@ def check_errors_table(ds, table, origin_id, rule_ids, dest_id=None):
     print(f"check table {table}")
     for n in rule_ids:
         print(f"check rule {n}")
-        if n != 37:
-            sql = f"""SELECT * from {table} WHERE TopoRuleType = {n} 
-             and OriginClassID = {origin_id}
-             and IsException = 0"""
-            l = ds.ExecuteSQL(sql)
-            if l.GetFeatureCount() > 0:
-                i = l.GetFeatureCount()
-                if i == 1:
-                    errors.append(f"Rule '{rules_dict[n]}' has {i} error")
-                else:
-                    errors.append(f"Rule '{rules_dict[n]}' has {i} errors")
-                errors_pass = False
+        # if n != 37:
+        sql = f"""SELECT * from {table} WHERE TopoRuleType = {n} 
+            and OriginClassID = {origin_id}
+            and IsException = 0"""
+        l = ds.ExecuteSQL(sql)
+        if l.GetFeatureCount() > 0:
+            i = l.GetFeatureCount()
+            if i == 1:
+                errors.append(f"Rule '{rules_dict[n]}' has {i} error")
+            else:
+                errors.append(f"Rule '{rules_dict[n]}' has {i} errors")
+            errors_pass = False
 
-        elif n == 37:
-            sql = f"""SELECT * from {table} WHERE TopoRuleType = 37 
-              and OriginClassID = {origin_id}
-              and DestClassID = {dest_id}
-              and IsException = 0"""
-            l = ds.ExecuteSQL(sql)
-            if l.GetFeatureCount() > 0:
-                i = l.GetFeatureCount()
-                if i == 1:
-                    errors.append(f"Rule '{rules_dict[n]}' has {i} error")
-                else:
-                    errors.append(f"Rule '{rules_dict[n]}' has {i} errors")
-                errors_pass = False
+        # elif n == 37:
+        #     sql = f"""SELECT * from {table} WHERE TopoRuleType = 37
+        #       and OriginClassID = {origin_id}
+        #       and DestClassID = {dest_id}
+        #       and IsException = 0"""
+        #     l = ds.ExecuteSQL(sql)
+        #     if l.GetFeatureCount() > 0:
+        #         i = l.GetFeatureCount()
+        #         if i == 1:
+        #             errors.append(f"Rule '{rules_dict[n]}' has {i} error")
+        #         else:
+        #             errors.append(f"Rule '{rules_dict[n]}' has {i} errors")
+        #         errors_pass = False
 
     return (errors_pass, errors)
 
@@ -247,7 +247,7 @@ def has_been_validated(top_path):
     top_name = Path(top_path).stem
 
     # open with ogr driver to find out the topology id
-    ds = ogr.GetDriverByName("OpenFileGDB").Open(db)
+    ds = ogr.GetDriverByName("OpenFileGDB").Open(str(db))
     top_def = get_gdb_item(
         ds, f"SELECT Definition FROM GDB_Items WHERE name = '{top_name}'"
     )
@@ -255,12 +255,16 @@ def has_been_validated(top_path):
     top_id = root.find("TopologyID").text
 
     # use arcpy search cursor to look at table
-    dirty_areas = Path(db) / f"T_{top_id}_DirtyAreas"
+    dirty_areas = f"T_{top_id}_DirtyAreas"
     has_been_validated = True
-    with arcpy.da.SearchCursor(dirty_areas, "DirtyArea_Area") as rows:
-        for row in rows:
-            if row[0] > 0:
+    sql = f"SELECT DirtyArea_Area from {dirty_areas}"
+    result = ds.ExecuteSQL(sql)
+    if not result is None:
+        for area in result:
+            if area.GetField(0) > 0:
                 has_been_validated = False
+    else:
+        has_been_validated = False
 
     return has_been_validated
 
@@ -279,12 +283,12 @@ def eval_topology(db, top, db_dict, gmap):
 
     level_2_errors = [
         "topology errors",
-        "Topology errors",
+        "2.3 Topology errors",
         "topology2",
     ]
     level_3_errors = [
         "topology errors",
-        "Topology errors",
+        "3.2 Topology errors",
         "topology3",
     ]
 

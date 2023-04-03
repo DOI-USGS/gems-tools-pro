@@ -44,10 +44,17 @@ local_var_name, query_proper_noun_for_thing, send_acronym_via_https
 """
 
 # every level 2 or 3 errors list needs to contain
-# [the message that will appear in the pass/fail cell of -Validation file if the rule fails,
-# the header for the rule section in -ValidationErrors file,
+# [the message that will appear in the pass/fail cell of -Validation.html file if the rule fails,
+# the header for the rule section in -ValidationErrors.html file,
 # the name of the anchor in the -ValidationErrors file for the rule,
 # error1, error2, error3, errori...]
+# val dictionary entries for specific entries take the form of
+# [message in the pass/fail cell in -Validation, header for the list of errors
+# in -ValidationErrors, html anchor]
+# unless there is an error that precludes the listing of errors, for example,
+# without a MapUnitPolys feature class there can be no topology errors.
+# In that case, the entry has only one item in the list and it is only reported
+# in -Validation.html
 
 import arcpy
 import os
@@ -57,7 +64,6 @@ from pathlib import Path
 import GeMS_utilityFunctions as guf
 import GeMS_Definition as gdef
 import topology as tp
-from lxml import etree
 import requests
 from jinja2 import Environment, FileSystemLoader
 
@@ -120,24 +126,28 @@ def compare_sr(obj1, obj2):
     return sr_warnings
 
 
-def values(table, field, what):
+def values(table, field, what, where=None):
     """list or dictionary {[oid]: value} of values found in a field in a table
     dictionary is {oid: value}"""
     vals = None
     if table in db_dict:
         fields = db_dict[table]["fields"]
-        if what == "dict":
-            oid = [f.name for f in fields if f.type == "objectid"][0]
-            vals = [
-                {r[0]: r[1]}
+        if what == "dictionary":
+            oid = [f.name for f in fields if f.type == "OID"][0]
+            vals = {
+                r[0]: r[1]
                 for r in arcpy.da.SearchCursor(
-                    db_dict[table]["catalogPath"], [oid, field]
+                    db_dict[table]["catalogPath"],
+                    field_names=[oid, field],
+                    where_clause=where,
                 )
-            ]
+            }
         else:
             vals = [
                 r[0]
-                for r in arcpy.da.SearchCursor(db_dict[table]["catalogPath"], field)
+                for r in arcpy.da.SearchCursor(
+                    db_dict[table]["catalogPath"], field_names=field, where_clause=where
+                )
             ]
     return vals
 
@@ -148,7 +158,7 @@ def rule2_1(db_dict):
     and MapUnitPolys"""
     tp_pairs = []
     sr_warnings = []
-    errors = ["items(s) missing", "Missing required elements", "MissingElements"]
+    errors = ["items(s) missing", "2.1 Missing required elements", "MissingElements"]
 
     # first look for GeologicMap feature dataset
     if not is_gpkg:
@@ -158,7 +168,6 @@ def rule2_1(db_dict):
         else:
             # check the spatial reference of each 'GeologicMap' feature dataset
             for gmap in gmaps:
-                arcpy.AddMessage(gmap)
                 check_sr_result = check_sr(gmap)
                 if check_sr_result:
                     sr_warnings.extend(check_sr_result)
@@ -214,15 +223,12 @@ def check_fields(db_dict, level):
     right now this only looks at controlled fields in tables that have been tagged
     with a gems_equivalent.
     """
-    errors = [
-        "missing or mis-defined field(s)",
-        "Missing or mis-defined fields",
-        "MissingFields",
-    ]
+
+    req_tables = [t for t in gdef.rule2_1_elements if t != "GeologicMap"]
     if level == 2:
         # only required tables and fcs
-        req_tables = [t for t in gdef.rule2_1_elements if t != "GeologicMap"]
         tables = [k for k, v in db_dict.items() if v["gems_equivalent"] in req_tables]
+        header = "2.2 Missing or mis-defined fields"
     elif level == 3:
         # all other tables and fcs
         tables = [
@@ -232,6 +238,13 @@ def check_fields(db_dict, level):
             and not v["gems_equivalent"] == ""
             and not v["dataType"] == "FeatureDataset"
         ]
+        header = "3.1 Missing or mis-defined fields"
+
+    errors = [
+        "missing or mis-defined field(s)",
+        header,
+        f"MissingFields{level}",
+    ]
 
     for table in tables:
         gems_eq = db_dict[table]["gems_equivalent"]
@@ -274,26 +287,24 @@ def check_topology(topo_pairs):
     topology rules. No MapUnitPolys gaps or overlaps. No ContactsAndFaults overlaps, self-overlaps,
     or self-intersections. MapUnitPoly boundaries covered by ContactsAndFaults"""
     has_been_validated = False
-    if topo_pairs:
-        for topo_pair in topo_pairs:
-            make_topology = False
-            gmap = topo_pair[0]
-            if gmap:
-                children = db_dict[gmap]["children"]
-                tops = [c["name"] for c in children if c["dataType"] == "Topology"]
-                if tops:
-                    ap(f"\tTopology in {gmap} found")
-                    top_path = db_dict[tops[0]]["catalogPath"]
-                    has_been_validated = tp.has_been_validated(top_path)
-                else:
-                    make_topology = True
+    for topo_pair in topo_pairs:
+        make_topology = False
+        gmap = topo_pair[0]
+        if gmap:
+            children = db_dict[gmap]["children"]
+            tops = [c["name"] for c in children if c["dataType"] == "Topology"]
+            if tops:
+                ap(f"\tTopology in {gmap} found")
+                top_path = db_dict[tops[0]]["catalogPath"]
+                has_been_validated = tp.has_been_validated(top_path)
             else:
                 make_topology = True
+        else:
+            make_topology = True
 
-        if make_topology:
-            ap(f"\tNo topology found in {gmap}")
-            top_path, has_been_validated = tp.make_topology(workdir, topo_pair, db_dict)
-            top_name = Path(top_path).stem
+    if make_topology:
+        ap(f"\tNo topology found in {gmap}")
+        top_path, has_been_validated = tp.make_topology(workdir, topo_pair, db_dict)
 
     # evaluate the topology
     # eval_topology returns (level_2, level_3, missing_rules, top_errors)
@@ -309,6 +320,7 @@ def check_topology(topo_pairs):
     # gets the file geodatabase, whether the original or the Topology.gdb copy
     gmap = Path(top_path).parent.stem
     topo_gdb = Path(top_path).parent.parent
+    top_name = Path(top_path).stem
     level_2_errors, level_3_errors = tp.eval_topology(
         str(topo_gdb), top_name, db_dict, gmap
     )
@@ -328,19 +340,8 @@ def check_map_units(db_dict, level):
 
         return (missing, unused)
 
-    missing = [
-        "map unit(s) missing in DMU",
-        "MapUnits missing from DMU. Only one reference to each missing unit is cited",
-        "dmuComplete",
-    ]
-
-    unused = [
-        "missing map unit(s) in DMU",
-        "MapUnits in DMU that are not present on map, in CMU, or elsewhere",
-        "MissingMapUnits",
-    ]
-
-    dmu_units = set(values("DescriptionOfMapUnits", "MapUnit", "list"))
+    all_map_units = []
+    dmu_units = list(set(values("DescriptionOfMapUnits", "MapUnit", "list")))
 
     if level == 2:
         # just checking MapUnitPolys
@@ -348,6 +349,7 @@ def check_map_units(db_dict, level):
             k for k, v in db_dict.items() if v["gems_equivalent"] == "MapUnitPolys"
         ]
         mu_fields = ["MapUnit"]
+        missing_header = "2.4 MapUnits missing from DMU. Only one reference to each missing unit is cited"
     else:
         # checking all tables that have a 'MapUnit' field
         mu_tables = []
@@ -363,56 +365,68 @@ def check_map_units(db_dict, level):
                 if "MapUnit" in f.name:
                     mu_tables.append(table)
                     mu_fields.append(f.name)
+        missing_header = "3.8 MapUnits missing from DMU. Only one reference to each missing unit is cited"
+
+    missing = [
+        "map unit(s) missing in DMU",
+        missing_header,
+        f"UnitsMissing{level}",
+    ]
+
+    unused = [
+        "missing map unit(s) in DMU",
+        "3.9 MapUnits in DMU that are not present on map, in CMU, or elsewhere",
+        f"UnusedUnits{level}",
+    ]
 
     mu_tables = list(set(mu_tables))
     if mu_tables:
         for mu_table in mu_tables:
-            units = [
-                row
-                for row in arcpy.da.SearchCursor(
-                    db_dict[mu_table]["catalogPath"], mu_fields
-                )
-            ]
-            all_map_units.extend(units)
-            all_map_units = list(set(all_map_units))
+            with arcpy.da.SearchCursor(
+                db_dict[mu_table]["catalogPath"], mu_fields
+            ) as cursor:
+                for row in cursor:
+
+                    all_map_units.extend(row)
+
+        all_map_units.extend(list(set(all_map_units)))
 
     if not set(all_map_units).issubset(set(dmu_units)):
-        missing.extend(list(set(all_map_units) - set(dmu_units)))
-    else:
-        missing = None
+        missing.extend(set(all_map_units) - set(dmu_units))
 
     if set(dmu_units).issubset(set(all_map_units)):
         unused.extend(list(set(dmu_units) - set(all_map_units)))
-    else:
-        missing
 
     if level == 2:
         return missing
     else:
-        return (missing, unused)
+        return missing, unused
 
 
 def glossary_check(db_dict, level):
     """Certain field values within required elements have entries in Glossary table"""
-    missing_glossary_terms = [
-        "term(s) missing in Glossary",
-        "Missing terms in Glossary. Only one reference to each missing term is cited",
-        "MissingGlossary",
-    ]
+    missing = []
 
     # decide which tables to check
     if level == 2:
         tables = [t for t in gdef.rule2_1_elements if t != "GeologicMap"]
         term_fields = gdef.defined_term_fields_list
+        missing_header = "2.6 Missing terms in Glossary. Only one reference to each missing term is cited"
     else:
         tables = [
             k
             for k, v in db_dict.items()
-            if not v["dataType"] in ("FeatureDataset", "Annotation")
+            if not v["dataType"] in ("FeatureDataset", "Annotation", "Topology")
         ]
         tables = [t for t in tables if not t in gdef.rule2_1_elements]
         term_suffixes = ["Type", "Method", "Confidence"]
+        missing_header = "3.4 Missing terms in Glossary. Only one reference to each missing term is cited"
 
+    missing_glossary_terms = [
+        "term(s) missing in Glossary",
+        missing_header,
+        f"MissingTerms{level}",
+    ]
     # compare Term fields in the tables with the Glossary
     glossary_terms = values("Glossary", "Term", "list")
     all_glossary_refs = []
@@ -427,21 +441,29 @@ def glossary_check(db_dict, level):
                 more_fields = [
                     f.name for f in db_dict[table]["fields"] if f.name.endswith(suffix)
                 ]
-                fields.append(more_fields)
+                if more_fields:
+                    fields.extend(more_fields)
 
-        missing = []
-        for field in fields:
-            vals = values(table, field, "list")
-            field_vals = list(set(vals.values()))
+        if fields:
+            for field in fields:
+                if field == "GeoMaterialConfidence":
+                    where = "GeoMaterial IS NOT NULL"
+                else:
+                    where = None
 
-            # put all of these glossary terms in all_glossary_refs list
-            all_glossary_refs.extend(field_vals)
+                vals = values(table, field, "list", where)
+                field_vals = list(set(vals))
+                if None in field_vals:
+                    field_vals.remove(None)
 
-            missing_vals = [val for val in field_vals if not val in glossary_terms]
-            for val in missing_vals:
-                missing.append(
-                    f'<span class="value">{val}</span>, field <span class="field">{field}</span>, table <span class="table">{table}</span>'
-                )
+                # put all of these glossary terms in all_glossary_refs list
+                all_glossary_refs.extend(field_vals)
+
+                missing_vals = [val for val in field_vals if not val in glossary_terms]
+                for val in missing_vals:
+                    missing.append(
+                        f'<span class="value">{val}</span>, field <span class="field">{field}</span>, table <span class="table">{table}</span>'
+                    )
 
     missing_glossary_terms.extend(list(set(missing)))
 
@@ -451,49 +473,76 @@ def glossary_check(db_dict, level):
         return (missing_glossary_terms, all_glossary_refs)
 
 
-def sources_check(db_dict, level, all_sources):
-    missing_source_ids = [
-        "entry(ies) missing in DataSources",
-        "Missing DataSources entries. Only one reference to each missing entry is cited",
-        "MissingDataSources",
-    ]
+def gm_confidence(table):
+    """Collect the values of GeoMaterialConfidence only where GeoMaterial is not null"""
+    vals = []
+    with arcpy.da.SearchCursor(
+        db_dict[table]["catalogPath"], ["GeoMaterial", "GeoMaterialConfidence"]
+    ) as rows:
+        for row in rows:
+            if not row[0] is None:
+                vals.append.row[1]
+    return vals
 
+
+def sources_check(db_dict, level, all_sources):
+    # first check for DataSources table and DataSources_ID field
+    if not "DataSources" in db_dict:
+        return "Could not find DataSources table. See Rule 2.1"
+
+    if not "DataSources_ID" in [f.name for f in db_dict["DataSources"]["fields"]]:
+        return "Could not find DataSources_ID field in DataSources. See Rule 2.1"
+
+    # found table and filed, proceeed
     # decide which tables to check
     if level == 2:
         # just required fc and tables
         tables = [t for t in gdef.rule2_1_elements if t != "GeologicMap"]
+        missing_header = "2.8 Missing DataSources entries. Only one reference to each missing entry is cited"
+
     if level == 3:
         # all other tables and fcs in the database
         tables = [
             k
             for k, v in db_dict.items()
-            if not v["dataType"] in ["FeatureDataset", "Annotation"]
+            if not v["dataType"] in ["FeatureDataset", "Annotation", "Topology"]
         ]
         tables = [t for t in tables if not t in gdef.rule2_1_elements]
+        missing_header = "3.6 Missing DataSources entries. Only one reference to each missing entry is cited"
 
-    gems_sources = list(set(values("DataSources", "DataSource_ID", "list")))
+    missing_source_ids = [
+        "entry(ies) missing in DataSources",
+        missing_header,
+        f"MissingDataSources{level}",
+    ]
+
+    gems_sources = list(set(values("DataSources", "DataSources_ID", "list")))
     missing = []
     for table in tables:
         ds_fields = [
-            f.name for f in db_dict[table][ds_fields] if f.name.endswith("SourceID")
+            f.name for f in db_dict[table]["fields"] if f.name.endswith("SourceID")
         ]
         for ds_field in ds_fields:
-            atomic_sources = []
-            d_sources = list(set(values(table, ds_field, "dict")))
-            for d_source in d_sources:
-                for el in d_source[1].split("|"):
-                    atomic_sources.append(el)
-                    all_sources.append((table, ds_field, el, d_source[0]))
-                    if not el.strip() in gems_sources:
-                        missing.append(
-                            f'<span class="value">{el}</span>, field <span class="field">{ds_field}</span>,table <span class="table">{table}</span>'
-                        )
+            d_sources = values(table, ds_field, "dictionary")
+            for oid, val in d_sources.items():
+                if not val is None and not val.isspace():
+                    for el in val.split("|"):
+                        all_sources.append((table, ds_field, el, oid))
+                        if not el.strip() in gems_sources:
+                            missing.append(
+                                f'<span class="value">{el}</span>, field <span class="field">{ds_field}</span>,table <span class="table">{table}</span>'
+                            )
+                # else:
+                #     missing.append(
+                #         f'table <span class="table">{table}</span>, field <span class="field">{ds_field}</span>, OBJECTID {oid} has no value'
+                #     )
 
     missing_source_ids.extend(list(set(missing)))
+    arcpy.AddMessage(missing_source_ids)
     if level == 2:
-        return missing_source_ids
+        return (missing_source_ids, all_sources)
     else:
-        return (None, all_sources)
+        return (missing_source_ids, all_sources)
 
 
 def rule3_3(db_dict):
@@ -501,53 +550,55 @@ def rule3_3(db_dict):
     # find all gems_equivalent tables
     tables = [
         k
-        for k in db_dict
-        if not db_dict[k]["gems_equivalent"] == ""
-        and not db_dict[k]["dataType"] == "FeatureDataset"
+        for k, v in db_dict.items()
+        if not v["gems_equivalent"] == "" and not v["dataType"] == "FeatureDataset"
     ]
+
     missing_required_values = [
         "missing required value(s)",
-        "Fields that are missing required values",
+        "3.3 Fields that are missing required values",
         "MissingReqValues",
     ]
+
     for table in tables:
         # collect all NoNulls fields
         gems_eq = db_dict[table]["gems_equivalent"]
-        def_fields = gdef.startDict[gems_eq]["fields"]
+        def_fields = gdef.startDict[gems_eq]
         no_nulls = [n[0] for n in def_fields if n[2] == "NoNulls"]
         fields = [f.name for f in db_dict[table]["fields"] if f.name in no_nulls]
-        oid = [f.name for f in db_dict[table]["fields"] if f.type == "objectid"]
+        oid = [f.name for f in db_dict[table]["fields"] if f.type == "OID"][0]
         for field in fields:
-            vals = values(table, field, "list")
+            vals = values(table, field, "dictionary")
             for k, v in vals.items():
                 if guf.empty(v) or guf.is_bad_null(v):
                     missing_required_values.append(
-                        f'<span class="table">{table}</span>, field <span class="field">{field}</span>, {oid} {v}'
+                        f'<span class="table">{table}</span>, field <span class="field">{field}</span>, {oid} {k}'
                     )
 
-        return missing_required_values
+    return missing_required_values
 
 
-def rule3_5_and_7(terms, table):
+def rule3_5_and_7(table, terms):
     """3.5 No unnecessary terms in Glossary
     3.7 No unnecessary sources in DataSources"""
+    # unused_terms = []
     if table == "glossary":
         terms = set(values("Glossary", "Term", "list"))
-        unused_terms = [
-            "unnecessary term(s) in Glossary",
-            "Terms in Glossary that are not otherwise used in geodatabase",
-            "ExcessGlossary",
-        ]
+        unused_header = "3.5 Terms in Glossary that are not used in geodatabase"
     elif table == "datasources":
         terms = set(values("Glossary", "Term", "list"))
-        unused_terms = [
-            "unnecessary source(s) in DataSources",
-            "DataSource_IDs in DataSources that are not otherwise used in geodatabase",
-            "ExcessDataSources",
-        ]
+        unused_header = (
+            "3.7 DataSource_IDs in DataSources that are not used in geodatabase",
+        )
 
     all_vals = set(terms)
-    unused_terms.extend(list(unused_terms - all_vals))
+
+    unused_terms = [
+        "unnecessary term(s) in Glossary",
+        unused_header,
+        "ExcessGlossary",
+    ]
+    unused_terms.extend(list(set(terms) - set(all_vals)))
 
     return unused_terms
 
@@ -557,7 +608,11 @@ def rule3_10():
     ap("Checking DescriptionOfMapUnits HKey values")
     # hkey_err_list = []
     # all_dmu_key_values = []
-    hkey_errors = ["HierarchyKey error(s) in DMU", "HierarchyKey errors", "hkey_errors"]
+    hkey_errors = [
+        "HierarchyKey error(s) in DMU",
+        "3.10 HierarchyKey errors",
+        "hkey_errors",
+    ]
 
     dmu_path = db_dict["DescriptionOfMapUnits"]["catalogPath"]
     hks = [r[0] for r in arcpy.da.SearchCursor(dmu_path, "HierarchyKey")]
@@ -652,7 +707,7 @@ def rule3_10():
 
 def rule3_11():
     """All values of GeoMaterial are defined in GeoMaterialDict."""
-    errors = ["GeoMaterial error(s)", "GeoMaterial Errors", "gm_errors"]
+    errors = ["GeoMaterial error(s)", "3.11 GeoMaterial Errors", "gm_errors"]
     geomat_tables = []
     db_tables = [
         k
@@ -680,7 +735,7 @@ def rule3_12():
     """No duplicate _ID values"""
     duplicate_ids = [
         "duplicated _ID value(s)",
-        "Duplicated _ID Values",
+        "3.12 Duplicated _ID Values",
         "duplicate_ids",
     ]
     id_tables = []
@@ -713,7 +768,7 @@ def rule3_13():
     """No zero-length or whitespace-only strings"""
     zero_length_strings = [
         "zero-length or whitespace string(s)",
-        'Zero-length, whitespace-only, or "&ltNull&gt" text values that probably should be &lt;Null&gt;',
+        '3.13 Zero-length, whitespace-only, or "&ltNull&gt" text values that probably should be &lt;Null&gt;',
         "zero_length_strings",
     ]
 
@@ -729,7 +784,7 @@ def rule3_13():
     for table in tables:
         text_fields = [f.name for f in db_dict[table["fields"]] if f.type == "String"]
         for field in text_fields:
-            val_dict = values(table, field, "dict")
+            val_dict = values(table, field, "dictionary")
             possible_empty = [
                 (k, v) for k, v in val_dict.items() if v.isspace() or v == "&ltNull&gt"
             ]
@@ -948,8 +1003,8 @@ val["rule2_2"] = check_fields(db_dict, 2)
 
 # rule 2.3 topology
 ap(
-    """Rule 2.3 - GeologicMap topology: no internal gaps or overlaps in MapUnitPolys, 
-    boundaries of MapUnitPolys are covered by ContactsAndFaults"""
+    """2.3 All MapUnitPolys and ContactsAndFaults based feature classes obey Level 2 topology rules: 
+    no internal gaps or overlaps in MapUnitPolys, boundaries of MapUnitPolys are covered by ContactsAndFaults"""
 )
 
 if skip_topology:
@@ -978,72 +1033,98 @@ val["rule2_3"] = level_2_errors
 # All map units in MapUnitPolys have entries in DescriptionOfMapUnits table
 # make a list of MapUnits found in the DMU
 # dmu_units = values("DescriptonOfMapUnits", "MapUnit", "list")
-mup_results = check_map_units(db_dict, 2)
-val["rule2_4"] = mup_results[0]
+ap("2.4 All map units in MapUnitPolys have entries in DescriptionOfMapUnits table")
+val["rule2_4"] = check_map_units(db_dict, 2)
+
+# rule 2.5
+# No duplicate MapUnit values in DescriptionOfMapUnit table
+ap("2.5 No duplicate MapUnit values in DescriptionOfMapUnit table")
+dmu_map_units_duplicates = [
+    "duplicated MapUnit(s) in DMU",
+    "Duplicated MapUnit values in DescriptionOfMapUnits",
+    "DuplicatedMU",
+]
+dmu_path = db_dict["DescriptionOfMapUnits"]["catalogPath"]
+dmu_map_units_duplicates.extend(guf.get_duplicates(dmu_path, "MapUnit"))
+val["rule2_5"] = dmu_map_units_duplicates
+
+# rule 2.6
+# Certain field values within required elements have entries in Glossary table
+ap("2.6 Certain field values within required elements have entries in Glossary table")
+results = glossary_check(db_dict, 2)
+val["rule2_6"] = results
+
+# rule 2.7
+# No duplicate Term values in Glossary table
+ap("2.7 No duplicate Term values in Glossary table")
+glossary_term_duplicates = [
+    "duplicated terms in Glossary",
+    "2.7 Duplicated terms in Glossary",
+    "DuplicatedTerms",
+]
+gloss_path = db_dict["Glossary"]["catalogPath"]
+glossary_term_duplicates.extend(guf.get_duplicates(gloss_path, "Term"))
+val["rule2_7"] = glossary_term_duplicates
+
+# rule 2.8
+# All xxxSourceID values in required elements have entries in DataSources table
+ap("2.8 All xxxSourceID values in required elements have entries in DataSources table")
+all_sources = []
+sources_results = sources_check(db_dict, 2, all_sources)
+val["rule2_8"] = sources_results[0]
+all_sources = sources_results[1]
+
+# rule 2.9
+# No duplicate DataSources_ID values in DataSources table
+ap("2.9 No duplicate DataSources_ID values in DataSources table")
+duplicated_source_ids = [
+    "duplicated source IDs in DataSources",
+    "Duplicated source_IDs in DataSources",
+    "DuplicatedIDs",
+]
+ds_path = db_dict["DataSources"]["catalogPath"]
+duplicated_source_ids.extend(guf.get_duplicates(ds_path, "DataSources_ID"))
+val["rule2_9"] = duplicated_source_ids
+
+
+ap("Looking at Level 3 compliance")
+# rule 3.1
+# Table and field definitions conform to GeMS schema
+ap("3.1 Table and field definitions conform to GeMS schema")
+val["rule3_1"] = check_fields(db_dict, 3)
+
+# rule 3.2
+ap(
+    """3.2 All MapUnitPolys and ContactsAndFaults based feature classes obey Level 3 topology rules: 
+    no ContactsAndFaults overlaps, self-overlaps, or self-intersections."""
+)
+val["rule3_2"] = level_3_errors
+
+# rule 3.3
+# No missing required values
+ap("3.3 No missing required values")
+val["rule3_3"] = rule3_3(db_dict)
+
+# rule 3.4
+# No missing terms in Glossary
+ap("3.4 No missing terms in Glossary")
+gloss_results = glossary_check(db_dict, 3)
+val["rule3_4"] = gloss_results[0]
+
+# rule 3.5
+# No unnecessary terms in Glossary
+ap("3.5 No unnecessary terms in Glossary")
+val["rule3_5"] = rule3_5_and_7("glossary", gloss_results[1])
+
+# rule 3.6
+# No missing sources in DataSources
+sources_results = sources_check(db_dict, 3, all_sources)
+val["rule3_6"] = sources_results[0]
 
 write_html("report_template.jinja", val["report_path"])
 write_html("errors_template.jinja", val["errors_path"])
 os.startfile(val["report_path"])
 sys.exit()
-
-# rule 2.5
-# No duplicate MapUnit values in DescriptionOfMapUnit table
-dmu_map_units_duplicates = ["Duplicated MapUnit values in DescriptionOfMapUnits"]
-dmu_path = db_dict["DescriptionOfMapUnits"]["catalogPath"]
-dmu_map_units_duplicates.extend(guf.get_duplicates(dmu_path, "MapUnit"))
-val["dup_mus"] = dmu_map_units_duplicates
-
-# rule 2.6
-# Certain field values within required elements have entries in Glossary table
-results = glossary_check(db_dict, 2)
-val["missing_gloss"] = results[0]
-
-# rule 2.7
-# No duplicate Term values in Glossary table
-glossary_term_duplicates = ["Duplicated terms in Glossary"]
-gloss_path = db_dict["Glossary"]["catalogPath"]
-glossary_term_duplicates.extend(guf.get_duplicates(gloss_path, "Term"))
-val["gloss_dups"] = glossary_term_duplicates
-
-# rule 2.8
-# All xxxSourceID values in required elements have entries in DataSources table
-all_sources = []
-sources_results = sources_check(db_dict, 2, all_sources)
-val["missing_source_ids"] = sources_results[0]
-all_sources = sources_results[1]
-
-# rule 2.9
-# No duplicate DataSources_ID values in DataSources table
-duplicated_source_ids = ["Duplicated source_IDs in DataSources"]
-ds_path = db_dict["DataSources"]["catalogPath"]
-duplicated_source_ids.extend(guf.get_duplicates(ds_path, "DataSources_ID"))
-val["duplicated_source_ids"] = duplicated_source_ids
-
-ap("Looking at Level 3 compliance")
-# rule 3.1
-# Table and field definitions conform to GeMS schema
-val["missing_elements3"] = check_fields(db_dict, 3)
-
-# rule 3.2
-# val["topo_errors"] = topology_errors
-
-# rule 3.3
-# No missing required values
-val["missing_values"] = rule3_3(db_dict)
-
-# rule 3.4
-# No missing terms in Glossary
-gloss_results = glossary_check(db_dict, 3)
-val["missing_gloss_vals"] = gloss_results[0]
-
-# rule 3.5
-# No unnecessary terms in Glossary
-val["excess_gloss"] = rule3_5_and_7("glossary", results[1])
-
-# rule 3.6
-# No missing sources in DataSources
-sources_results = sources_check(db_dict, 3, all_sources)
-val["missing_source_ids"] = sources_results[1]
 
 # rule 3.7
 # No unnecessary sources in DataSources

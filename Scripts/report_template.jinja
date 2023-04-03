@@ -166,34 +166,34 @@ within the list of errors#}
         {{rule_cell(val["rule2_2"])}}
       </tr>
       <tr>
-        <td valign="top">2.3 GeologicMap topology: no internal gaps or overlaps in MapUnitPolys, boundaries of
-          MapUnitPolys are covered by ContactsAndFaults</td>
+        <td valign="top">2.3 All MapUnitPolys and ContactsAndFaults based feature classes obey Level 2 topology rules:
+          no internal gaps or overlaps in MapUnitPolys, boundaries of MapUnitPolys are covered by ContactsAndFaults</td>
         {{rule_cell(val["rule2_3"])}}
       </tr>
       <tr>
         <td valign="top">2.4 All map units in MapUnitPolys have entries in DescriptionOfMapUnits table</td>
         {{rule_cell(val["rule2_4"])}}
       </tr>
-      {#<tr>
+      <tr>
         <td valign="top">2.5 No duplicate MapUnit values in DescriptionOfMapUnit table</td>
-        {{rule_cell(dup_mus)}}
+        {{rule_cell(val["rule2_5"])}}
       </tr>
       <tr>
         <td valign="top">2.6 Certain field values within required elements have entries in Glossary table</td>
-        {{rule_cell(missing_gloss)}}
+        {{rule_cell(val["rule2_6"])}}
       </tr>
       <tr>
         <td valign="top">2.7 No duplicate Term values in Glossary table</td>
-        {{rule_cell(gloss_dups)}}
+        {{rule_cell(val["rule2_7"])}}
       </tr>
       <tr>
         <td valign="top">2.8 All xxxSourceID values in required elements have entries in DataSources table</td>
-        {{rule_cell(missing_source_ids)}}
+        {{rule_cell(val["rule2_8"])}}
         </td>
       </tr>
       <tr>
         <td valign="top">2.9 No duplicate DataSources_ID values in DataSources table</td>
-        {{rule_cell(duplicated_source_ids)}}
+        {{rule_cell(val["rule2_9"])}}
       </tr>
     </tbody>
   </table>
@@ -203,32 +203,31 @@ within the list of errors#}
   <table class="ess-tables">
     <tbody>
       <tr>
-        <td valign="top">3.1 Table and field definitions conform to GeMS schema</td>
-        {{rule_cell(missing_elements3)}}
+        <td valign="top">3.1 Table and field definitions beyond Level 2 conform to GeMS schema</td>
+        {{rule_cell(val["rule3_1"])}}
       </tr>
       <tr>
-        <td valign="top">3.2 All map-like feature datasets obey topology rules. No MapUnitPolys gaps or overlaps. No
-          ContactsAndFaults overlaps, self-overlaps, or self-intersections. MapUnitPoly boundaries covered by
-          ContactsAndFaults</td>
-        {{rule_cell(topology_errors)}}
+        <td valign="top">3.2 All MapUnitPolys and ContactsAndFaults based feature classes obey Level 3 topology rules:
+          No ContactsAndFaults overlaps, self-overlaps, or self-intersections. </td>
+        {{rule_cell(val["rule3_2"])}}
       </tr>
       <tr>
         <td valign="top">3.3 No missing required values</td>
-        {{rule_cell(missing_values)}}
+        {{rule_cell(val["rule3_3"])}}
       </tr>
       <tr>
         <td valign="top">3.4 No missing terms in Glossary</td>
-        {{rule_cell(missing_gloss_vals)}}
+        {{rule_cell(val["rule3_4"])}}
       </tr>
       <tr>
         <td valign="top">3.5 No unnecessary terms in Glossary</td>
-        {{rule_cell(excess_gloss)}}
+        {{rule_cell(val["rule3_5"])}}
       </tr>
       <tr>
         <td valign="top">3.6 No missing sources in DataSources</td>
-        {{rule_cell(missing_source_ids)}}
+        {{rule_cell(val["rule3_6"])}}
       </tr>
-      <tr>
+      {#<tr>
         <td valign="top">3.7 No unnecessary sources in DataSources</td>
         {{rule_cell(extra_ds,)}}
       <tr>
@@ -277,8 +276,5 @@ within the list of errors#}
 </div>
 {% endif %}
 
-<h3><a name="MapUnits_Match"></a>MapUnits in DescriptionOfMapUnits table, GeologicMap feature dataset, and other
-  feature
-  datasets</h3>
 
 <div class="report">

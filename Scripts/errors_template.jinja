@@ -84,9 +84,9 @@
 {% if v|length > 3 %}
 <h4><a name={{ v[2] }}></a>{{ v[1] }}</h4>
 {% if v[1] == "Topology errors" %}
-<i>Note that the map boundary commonly gives an unavoidable 'Must Not Have Gaps' polygon error. Other errors should be
-    fixed. Level 2 errors are also Level 3 errors. Errors are identified in feature classes within
-    XXX-Validation.gdb</i><br><br>
+<i>Note that the map boundary gives an unavoidable 'Must Not Have Gaps' polygon error although errors marked as
+    exceptions in an existing topology are ignored by this report. Other errors should be
+    fixed. Level 2 errors are also Level 3 errors. </i><br><br>
 {% endif %}
 {% for error in v[3:] %}
 {{ error }}<br>
@@ -117,7 +117,7 @@
 
 <h3>Level 3 errors</h3>
 <div class="report">
-
+    {{ iterate_errors("rule3") }}
 </div>
 
 <h3><a name="Warnings">Warnings</a></h3>
