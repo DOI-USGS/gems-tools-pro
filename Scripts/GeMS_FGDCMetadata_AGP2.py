@@ -21,7 +21,7 @@ from osgeo import ogr  # only used in def max_bounding
 
 # to import adjacent python files as modules
 sys.path.append("../")
-import Resources.spatial_utils as su
+import spatial_utils as su
 import copy
 import requests
 
@@ -110,7 +110,7 @@ def max_bounding(db_path):
     east = []
     for layer in ogr.Open(db_path):
         # if layer.GetGeomType() != 100:
-        if layer.GetName() in ["MapUnitPolys", "ContactsAndFaults"]:
+        if "MapUnitPolys" in layer.GetName() or "ContactsAndFaults" in layer.GetName():
             bounding = su.get_bounding(str(db_path), layer.GetName())
             north.append(bounding.find("northbc").text)
             south.append(bounding.find("southbc").text)
@@ -780,7 +780,7 @@ try:
         spdom.append(bounding)
         base_md.find("idinfo").append(spdom)
 except Exception as error:
-    e = """Could not calculate a bounding box. 
+    e = """Could not calculate a bounding box.
     Set environment variable PROJ_LIB to location of proj.db and try again.
     See the ArcGIS Pro wiki for more information - https://github.com/usgs/gems-tools-pro/wiki/GeMS-Tools-Documentation#BuildMetadata"""
     arcpy.AddError(e)
