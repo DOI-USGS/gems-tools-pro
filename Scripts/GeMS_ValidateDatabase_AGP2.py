@@ -36,7 +36,7 @@ from GeMS_utilityFunctions import *
 from GeMS_Definition import *
 import subprocess
 
-versionString = "GeMS_ValidateDatabase_AGP2.py, version of 18 April 2022"
+versionString = "GeMS_ValidateDatabase_AGP2.py, version of 4 March 2023"
 rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/master/Scripts/GeMS_ValidateDatabase_AGP2.py"
 checkVersion(versionString, rawurl, "gems-tools-pro")
 
