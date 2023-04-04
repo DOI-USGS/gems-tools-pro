@@ -324,6 +324,15 @@ startDict = {
     ],
 }
 
+sta_recommended = [
+    "LocationMethod",
+    "TimeDate",
+    "Observer",
+    "SignificantDimensionMeters",
+    "GPSX",
+    "GPSY",
+    "PDOP",
+]
 
 GeoMaterialConfidenceValues = ["High", "Medium", "Low"]
 
