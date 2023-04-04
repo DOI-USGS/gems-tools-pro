@@ -853,6 +853,7 @@ def checkFieldDefinitions(def_table, compare_table=None):
     requiredFields = {}
     optionalFields = {}
     requiredFieldDefs = copy.deepcopy(tableDict[def_table])
+
     if compare_table:
         # update the definition of the _ID field to include a 'CSX' prefix
         prefix = compare_table[:3]

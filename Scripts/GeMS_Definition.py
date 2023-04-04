@@ -170,13 +170,13 @@ startDict = {
         ["PlotAtScale", "Single", "NoNulls"],
         ["DataSourceID", "String", "NoNulls", IDLength],
         ["Notes", "String", "NullsOK", defaultLength],
-        ["LocationMethod", "String", "NullsOK", defaultLength],
-        ["TimeDate", "Date", "NullsOK"],
-        ["Observer", "String", "NullsOK", defaultLength],
-        ["SignificantDimensionMeters", "Single", "NullsOK"],
-        ["GPSX", "Double", "NullsOK"],
-        ["GPSY", "Double", "NullsOK"],
-        ["PDOP", "Single", "NullsOK"],
+        ["LocationMethod", "String", "Optional", defaultLength],
+        ["TimeDate", "Date", "Optional"],
+        ["Observer", "String", "Optional", defaultLength],
+        ["SignificantDimensionMeters", "Single", "Optional"],
+        ["GPSX", "Double", "Optional"],
+        ["GPSY", "Double", "Optional"],
+        ["PDOP", "Single", "Optional"],
     ],
     "GeologicLines": [
         ["Type", "String", "NoNulls", defaultLength],
@@ -324,15 +324,6 @@ startDict = {
     ],
 }
 
-sta_recommended = [
-    "LocationMethod",
-    "TimeDate",
-    "Observer",
-    "SignificantDimensionMeters",
-    "GPSX",
-    "GPSY",
-    "PDOP",
-]
 
 GeoMaterialConfidenceValues = ["High", "Medium", "Low"]
 
