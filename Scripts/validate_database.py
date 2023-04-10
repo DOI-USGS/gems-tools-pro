@@ -342,9 +342,10 @@ def check_topology(topo_pairs):
     return level_2_errors, level_3_errors
 
 
-def check_map_units(db_dict, level):
+def check_map_units(db_dict, level, all_map_units, fds_mapunits):
     """All MapUnits entries can be found in DescriptionOfMapUnits table
-    Rules 2.4 and 3.8"""
+    Rules 2.4 and 3.8
+    Also, collect additions to all_mu_units and fds_mapunits"""
     if not "DescriptionOfMapUnits" in db_dict:
         message = [
             "DescriptionOfMapUnits cannot be found. See Rule 2.1",
@@ -354,7 +355,6 @@ def check_map_units(db_dict, level):
 
         return (missing, unused)
 
-    all_map_units = []
     dmu_units = list(set(values("DescriptionOfMapUnits", "MapUnit", "list")))
 
     if level == 2:
@@ -371,12 +371,11 @@ def check_map_units(db_dict, level):
         for table in [
             k
             for k, v in db_dict.items()
-            if v["concat_type"].endswith("Table")
-            or v["concat_type"].endswith("FeatureClass")
+            if any(n in v["concat_type"] for n in ("FeatureClass", "Table"))
             and not v["dataType"] == "FeatureDataset"
             and not k in ["DescriptionOfMapUnits", "MapUnitPolys"]
         ]:
-            for f in [f.name for f in db_dict[table]["fields"] if not f.name.endswith]:
+            for f in [f.name for f in db_dict[table]["fields"]]:
                 if "MapUnit" in f:
                     mu_tables.append(table)
                     mu_fields.append(f)
@@ -397,11 +396,21 @@ def check_map_units(db_dict, level):
     mu_tables = list(set(mu_tables))
     if mu_tables:
         for mu_table in mu_tables:
+            fd = (
+                db_dict[mu_table]["feature_dataset"]
+                if db_dict[mu_table]["feature_dataset"]
+                else mu_table
+            )
+            if not fd in fds_mapunits:
+                fds_mapunits[fd] = []
             with arcpy.da.SearchCursor(
                 db_dict[mu_table]["catalogPath"], mu_fields
             ) as cursor:
                 for row in cursor:
                     all_map_units.extend(row)
+                    fds_mapunits[fd].extend(row)
+
+            fds_mapunits[fd] = list(set(fds_mapunits[fd]))
 
         all_map_units.extend(list(set(all_map_units)))
 
@@ -412,9 +421,9 @@ def check_map_units(db_dict, level):
         unused.extend(list(set(dmu_units) - set(all_map_units)))
 
     if level == 2:
-        return missing
+        return missing, all_map_units, fds_mapunits
     else:
-        return missing, unused
+        return missing, unused, all_map_units, fds_mapunits
 
 
 def glossary_check(db_dict, level, all_gloss_terms):
@@ -1114,7 +1123,11 @@ val["rule2_3"] = level_2_errors
 # make a list of MapUnits found in the DMU
 # dmu_units = values("DescriptonOfMapUnits", "MapUnit", "list")
 ap("2.4 All map units in MapUnitPolys have entries in DescriptionOfMapUnits table")
-val["rule2_4"] = check_map_units(db_dict, 2)
+all_map_units = []
+fds_mapunits = {}
+val["rule2_4"], all_map_units, fds_mapunits = check_map_units(
+    db_dict, 2, all_map_units, fds_mapunits
+)
 
 # rule 2.5
 # No duplicate MapUnit values in DescriptionOfMapUnit table
@@ -1209,7 +1222,9 @@ val["rule3_7"] = rule3_5_and_7("datasources", all_sources)
 # No unnecessary map units in DescriptionOfMapUnits
 ap("3.8 No map units without entries in DescriptionOfMapUnits")
 ap("3.9 No unnecessary map units in DescriptionOfMapUnits")
-val["rule3_8"], val["rule3_9"] = check_map_units(db_dict, 3)
+val["rule3_8"], val["rule3_9"], all_map_units, fds_mapunits = check_map_units(
+    db_dict, 3, fds_mapunits
+)
 
 
 # rule 3.10
@@ -1248,6 +1263,10 @@ val["metadata_summary"] = md_summary
 val["level"] = determine_level(val)
 
 val["extras"] = extra_tables(db_dict, schema_extensions)
+
+val["dmu_units"] = values("DescriptionOfMapUnits", "MapUnit", "list")
+val["all_units"] = all_map_units.sort()
+val["fds_units"] = fds_mapunits
 
 write_html("report_template.jinja", val["report_path"])
 write_html("errors_template.jinja", val["errors_path"])
