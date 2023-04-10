@@ -113,15 +113,11 @@ within the list of errors#}
 <div class="report">Database path: {{val["db_path"]}}<br>
   File written by <i>{{val["version_string"]}}</i><br>
   {{val["datetime"]}}<br><br>
-  This file should be accompanied by {{val["errors_name"]}}, and
-  bedrock_southern_knox_in_100k.gdb-vFgdcMetadataErrors.txt, all
+  This file should be accompanied by {{val["errors_name"]}},
+  {{val["metadata_name"]}}, and {{val["md_errors_name"]}}
   in the same directory.<br><br>
-  This database may be <a href=#Level1>
-    <font size="+1"><b>{{val["level"]}}</b>
-  </a>. </font>
-  The database-level FGDC metadata are formally correct. The <a
-    href="bedrock_southern_knox_in_100k.gdb-vFgdcMetadata.txt">metadata record</a> should be examined by a human to
-  verify that it is meaningful.<br>
+  {{val["level"]}}<br><br>
+  {{val["metadata_summary"]}}<br>
 </div>
 <div id="back-to-top"><a href="#overview">Back to Top</a></div>
 
@@ -227,51 +223,68 @@ within the list of errors#}
         <td valign="top">3.6 No missing sources in DataSources</td>
         {{rule_cell(val["rule3_6"])}}
       </tr>
-      {#<tr>
+      <tr>
         <td valign="top">3.7 No unnecessary sources in DataSources</td>
-        {{rule_cell(extra_ds,)}}
+        {{rule_cell(val["rule3_7"])}}
+      </tr>
       <tr>
         <td valign="top">3.8 No map units without entries in DescriptionOfMapUnits</td>
-        {{rule_cell(mu_not_in_dmu,)}}
+        {{rule_cell(val["rule3_8"])}}
       </tr>
       <tr>
         <td valign="top">3.9 No unnecessary map units in DescriptionOfMapUnits</td>
-        {{rule_cell(extra_mu_dmu,)}}
+        {{rule_cell(val["rule3_9"])}}
       </tr>
       <tr>
         <td valign="top">3.10 HierarchyKey values in DescriptionOfMapUnits are unique and well formed</td>
-        {{rule_cell(hkey_errors,)}}
+        {{rule_cell(val["rule3_10"])}}
       </tr>
       <tr>
         <td valign="top">3.11 All values of GeoMaterial are defined in GeoMaterialDict. GeoMaterialDict is as specified
           in the GeMS standard</td>
-        {{rule_cell(gm_errors,)}}
+        {{rule_cell(val["rule3_11"])}}
+      </tr>
       <tr>
         <td valign="top">3.12 No duplicate _ID values</td>
-        {{rule_cell(duplicate_ids,)}}
+        {{rule_cell(val["rule3_12"])}}
       </tr>
       <tr>
         <td valign="top">3.13 No zero-length or whitespace-only strings</td>
-        {{rule_cell(zero_length_strings,)}}
+        {{rule_cell(val["rule3_13"])}}
       </tr>
     </tbody>
+  </table>
 
-    <br>
-    <a href="{{val_errors}}#Warnings">{{val_warnings}}<br></a>#}
+  <br>
+  {% if val["sr_warnings"]|length > 1 or val["end_spaces"]|length > 1 %}
+  <a href='{{val["errors_path"]}}#Warnings'>There are {{val["sr_warnings"]|length +
+    val["end_spaces"]|length}} warnings:</a><br>
+  {% if val["sr_warnings"]|length > 1%}
+  {% for warning in val["sr_warnings"] %}
+  {{warning}}<br>
+  {% endfor%}
+  {% endif %}
+  {% if val["end_spaces"]|length > 1%}
+  {% for warning in val["end_spaces"] %}
+  {{warning}}<br>
+  {% endfor%}
+  {% endif %}
+  {% else %}
+  <a href='{{val["errors_path"]}}#Warnings'>There are 0 warnings.</a>
+  {% endif %}
+
+
 </div>
 
-{% if extra_fields or extra_tables %}
+{% if val["extras"]|length > 1 %}
 <h3><a name="Extensions"></a>Content not specified in GeMS schema</h3>
 <div class="report">
   <i>Some of the extensions to the GeMS schema identified here may be necessary to capture geologic content and are
     entirely appropriate. <b>Please document these extensions in metadata for the database, any accompanying README
       file, and (if applicable) any transmittal letter that accompanies the dataset.</b> Other extensions may be
     intermediate datasets, fields, or files that should be deleted before distribution of the database.</i><br><br>
-  {% for field in extra_fields %}
-  <span class="tab"></span><span class="table">{{field[1]}}</span>, field <span class="field">{{field[0]}}</span><br>
-  {% endfor %}
-  {% for table in extra_tables %}
-  <span class="tab">{{table[1]}}</span><span class="table">{{table[0]}}</span><br>
+  {% for extra in val["extras"] %}
+  {{ extra }}<br>
   {% endfor %}
 </div>
 {% endif %}

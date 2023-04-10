@@ -2,7 +2,7 @@
 """Validate Database
 
 Audits a geodatabase for conformance with the GeMS schema and reports compliance 
-as “may be LEVEL 1 COMPLIANT”, “is LEVEL 2 COMPLIANT”, or “is LEVEL 3 COMPLIANT”. 
+as "may be LEVEL 1 COMPLIANT", "is LEVEL 2 COMPLIANT", or "is LEVEL 3 COMPLIANT". 
 It also runs mp (metadata parser) to check for formal errors in geodatabase-level 
 FGDC metadata. Note that to qualify as LEVEL 2 or LEVEL 3 compliant a database must 
 also be accompanied by a peer-reviewed geologic names report.
@@ -74,7 +74,7 @@ reload(tp)
 
 val = {}
 
-version_string = "GeMS_ValidateDatabase_AGP2.py, version of 24 March 2023"
+version_string = "validate_database.py, version of 24 March 2023"
 val["version_string"] = version_string
 val["datetime"] = time.asctime(time.localtime(time.time()))
 
@@ -92,8 +92,6 @@ for f in gdef.standard_fields:
     lc_standard_fields.append(f.lower())
 
 metadata_checked = False  # script will set to True if metadata record is checked
-
-other_warnings = []
 
 
 def check_sr(db_obj):
@@ -157,7 +155,7 @@ def rule2_1(db_dict):
     GeoMaterialDict; feature dataset GeologicMap with feature classes ContactsAndFaults
     and MapUnitPolys"""
     tp_pairs = []
-    sr_warnings = []
+    sr_warnings = ["Spatial reference warnings"]
     errors = ["items(s) missing", "2.1 Missing required elements", "MissingElements"]
 
     # first look for GeologicMap feature dataset
@@ -218,7 +216,7 @@ def rule2_1(db_dict):
     return (errors, tp_pairs, sr_warnings)
 
 
-def check_fields(db_dict, level):
+def check_fields(db_dict, level, schema_extensions):
     """controlled fields are present and correctly defined
     right now this only looks at controlled fields in tables that have been tagged
     with a gems_equivalent.
@@ -234,7 +232,7 @@ def check_fields(db_dict, level):
         tables = [
             k
             for k, v in db_dict.items()
-            if not k in req_tables
+            if not v["gems_equivalent"] in req_tables
             and not v["gems_equivalent"] == ""
             and not v["dataType"] == "FeatureDataset"
         ]
@@ -278,7 +276,23 @@ def check_fields(db_dict, level):
                             f'<span class="table">{table}</span>, field <span class="field">{field}</span> should be at least {req_length} long'
                         )
 
-    return errors
+        req_names = [f[0] for f in req_fields]
+        for field in [
+            f.name
+            for f in found_fields
+            if f.name not in req_names
+            and not f.name.endswith("_ID")
+            and not f.name in gdef.standard_fields
+        ]:
+            schema_extensions.append(
+                '<span class="table">'
+                + table
+                + '</span>, field <span class="field">'
+                + field
+                + "</span>"
+            )
+
+    return errors, schema_extensions
 
 
 def check_topology(topo_pairs):
@@ -351,20 +365,21 @@ def check_map_units(db_dict, level):
         mu_fields = ["MapUnit"]
         missing_header = "2.4 MapUnits missing from DMU. Only one reference to each missing unit is cited"
     else:
-        # checking all tables that have a 'MapUnit' field
+        # checking all other tables that have a 'MapUnit' field
         mu_tables = []
         mu_fields = []
         for table in [
             k
             for k, v in db_dict.items()
-            if not k in ["DescriptionOfMapUnits", "MapUnitPolys"]
-            and not v["featureType"] == "Annotation"
+            if v["concat_type"].endswith("Table")
+            or v["concat_type"].endswith("FeatureClass")
             and not v["dataType"] == "FeatureDataset"
+            and not k in ["DescriptionOfMapUnits", "MapUnitPolys"]
         ]:
-            for f in [f.name for f in db_dict[table]["fields"]]:
-                if "MapUnit" in f.name:
+            for f in [f.name for f in db_dict[table]["fields"] if not f.name.endswith]:
+                if "MapUnit" in f:
                     mu_tables.append(table)
-                    mu_fields.append(f.name)
+                    mu_fields.append(f)
         missing_header = "3.8 MapUnits missing from DMU. Only one reference to each missing unit is cited"
 
     missing = [
@@ -386,7 +401,6 @@ def check_map_units(db_dict, level):
                 db_dict[mu_table]["catalogPath"], mu_fields
             ) as cursor:
                 for row in cursor:
-
                     all_map_units.extend(row)
 
         all_map_units.extend(list(set(all_map_units)))
@@ -403,13 +417,15 @@ def check_map_units(db_dict, level):
         return missing, unused
 
 
-def glossary_check(db_dict, level):
+def glossary_check(db_dict, level, all_gloss_terms):
     """Certain field values within required elements have entries in Glossary table"""
     missing = []
 
     # decide which tables to check
     if level == 2:
-        tables = [t for t in gdef.rule2_1_elements if t != "GeologicMap"]
+        tables = [
+            t for t in gdef.rule2_1_elements if not t in ("GeologicMap", "Glossary")
+        ]
         term_fields = gdef.defined_term_fields_list
         missing_header = "2.6 Missing terms in Glossary. Only one reference to each missing term is cited"
     else:
@@ -429,7 +445,6 @@ def glossary_check(db_dict, level):
     ]
     # compare Term fields in the tables with the Glossary
     glossary_terms = values("Glossary", "Term", "list")
-    all_glossary_refs = []
     for table in tables:
         if level == 2:
             # look for fields matching the controlled fields
@@ -456,8 +471,8 @@ def glossary_check(db_dict, level):
                 if None in field_vals:
                     field_vals.remove(None)
 
-                # put all of these glossary terms in all_glossary_refs list
-                all_glossary_refs.extend(field_vals)
+                # put all of these glossary terms in all_gloss_terms list
+                all_gloss_terms.extend(field_vals)
 
                 missing_vals = [val for val in field_vals if not val in glossary_terms]
                 for val in missing_vals:
@@ -467,10 +482,7 @@ def glossary_check(db_dict, level):
 
     missing_glossary_terms.extend(list(set(missing)))
 
-    if level == 2:
-        return missing_glossary_terms
-    else:
-        return (missing_glossary_terms, all_glossary_refs)
+    return missing_glossary_terms, all_gloss_terms
 
 
 def gm_confidence(table):
@@ -497,7 +509,9 @@ def sources_check(db_dict, level, all_sources):
     # decide which tables to check
     if level == 2:
         # just required fc and tables
-        tables = [t for t in gdef.rule2_1_elements if t != "GeologicMap"]
+        tables = [
+            t for t in gdef.rule2_1_elements if not t in ("GeologicMap", "DataSources")
+        ]
         missing_header = "2.8 Missing DataSources entries. Only one reference to each missing entry is cited"
 
     if level == 3:
@@ -506,8 +520,9 @@ def sources_check(db_dict, level, all_sources):
             k
             for k, v in db_dict.items()
             if not v["dataType"] in ["FeatureDataset", "Annotation", "Topology"]
+            and not k in gdef.rule2_1_elements
         ]
-        tables = [t for t in tables if not t in gdef.rule2_1_elements]
+        # tables = [t for t in tables if not t in gdef.rule2_1_elements]
         missing_header = "3.6 Missing DataSources entries. Only one reference to each missing entry is cited"
 
     missing_source_ids = [
@@ -525,12 +540,13 @@ def sources_check(db_dict, level, all_sources):
         for ds_field in ds_fields:
             d_sources = values(table, ds_field, "dictionary")
             for oid, val in d_sources.items():
-                if not val is None and not val.isspace():
+                if not guf.empty(val):
                     for el in val.split("|"):
-                        all_sources.append((table, ds_field, el, oid))
+                        # el_html = f'<span class="value">{el}</span>, field <span class="field">{ds_field}</span>, table <span class="table">{table}</span>'
+                        all_sources.append(el)
                         if not el.strip() in gems_sources:
                             missing.append(
-                                f'<span class="value">{el}</span>, field <span class="field">{ds_field}</span>,table <span class="table">{table}</span>'
+                                f'<span class="value">{el}</span>, field <span class="field">{ds_field}</span>, table <span class="table">{table}</span>'
                             )
                 # else:
                 #     missing.append(
@@ -538,11 +554,8 @@ def sources_check(db_dict, level, all_sources):
                 #     )
 
     missing_source_ids.extend(list(set(missing)))
-    arcpy.AddMessage(missing_source_ids)
-    if level == 2:
-        return (missing_source_ids, all_sources)
-    else:
-        return (missing_source_ids, all_sources)
+
+    return missing_source_ids, all_sources
 
 
 def rule3_3(db_dict):
@@ -578,27 +591,24 @@ def rule3_3(db_dict):
     return missing_required_values
 
 
-def rule3_5_and_7(table, terms):
+def rule3_5_and_7(table, all_vals):
     """3.5 No unnecessary terms in Glossary
     3.7 No unnecessary sources in DataSources"""
-    # unused_terms = []
     if table == "glossary":
         terms = set(values("Glossary", "Term", "list"))
         unused_header = "3.5 Terms in Glossary that are not used in geodatabase"
     elif table == "datasources":
-        terms = set(values("Glossary", "Term", "list"))
+        terms = set(values("DataSources", "DataSources_ID", "list"))
         unused_header = (
-            "3.7 DataSource_IDs in DataSources that are not used in geodatabase",
+            "3.7 DataSources_IDs in DataSources that are not used in geodatabase"
         )
-
-    all_vals = set(terms)
 
     unused_terms = [
         "unnecessary term(s) in Glossary",
         unused_header,
         "ExcessGlossary",
     ]
-    unused_terms.extend(list(set(terms) - set(all_vals)))
+    unused_terms.extend(list(terms - set(all_vals)))
 
     return unused_terms
 
@@ -614,22 +624,25 @@ def rule3_10():
         "hkey_errors",
     ]
 
-    dmu_path = db_dict["DescriptionOfMapUnits"]["catalogPath"]
-    hks = [r[0] for r in arcpy.da.SearchCursor(dmu_path, "HierarchyKey")]
-
+    hks = values("DescriptionOfMapUnits", "HierarchyKey", "dictionary")
     # return early if HKs is empty
     if not hks:
-        hkey_errors.append("No HierarchyKey values?!")
+        hkey_errors.append("No HierarchyKey values")
         return hkey_errors
+
+    for k, v in hks.items():
+        if guf.empty(v):
+            hkey_errors.append(f"OID {k} has no HierarchyKey value")
 
     # find the delimiter
     # make a list of all non-alphanumeric characters found in all hkeys
     # if the length of the list is not 1, there are multiple delimiters.
     # we'll look for non-numeric characters below
     delims = []
-    for hkey in hks:
-        for c in hkey:
-            delims.extend([c for c in hkey if c.isalnum() == False])
+    for hkey in hks.values():
+        if not guf.empty(hkey):
+            for c in hkey:
+                delims.extend([c for c in hkey if c.isalnum() == False])
 
     delims = set(delims)
     if delims:
@@ -648,20 +661,21 @@ def rule3_10():
 
         # new_keys dictionary has entries of [pipe delimited hkey] = original hkey
         new_keys = {}
-        for hkey in hks:
-            f_key = hkey
-            # make a new pipe-delimited key
-            # and the dictionary entry
-            for delim in delims:
-                if delim != "|":
-                    f_key = f_key.replace(delim, "|")
-            new_keys[f_key] = hkey
+        for hkey in hks.values():
+            if hkey:
+                f_key = hkey
+                # make a new pipe-delimited key
+                # and the dictionary entry
+                for delim in delims:
+                    if delim != "|":
+                        f_key = f_key.replace(delim, "|")
+                new_keys[f_key] = hkey
 
-            # look for duplicates
-            if f_key in seen:
-                dupes.append(hkey)
-            else:
-                seen.add(f_key)
+                # look for duplicates
+                if f_key in seen:
+                    dupes.append(hkey)
+                else:
+                    seen.add(f_key)
 
         # get the length of the first fragment of the first dictionary value
         entry1 = next(iter(new_keys))
@@ -707,18 +721,18 @@ def rule3_10():
 
 def rule3_11():
     """All values of GeoMaterial are defined in GeoMaterialDict."""
-    errors = ["GeoMaterial error(s)", "3.11 GeoMaterial Errors", "gm_errors"]
+    errors = ["GeoMaterial error(s)", "3.11 GeoMaterial Errors", "gmErrors"]
     geomat_tables = []
     db_tables = [
         k
         for k, v in db_dict.items()
-        if not k == "GeoMaterialDict"
-        and not v["featureType"] == "Annotation"
-        and not v["dataType"] == "FeatureDataset"
+        if any(v["concat_type"].endswith(n) for n in ("Table", "FeatureClass"))
+        and not k == "GeoMaterialDict"
+        and not "Annotation" in v["concat_type"]
     ]
     for table in db_tables:
         for f in [f.name for f in db_dict[table]["fields"]]:
-            if "GeoMaterial" in f.name:
+            if "GeoMaterial" in f:
                 geomat_tables.append(table)
 
     all_geomat_vals = []
@@ -728,7 +742,10 @@ def rule3_11():
     ref_geomats = values("GeoMaterialDict", "GeoMaterial", "list")
     unused_geomats = list(set(all_geomat_vals) - set(ref_geomats))
 
-    return errors.extend(unused_geomats)
+    if unused_geomats != [None]:
+        errors.extend(unused_geomats)
+
+    return errors
 
 
 def rule3_12():
@@ -742,12 +759,13 @@ def rule3_12():
     db_tables = [
         k
         for k, v in db_dict.items()
-        if not v["featureType"] == "Annotation"
-        and not v["dataType"] == "FeatureDataset"
+        if any(v["concat_type"].endswith(n) for n in ("Table", "FeatureClass"))
+        and not k == "GeoMaterialDict"
+        and not "Annotation" in v["concat_type"]
     ]
     for table in db_tables:
         for f in [f.name for f in db_dict[table]["fields"]]:
-            if f.name == f"{table}_ID":
+            if f == f"{table}_ID":
                 id_tables.append(table)
 
     all_ids = []
@@ -756,12 +774,17 @@ def rule3_12():
         # need a tuple here because duplicated keys added to a dictionary
         # are ignored. need to look for duplicate (_ID Value: table) pairs.
         table_ids = [
-            (r[0], table) for r in arcpy.da.SearchCursor(table_path, f"{table}_ID")
+            (r[0], table)
+            for r in arcpy.da.SearchCursor(table_path, f"{table}_ID")
+            if r[0]
         ]
         all_ids.extend(table_ids)
         dup_ids = list(set([id for id in all_ids if all_ids.count(id) > 1]))
 
-    return duplicate_ids.extend(dup_ids)
+    if dup_ids:
+        duplicate_ids.extend(dup_ids)
+
+    return duplicate_ids
 
 
 def rule3_13():
@@ -778,72 +801,84 @@ def rule3_13():
 
     tables = [
         k
-        for k in db_dict
-        if not db_dict[k]["dataType"] in ["FeatureDataset", "Annotation"]
+        for k, v in db_dict.items()
+        if any(v["concat_type"].endswith(n) for n in ("Table", "FeatureClass"))
+        and not k == "GeoMaterialDict"
+        and not "Annotation" in v["concat_type"]
     ]
     for table in tables:
-        text_fields = [f.name for f in db_dict[table["fields"]] if f.type == "String"]
+        text_fields = [f.name for f in db_dict[table]["fields"] if f.type == "String"]
         for field in text_fields:
             val_dict = values(table, field, "dictionary")
-            possible_empty = [
-                (k, v) for k, v in val_dict.items() if v.isspace() or v == "&ltNull&gt"
-            ]
-            zero_length_strings.extend(possible_empty)
+            for k, v in val_dict.items():
+                if v:
+                    if v == "" or v.isspace() or v == "&ltNull&gt":
+                        html = f'<span class="table">{table}</span>, field <span class="field"> {field}</span>, OID: {str(k)}'
+                        zero_length_strings.append(html)
 
             # also collect leading_trailing_spaces for 'other stuff' report
             for n in [
-                k for k, v in val_dict.items() if v[0].isspace() or v[-1].isspace()
+                k for k, v in val_dict.items() if v and (len(v.strip()) != len(v))
             ]:
-                html = f'<span class="table">{table}</span>, field <span class="field"> {field}</span>, OID: {str(n)}'
+                html = f'<span class="tab"></span><span class="table">{table}</span>, field <span class="field"> {field}</span>, OID: {str(n)}'
                 leading_trailing_spaces.append(html)
 
     return zero_length_strings, leading_trailing_spaces
 
 
-def validate_online(md_record):
+def validate_online(metadata_file):
     """validate the xml metadata against the USGS metadata validation service API"""
+
+    metadata_name = metadata_file.stem
+    metadata_dir = metadata_file.parent
+    metadata_errors = metadata_dir / f"{metadata_name}_errors.txt"
+
+    passes_mp = False
     # send the temp file to the API
     url = r"https://www1.usgs.gov/mp/service.php"
-    with open(md_record, "rb") as f:
-        r = requests.post(url, files={"input_file": f})
+    try:
+        with open(metadata_file, "rb") as f:
+            r = requests.post(url, files={"input_file": f})
+    except:
+        message = "Could not connect to the metadata validation service. Check your internet connection and try again."
+        ap(message)
+
+        return False, message
 
     if r.ok:
-        # collect the 'link' array
         links = r.json()["output"]["link"]
-
-        # save the output xml to disk
-        req = requests.get(links["xml"])
-        with open(mr_xml, "wb") as f:
-            f.write(req.content)
-
-        # the intermediate xml sent to the API likely had some out-of-order
-        # elements, but mp corrects those mistakes so the output xml doesn't have
-        # them but the error file reports them. Instead of sending the
-        # XML output to the API to be validated only to get a new error file,
-        # just edit the error file to remove out-of-order warnings
-        err_name = f"{str(mr_xml.stem)}-errors.txt"
-        err_path = db_dir / err_name
-        req = requests.get(links["error_txt"])
-        with open(err_path, "wt") as f:
-            for line in req.iter_lines():
+        errors = requests.get(links["error_txt"])
+        with open(metadata_errors, "wt") as f:
+            for line in errors.iter_lines():
                 if not b"appears in unexpected order within" in line:
                     f.write(f"{line.decode('utf-8')}\n")
 
-        # print the error file contents to the geoprocessing window
-        with open(err_path, "r") as f:
-            arcpy.AddMessage(f.read())
+        summary = r.json()["summary"]
+        if not "errors" in summary:
+            passes_mp = True
+            message = (
+                'The database-level FGDC metadata are formally correct. The <a href="'
+                + metadata_file
+                + '">metadata record</a> should be examined by a human to verify that it is meaningful.<br>\n'
+            )
+        else:
+            message = (
+                'The <a href="'
+                + metadata_file
+                + '">FGDC metadata record</a> for this database has <a href="'
+                + metadata_errors
+                + '">formal errors</a>. Please fix! <br>\n'
+            )
+            ap(message)
 
-        # final report
-        arcpy.AddMessage(f"Output files have been saved to {db_dir}")
-        arcpy.AddMessage(
-            f"Open {mr_xml} in a xml or metadata editor to complete the record"
-        )
-
-        # cleanup
-        return True
     else:
-        arcpy.AddError("Could not write metadata to disk!")
-        arcpy.AddWarning(r.reason)
+        message = (
+            "There was a problem with the connection to the metadata validation service:<br>/n"
+            + r.reason
+        )
+        ap(message)
+
+    return passes_mp, message
 
 
 def write_html(template, out_file):
@@ -851,6 +886,41 @@ def write_html(template, out_file):
     validation_template = environment.get_template(template)
     with open(out_file, mode="w", encoding="utf-8") as results:
         results.write(validation_template.render(val=val))
+
+
+def determine_level(val):
+    level2 = False
+    level3 = False
+    if all(len(n) == 3 for n in [val[f"rule2_{i}"] for i in range(1, 9)]):
+        level2 = True
+    if all(len(n) == 3 for n in [val[f"rule3_{i}"] for i in range(1, 13)]):
+        level3 = True
+
+    if level2 and level3:
+        level = 'This database is <a href=#Level3><font size="+1"><b>LEVEL 3 COMPLIANT.</b></a></font>\n'
+    elif level2:
+        level = 'This database is <a href=#Level2><font size="+1"><b>LEVEL 2 COMPLIANT.</b></a></font>\n'
+    else:
+        level = 'This database may be <a href=#Level1><font size="+1"><b>LEVEL 1 COMPLIANT.</b></a></font>\n'
+
+    return level
+
+
+def extra_tables(db_dict, schema_extensions):
+    extras = [
+        k
+        for k, v in db_dict.items()
+        if v["gems_equivalent"] == ""
+        and not "Annotation" in v["concat_type"]
+        and any(n in v["concat_type"] for n in ("FeatureClass", "Table"))
+    ]
+    if extras:
+        for table in extras:
+            schema_extensions.append(
+                f'{db_dict[table]["dataType"]} <span class="table">{table}</span>'
+            )
+
+    return schema_extensions
 
 
 ##############start here##################
@@ -896,7 +966,13 @@ if 3 < args_len:
         metadata_file = None
 else:
     metadata_file = None
-val["metadata"] = str(metadata_file)
+val["metadata_file"] = str(metadata_file)
+val["metadata_name"] = metadata_file.name if metadata_file else "valid metadata"
+val["md_errors_name"] = (
+    f"{metadata_file.name}_errors.txt"
+    if metadata_file
+    else "a metadata summary from mp"
+)
 
 # skip topology?
 if 4 < args_len:
@@ -993,13 +1069,17 @@ ap(
 )
 rule2_1_results = rule2_1(db_dict)
 val["rule2_1"] = rule2_1_results[0]
+val["sr_warnings"] = rule2_1_results[2]
 
 # rule 2.2
 # Required fields within required elements are present and correctly defined
 ap(
     "Rule 2.2 - Required fields within required elements are present and correctly defined"
 )
-val["rule2_2"] = check_fields(db_dict, 2)
+schema_extensions = [
+    '<h3><a name="Extensions"></a>Content not specified in GeMS schema</h3>\n'
+]
+val["rule2_2"], schema_extensions = check_fields(db_dict, 2, schema_extensions)
 
 # rule 2.3 topology
 ap(
@@ -1051,8 +1131,8 @@ val["rule2_5"] = dmu_map_units_duplicates
 # rule 2.6
 # Certain field values within required elements have entries in Glossary table
 ap("2.6 Certain field values within required elements have entries in Glossary table")
-results = glossary_check(db_dict, 2)
-val["rule2_6"] = results
+all_gloss_terms = []
+val["rule2_6"], all_gloss_terms = glossary_check(db_dict, 2, all_gloss_terms)
 
 # rule 2.7
 # No duplicate Term values in Glossary table
@@ -1070,9 +1150,7 @@ val["rule2_7"] = glossary_term_duplicates
 # All xxxSourceID values in required elements have entries in DataSources table
 ap("2.8 All xxxSourceID values in required elements have entries in DataSources table")
 all_sources = []
-sources_results = sources_check(db_dict, 2, all_sources)
-val["rule2_8"] = sources_results[0]
-all_sources = sources_results[1]
+val["rule2_8"], all_sources = sources_check(db_dict, 2, all_sources)
 
 # rule 2.9
 # No duplicate DataSources_ID values in DataSources table
@@ -1091,7 +1169,7 @@ ap("Looking at Level 3 compliance")
 # rule 3.1
 # Table and field definitions conform to GeMS schema
 ap("3.1 Table and field definitions conform to GeMS schema")
-val["rule3_1"] = check_fields(db_dict, 3)
+val["rule3_1"], schema_extensions = check_fields(db_dict, 3, schema_extensions)
 
 # rule 3.2
 ap(
@@ -1108,55 +1186,73 @@ val["rule3_3"] = rule3_3(db_dict)
 # rule 3.4
 # No missing terms in Glossary
 ap("3.4 No missing terms in Glossary")
-gloss_results = glossary_check(db_dict, 3)
-val["rule3_4"] = gloss_results[0]
+val["rule3_4"], all_gloss_terms = glossary_check(db_dict, 3, all_gloss_terms)
 
 # rule 3.5
 # No unnecessary terms in Glossary
 ap("3.5 No unnecessary terms in Glossary")
-val["rule3_5"] = rule3_5_and_7("glossary", gloss_results[1])
+val["rule3_5"] = rule3_5_and_7("glossary", all_gloss_terms)
 
 # rule 3.6
 # No missing sources in DataSources
-sources_results = sources_check(db_dict, 3, all_sources)
-val["rule3_6"] = sources_results[0]
+ap("3.6 No missing sources in DataSources")
+val["rule3_6"], all_sources = sources_check(db_dict, 3, all_sources)
+
+# rule 3.7
+# No unnecessary sources in DataSources
+ap("3.7 No unnecessary sources in DataSources")
+val["rule3_7"] = rule3_5_and_7("datasources", all_sources)
+
+# rule 3.8
+# No map units without entries in DescriptionOfMapUnits
+# rule 3.9
+# No unnecessary map units in DescriptionOfMapUnits
+ap("3.8 No map units without entries in DescriptionOfMapUnits")
+ap("3.9 No unnecessary map units in DescriptionOfMapUnits")
+val["rule3_8"], val["rule3_9"] = check_map_units(db_dict, 3)
+
+
+# rule 3.10
+# HierarchyKey values in DescriptionOfMapUnits are unique and well formed
+ap("3.10 HierarchyKey values in DescriptionOfMapUnits are unique and well formed")
+val["rule3_10"] = rule3_10()
+
+# 3.11
+# All values of GeoMaterial are defined in GeoMaterialDict.
+ap(
+    "3.11 All values of GeoMaterial are defined in GeoMaterialDict. GeoMaterialDict is as specified in the GeMS standard"
+)
+val["rule3_11"] = rule3_11()
+
+# 3.12
+# No duplicate _ID values
+ap("3.12 No duplicate _ID values")
+val["rule3_12"] = rule3_12()
+
+# 3.13
+# No zero-length or whitespace-only strings
+val["rule3_13"], val["end_spaces"] = rule3_13()
+
+passes_mp = False
+if metadata_checked:
+    if val["metadata_file"]:
+        passes_mp, md_summary = validate_online(metadata_file)
+    else:
+        md_summary = f"{metadata_file} does not exist."
+else:
+    md_summary = "Check Metadata option was skipped. Be sure to have prepared valid metadata and check this option to produce a complete report."
+
+val["passes_mp"] = passes_mp
+val["metadata_summary"] = md_summary
+
+val["level"] = determine_level(val)
+
+val["extras"] = extra_tables(db_dict, schema_extensions)
 
 write_html("report_template.jinja", val["report_path"])
 write_html("errors_template.jinja", val["errors_path"])
 os.startfile(val["report_path"])
 sys.exit()
-
-# rule 3.7
-# No unnecessary sources in DataSources
-val["extra_ds"] = rule3_5_and_7("datasources", sources_results[1])
-
-# rule 3.8
-# No map units without entries in DescriptionOfMapUnits
-results = check_map_units(db_dict, 3)
-val["mu_not_in_dmu"] = results[0]
-
-# rule 3.9
-# No unnecessary map units in DescriptionOfMapUnits
-val["extra_mu_dmu"] = results[1]
-
-# rule 3.10
-# HierarchyKey values in DescriptionOfMapUnits are unique and well formed
-val["hkey_errors"] = rule3_10()
-
-# 3.11
-# All values of GeoMaterial are defined in GeoMaterialDict.
-val["gm_errors"] = geo_material_errors.extend(rule3_11())
-
-# 3.12
-# No duplicate _ID values
-val["duplicate_ids"] = rule3_12()
-
-# 3.13
-# No zero-length or whitespace-only strings
-val["zero_length_strings"] = rule3_13()
-
-if metadata_checked:
-    validate_online(metadata_file)
 
 ### Compact DB option
 if compact_db == "true":

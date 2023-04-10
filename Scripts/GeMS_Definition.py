@@ -542,6 +542,7 @@ rule2_1_elements = [
     "DataSources",
     "DescriptionOfMapUnits",
     "GeoMaterialDict",
+    "Glossary",
     "GeologicMap",
     "ContactsAndFaults",
     "MapUnitPolys",
