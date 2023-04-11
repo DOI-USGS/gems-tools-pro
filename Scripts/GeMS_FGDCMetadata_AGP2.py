@@ -25,7 +25,7 @@ import spatial_utils as su
 import copy
 import requests
 
-versionString = "GeMS_FGDCMetadata_AGP2.py, version of 3 March 2023"
+versionString = "GeMS_FGDCMetadata_AGP2.py, version of 11 April 2023"
 rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/master/Scripts/GeMS_FGDCMetadata_AGP2.py"
 guf.checkVersion(versionString, rawurl, "gems-tools-pro")
 
@@ -610,7 +610,8 @@ if my_defs_path.is_file():
     spec.loader.exec_module(module)
     import my_definitions as myDef
 
-    myEntityDict = myDef.myEntityDict
+    if "myEntityDict" in dir(myDef):
+        myEntityDict = myDef.myEntityDict
 
     # try updating the GeMS dictionaries, but if the custom ones do not exist don't throw an
     # error, just pass
