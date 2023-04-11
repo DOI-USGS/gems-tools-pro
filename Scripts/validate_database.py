@@ -974,6 +974,9 @@ def build_tr(db_dict, tb):
 
     table.append("<//tr>")
     table.append("<//thead>")
+    if tb == "DescriptionOfMapUnits":
+        sql = "ORDER BY HierarchyKey"
+
     with arcpy.da.SearchCursor(db_dict[tb]["catalogPath"], fields) as cursor:
         for row in cursor:
             table.append("<tr>")
