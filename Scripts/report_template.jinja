@@ -288,32 +288,40 @@ within the list of errors#}
 {% endif %}
 
 {% if val["all_units"] %}
-<h3><a name="MapUnits_Match"></a>MapUnits found in DMU and feature datasets (or tables if geopackage)</h3>
-<div class="report"></div>
-<table class="ess-tables" ; style="text-align:center">
-  <tr>
-    <th>MapUnit</th>
-    {% if val["fds_units"] %}
-    {% for k in val["fds_units"] %}
-    <th>{{k}}</th>
-    {% endfor %}
-  </tr>
-  <tr>
+<div class="" report>
+  <h3><a name="MapUnits_Match"></a>Occurrence of MapUnit by DMU, feature datasets, or geopackage tables</h3>
+  <div class="report"></div>
+  <table class="ess-tables" ; style="text-align:center">
+    <tr>
+      <th>MapUnit</th>
+      {% if val["fds_units"] %}
+      {% for k in val["fds_units"] %}
+      <th>{{k}}</th>
+      {% endfor %}
+    </tr>
     {% for mu in val["all_units"] %}
-    <td>{{mu}}</td>
-    {% for v in val["fds_units"].values() %}
-    {% if mu in v %}
-    <td>X</td>
-    {% else %}
-    <td>--</td>
+    <tr>
+      <td>{{mu}}</td>
+      {% for v in val["fds_units"].values() %}
+      {% if mu in v %}
+      <td>X</td>
+      {% else %}
+      <td>--</td>
+      {% endif %}
+      {% endfor %}
+    </tr>
+    {% endfor %}
     {% endif %}
-  </tr>
-  {% endfor %}
-  {% endfor %}
-  {% endif %}
-  {% endif %}
-</table>
+  </table>
+</div>
+{% endif %}
 
 
-
-<div class="report">
+{% if val["non_spatial"] %}
+<div class="report"></div>
+<h3><a name="Contents_Nonspatial"></a>Contents of Nonspatial Tables</h3>
+{% for table in val["non_spatial"].values()%}
+{{ table }}
+{% endfor %}
+</div>
+{% endif %}

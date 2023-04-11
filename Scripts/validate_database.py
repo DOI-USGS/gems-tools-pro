@@ -356,6 +356,7 @@ def check_map_units(db_dict, level, all_map_units, fds_map_units):
         return (missing, unused)
 
     dmu_units = list(set(values("DescriptionOfMapUnits", "MapUnit", "list")))
+    fds_map_units["DescriptionOfMapUnits"] = dmu_units
 
     if level == 2:
         # just checking MapUnitPolys
@@ -376,7 +377,7 @@ def check_map_units(db_dict, level, all_map_units, fds_map_units):
             and not k in ["DescriptionOfMapUnits", "MapUnitPolys"]
         ]:
             for f in [f.name for f in db_dict[table]["fields"]]:
-                if "MapUnit" in f:
+                if "MapUnit" in f and not f.endswith("_ID"):
                     mu_tables.append(table)
         missing_header = "3.8 MapUnits missing from DMU. Only one reference to each missing unit is cited"
 
@@ -402,8 +403,11 @@ def check_map_units(db_dict, level, all_map_units, fds_map_units):
             )
             if not fd in fds_map_units:
                 fds_map_units[fd] = []
+
             mu_fields = [
-                f.name for f in db_dict[mu_table]["fields"] if "MapUnit" in f.name
+                f.name
+                for f in db_dict[mu_table]["fields"]
+                if "MapUnit" in f.name and not f.name.endswith("_ID")
             ]
             with arcpy.da.SearchCursor(
                 db_dict[mu_table]["catalogPath"], mu_fields
@@ -936,6 +940,66 @@ def extra_tables(db_dict, schema_extensions):
     return schema_extensions
 
 
+def sort_fds_units(fds_map_units):
+    new_dict = {}
+    keys = [k for k in fds_map_units.keys()]
+    if "DMU" in fds_map_units.keys():
+        keys.remove("DMU")
+        keys.sort()
+        new_dict["DMU"] = fds_map_units["DMU"]
+
+    if keys:
+        for k in keys:
+            new_dict[k] = fds_map_units[k]
+
+    return new_dict
+
+
+def build_tr(db_dict, tb):
+    table = [
+        '<div class="report">',
+        f'<h4><a name="{tb}"></a>{tb}</h4>',
+        '<table class="ess-tables">',
+        "<thead>",
+        "<tr>",
+    ]
+    fields = [
+        f.name for f in db_dict[tb]["fields"] if not f.name in gdef.standard_fields
+    ]
+    # standard_fields includes OBJECTID, so generator excludes it
+    # but we do want it in the table, insert it back into 0 index.
+    fields.insert(0, "OBJECTID")
+    for f in fields:
+        table.append(f"<th>{f}</th>")
+
+    table.append("<//tr>")
+    table.append("<//thead>")
+    with arcpy.da.SearchCursor(db_dict[tb]["catalogPath"], fields) as cursor:
+        for row in cursor:
+            table.append("<tr>")
+            for val in row:
+                table.append(f"<td>{val}<//td>")
+            table.append("<//tr>")
+
+    table.append("</table>")
+    table.append("</div>")
+
+    return "".join(table)
+
+
+def dump_tables(db_dict):
+    non_spatial = {}
+    for t in [
+        k
+        for k, v in db_dict.items()
+        if v["concat_type"] == "Nonspatial Table" and not k == "GeoMaterialDict"
+    ]:
+        arcpy.AddMessage(t)
+        non_spatial[t] = build_tr(db_dict, t)
+
+    return non_spatial
+
+
 ##############start here##################
 # get inputs
 
@@ -1230,7 +1294,6 @@ val["rule3_8"], val["rule3_9"], all_map_units, fds_map_units = check_map_units(
     db_dict, 3, all_map_units, fds_map_units
 )
 
-
 # rule 3.10
 # HierarchyKey values in DescriptionOfMapUnits are unique and well formed
 ap("3.10 HierarchyKey values in DescriptionOfMapUnits are unique and well formed")
@@ -1261,18 +1324,26 @@ if metadata_checked:
 else:
     md_summary = "Check Metadata option was skipped. Be sure to have prepared valid metadata and check this option to produce a complete report."
 
+# now that rules have been checked, prepare some summary entries
 val["passes_mp"] = passes_mp
 val["metadata_summary"] = md_summary
-
 val["level"] = determine_level(val)
 
+# other stuff
+# find extensions to schema
 val["extras"] = extra_tables(db_dict, schema_extensions)
 
-val["dmu_units"] = values("DescriptionOfMapUnits", "MapUnit", "list")
+# prepare lists of units for Occurrence table
 all_map_units.sort()
-val["all_units"] = all_map_units
-arcpy.AddMessage(val["all_units"])
+val["all_units"] = list(set(all_map_units))
+fds_map_units = sort_fds_units(fds_map_units)
 val["fds_units"] = fds_map_units
+
+# prepare contents of non-spatial tables
+ap("Dump tables")
+val["non_spatial"] = dump_tables(db_dict)
+arcpy.AddMessage(val["non_spatial"])
+
 
 write_html("report_template.jinja", val["report_path"])
 write_html("errors_template.jinja", val["errors_path"])
