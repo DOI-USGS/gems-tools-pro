@@ -342,10 +342,10 @@ def check_topology(topo_pairs):
     return level_2_errors, level_3_errors
 
 
-def check_map_units(db_dict, level, all_map_units, fds_mapunits):
+def check_map_units(db_dict, level, all_map_units, fds_map_units):
     """All MapUnits entries can be found in DescriptionOfMapUnits table
     Rules 2.4 and 3.8
-    Also, collect additions to all_mu_units and fds_mapunits"""
+    Also, collect additions to all_mu_units and fds_map_units"""
     if not "DescriptionOfMapUnits" in db_dict:
         message = [
             "DescriptionOfMapUnits cannot be found. See Rule 2.1",
@@ -367,7 +367,7 @@ def check_map_units(db_dict, level, all_map_units, fds_mapunits):
     else:
         # checking all other tables that have a 'MapUnit' field
         mu_tables = []
-        mu_fields = []
+
         for table in [
             k
             for k, v in db_dict.items()
@@ -378,7 +378,6 @@ def check_map_units(db_dict, level, all_map_units, fds_mapunits):
             for f in [f.name for f in db_dict[table]["fields"]]:
                 if "MapUnit" in f:
                     mu_tables.append(table)
-                    mu_fields.append(f)
         missing_header = "3.8 MapUnits missing from DMU. Only one reference to each missing unit is cited"
 
     missing = [
@@ -401,16 +400,21 @@ def check_map_units(db_dict, level, all_map_units, fds_mapunits):
                 if db_dict[mu_table]["feature_dataset"]
                 else mu_table
             )
-            if not fd in fds_mapunits:
-                fds_mapunits[fd] = []
+            if not fd in fds_map_units:
+                fds_map_units[fd] = []
+            mu_fields = [
+                f.name for f in db_dict[mu_table]["fields"] if "MapUnit" in f.name
+            ]
             with arcpy.da.SearchCursor(
                 db_dict[mu_table]["catalogPath"], mu_fields
             ) as cursor:
                 for row in cursor:
-                    all_map_units.extend(row)
-                    fds_mapunits[fd].extend(row)
+                    for val in row:
+                        if val:
+                            all_map_units.append(val)
+                            fds_map_units[fd].extend(row)
 
-            fds_mapunits[fd] = list(set(fds_mapunits[fd]))
+            fds_map_units[fd] = list(set(fds_map_units[fd]))
 
         all_map_units.extend(list(set(all_map_units)))
 
@@ -421,9 +425,9 @@ def check_map_units(db_dict, level, all_map_units, fds_mapunits):
         unused.extend(list(set(dmu_units) - set(all_map_units)))
 
     if level == 2:
-        return missing, all_map_units, fds_mapunits
+        return missing, all_map_units, fds_map_units
     else:
-        return missing, unused, all_map_units, fds_mapunits
+        return missing, unused, all_map_units, fds_map_units
 
 
 def glossary_check(db_dict, level, all_gloss_terms):
@@ -1124,9 +1128,9 @@ val["rule2_3"] = level_2_errors
 # dmu_units = values("DescriptonOfMapUnits", "MapUnit", "list")
 ap("2.4 All map units in MapUnitPolys have entries in DescriptionOfMapUnits table")
 all_map_units = []
-fds_mapunits = {}
-val["rule2_4"], all_map_units, fds_mapunits = check_map_units(
-    db_dict, 2, all_map_units, fds_mapunits
+fds_map_units = {}
+val["rule2_4"], all_map_units, fds_map_units = check_map_units(
+    db_dict, 2, all_map_units, fds_map_units
 )
 
 # rule 2.5
@@ -1222,8 +1226,8 @@ val["rule3_7"] = rule3_5_and_7("datasources", all_sources)
 # No unnecessary map units in DescriptionOfMapUnits
 ap("3.8 No map units without entries in DescriptionOfMapUnits")
 ap("3.9 No unnecessary map units in DescriptionOfMapUnits")
-val["rule3_8"], val["rule3_9"], all_map_units, fds_mapunits = check_map_units(
-    db_dict, 3, fds_mapunits
+val["rule3_8"], val["rule3_9"], all_map_units, fds_map_units = check_map_units(
+    db_dict, 3, all_map_units, fds_map_units
 )
 
 
@@ -1265,8 +1269,10 @@ val["level"] = determine_level(val)
 val["extras"] = extra_tables(db_dict, schema_extensions)
 
 val["dmu_units"] = values("DescriptionOfMapUnits", "MapUnit", "list")
-val["all_units"] = all_map_units.sort()
-val["fds_units"] = fds_mapunits
+all_map_units.sort()
+val["all_units"] = all_map_units
+arcpy.AddMessage(val["all_units"])
+val["fds_units"] = fds_map_units
 
 write_html("report_template.jinja", val["report_path"])
 write_html("errors_template.jinja", val["errors_path"])

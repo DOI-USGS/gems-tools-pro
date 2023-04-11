@@ -298,18 +298,19 @@ within the list of errors#}
     <th>{{k}}</th>
     {% endfor %}
   </tr>
-  <tr></tr>
-  {% for mu in val["all_units"] %}
-  <td>{{mu}}</td>
-  {% for k,v in val["fds_units"].items() %}
-  {% if {{mu}} in v %}
-  <td>X</td>
-  {% else %}
-  <td>--</td>
-  {% endif %}
+  <tr>
+    {% for mu in val["all_units"] %}
+    <td>{{mu}}</td>
+    {% for v in val["fds_units"].values() %}
+    {% if mu in v %}
+    <td>X</td>
+    {% else %}
+    <td>--</td>
+    {% endif %}
   </tr>
   {% endfor %}
   {% endfor %}
+  {% endif %}
   {% endif %}
 </table>
 
