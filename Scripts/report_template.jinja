@@ -316,7 +316,6 @@ within the list of errors#}
 </div>
 {% endif %}
 
-
 {% if val["non_spatial"] %}
 <div class="report"></div>
 <h3><a name="Contents_Nonspatial"></a>Contents of Nonspatial Tables</h3>
@@ -325,3 +324,14 @@ within the list of errors#}
 {% endfor %}
 </div>
 {% endif %}
+
+<h3><a name="Database_Inventory"></a>Database Inventory</h3>
+<div class="report">
+  <i>This summary of database content is provided as a convenience to GIS analysts, reviewers, and others. It is not
+    part of the GeMS compliance criteria.</i>
+  <br>
+  <br>
+  {% for n in val["inventory"] %}
+  {{ n }}<br>
+  {% endfor %}
+</div>

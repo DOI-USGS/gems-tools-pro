@@ -294,12 +294,14 @@ def gdb_object_dict(gdb_path):
     # Annotation Polygon FeatureClass
     # this will go into Entity_Type_Definition
     for k, v in new_dict.items():
+        if "dataType" in v:
+            d_type = camel_to_space(v["dataType"])
         if v["dataType"] == "Table":
             v["concat_type"] = "Nonspatial Table"
         elif v["dataType"] == "FeatureClass":
-            v["concat_type"] = f"{v['featureType']} {v['shapeType']} {v['dataType']}"
+            v["concat_type"] = f"{v['featureType']} {v['shapeType']} {d_type}"
         else:
-            v["concat_type"] = v["dataType"]
+            v["concat_type"] = d_type
 
         # for objects that are based on a GeMS object but have a
         # prefix or suffix, record the name of the required GeMS object
@@ -338,6 +340,10 @@ def camel_to_snake(s):
         return f"cmu_{''.join(['_'+c.lower() if c.isupper() else c for c in s]).lstrip('_')}"
     else:
         return "".join(["_" + c.lower() if c.isupper() else c for c in s]).lstrip("_")
+
+
+def camel_to_space(s):
+    return "".join([" " + c.upper() if c.isupper() else c for c in s]).lstrip(" ")
 
 
 def not_empty(x):

@@ -372,7 +372,7 @@ def check_map_units(db_dict, level, all_map_units, fds_map_units):
         for table in [
             k
             for k, v in db_dict.items()
-            if any(n in v["concat_type"] for n in ("FeatureClass", "Table"))
+            if any(n in v["concat_type"] for n in ("Feature Class", "Table"))
             and not v["dataType"] == "FeatureDataset"
             and not k in ["DescriptionOfMapUnits", "MapUnitPolys"]
         ]:
@@ -743,7 +743,7 @@ def rule3_11():
     db_tables = [
         k
         for k, v in db_dict.items()
-        if any(v["concat_type"].endswith(n) for n in ("Table", "FeatureClass"))
+        if any(v["concat_type"].endswith(n) for n in ("Table", "Feature Class"))
         and not k == "GeoMaterialDict"
         and not "Annotation" in v["concat_type"]
     ]
@@ -776,7 +776,7 @@ def rule3_12():
     db_tables = [
         k
         for k, v in db_dict.items()
-        if any(v["concat_type"].endswith(n) for n in ("Table", "FeatureClass"))
+        if any(v["concat_type"].endswith(n) for n in ("Table", "Feature Class"))
         and not k == "GeoMaterialDict"
         and not "Annotation" in v["concat_type"]
     ]
@@ -819,7 +819,7 @@ def rule3_13():
     tables = [
         k
         for k, v in db_dict.items()
-        if any(v["concat_type"].endswith(n) for n in ("Table", "FeatureClass"))
+        if any(v["concat_type"].endswith(n) for n in ("Table", "Feature Class"))
         and not k == "GeoMaterialDict"
         and not "Annotation" in v["concat_type"]
     ]
@@ -929,7 +929,7 @@ def extra_tables(db_dict, schema_extensions):
         for k, v in db_dict.items()
         if v["gems_equivalent"] == ""
         and not "Annotation" in v["concat_type"]
-        and any(n in v["concat_type"] for n in ("FeatureClass", "Table"))
+        and any(n in v["concat_type"] for n in ("Feature Class", "Table"))
     ]
     if extras:
         for table in extras:
@@ -974,10 +974,19 @@ def build_tr(db_dict, tb):
 
     table.append("<//tr>")
     table.append("<//thead>")
-    if tb == "DescriptionOfMapUnits":
-        sql = "ORDER BY HierarchyKey"
 
-    with arcpy.da.SearchCursor(db_dict[tb]["catalogPath"], fields) as cursor:
+    if tb == "DescriptionOfMapUnits":
+        sql = (None, "Order By HierarchyKey Asc")
+    elif tb == "Glossary":
+        sql = (None, "Order By Term Asc")
+    elif tb == "DataSources":
+        sql = (None, "Order By DataSources_ID Asc")
+    else:
+        sql = (None, None)
+
+    with arcpy.da.SearchCursor(
+        db_dict[tb]["catalogPath"], fields, sql_clause=sql
+    ) as cursor:
         for row in cursor:
             table.append("<tr>")
             for val in row:
@@ -997,10 +1006,72 @@ def dump_tables(db_dict):
         for k, v in db_dict.items()
         if v["concat_type"] == "Nonspatial Table" and not k == "GeoMaterialDict"
     ]:
-        arcpy.AddMessage(t)
         non_spatial[t] = build_tr(db_dict, t)
 
     return non_spatial
+
+
+def raster_size(db_dict, name):
+    n = db_dict[name]
+    width = int(n["width"])
+    bands = int(n["bandCount"])
+    height = int(n["height"])
+    depth = n["pixelType"]
+    depth = "".join(ch for ch in depth if ch.isdigit())
+    depth = int(depth) / 8
+    kb = width * height * depth * bands / 1000
+    return int(kb)
+
+
+def inventory(db_dict):
+    # build inventory
+    inv_list = []
+
+    # first list nonspatial tables
+    tbs = [k for k, v in db_dict.items() if v["concat_type"] == "Nonspatial Table"]
+    tbs.sort()
+    for tb in tbs:
+        n_type = db_dict[tb]["concat_type"].lower()
+        count = arcpy.GetCount_management(db_dict[tb]["catalogPath"])
+        inv_list.append(f"{tb}, {n_type}, {count} rows")
+
+    # list feature datasets and children
+    fds = [k for k, v in db_dict.items() if v["concat_type"] == "Feature Dataset"]
+    for fd in fds:
+        inv_list.append(f"{fd}, feature dataset")
+        children = db_dict[fd]["children"]
+        if len(children) > 0:
+            for child in children:
+                tbs.append(child["name"])
+                n_type = child["concat_type"].lower()
+                if any(w in n_type for w in ("feature class", "table")):
+                    count = arcpy.GetCount_management(child["catalogPath"])
+                    inv_list.append(
+                        f'<span class="tab"></span>{child["name"]}, {n_type}, {count} rows'
+                    )
+                else:
+                    inv_list.append(
+                        f'<span class="tab"></span>{child["name"]}, {n_type}'
+                    )
+
+    # list anything else
+    els = [
+        k
+        for k, v in db_dict.items()
+        if not v["concat_type"] in ("Feature Dataset", "Raster Band") and not k in tbs
+    ]
+    for el in els:
+        n_type = db_dict[el]["concat_type"].lower()
+        if any(w in n_type for w in ("feature class", "table")):
+            count = arcpy.GetCount_management(db_dict[el]["catalogPath"])
+            inv_list.append(f"{el}, {n_type}, {count} rows")
+        elif n_type == "raster dataset":
+            size = raster_size(db_dict, el)
+            inv_list.append(f"{el}, {n_type}, aprx. {size} kb uncompressed size")
+        else:
+            inv_list.append(f"{el}, {n_type}")
+
+    return inv_list
 
 
 ##############start here##################
@@ -1320,11 +1391,13 @@ val["rule3_13"], val["end_spaces"] = rule3_13()
 
 passes_mp = False
 if metadata_checked:
+    ap("Checking metadata")
     if val["metadata_file"]:
         passes_mp, md_summary = validate_online(metadata_file)
     else:
         md_summary = f"{metadata_file} does not exist."
 else:
+    ap("Check Metadata option was skipped")
     md_summary = "Check Metadata option was skipped. Be sure to have prepared valid metadata and check this option to produce a complete report."
 
 # now that rules have been checked, prepare some summary entries
@@ -1334,19 +1407,23 @@ val["level"] = determine_level(val)
 
 # other stuff
 # find extensions to schema
+ap("Looking for extensions to GeMS schema")
 val["extras"] = extra_tables(db_dict, schema_extensions)
 
 # prepare lists of units for Occurrence table
+ap("Finding occurrences of map units")
 all_map_units.sort()
 val["all_units"] = list(set(all_map_units))
 fds_map_units = sort_fds_units(fds_map_units)
 val["fds_units"] = fds_map_units
 
 # prepare contents of non-spatial tables
-ap("Dump tables")
+ap("Storing contents of non-spatial tables")
 val["non_spatial"] = dump_tables(db_dict)
-arcpy.AddMessage(val["non_spatial"])
 
+# build inventory
+ap("Building database inventory")
+val["inventory"] = inventory(db_dict)
 
 write_html("report_template.jinja", val["report_path"])
 write_html("errors_template.jinja", val["errors_path"])
