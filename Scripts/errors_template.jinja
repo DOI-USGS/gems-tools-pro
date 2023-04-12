@@ -120,6 +120,19 @@
     {{ iterate_errors("rule3") }}
 </div>
 
+{% if val["sr_warnings"]|length > 1 or val["end_spaces"]|length > 1 %}
 <h3><a name="Warnings">Warnings</a></h3>
 <div class="report">
+    {% if val["sr_warnings"]|length > 1%}
+    {% for warning in val["sr_warnings"] %}
+    {{warning}}<br>
+    {% endfor%}
+    {% endif %}
+    {% if val["end_spaces"]|length > 1%}
+    {% for warning in val["end_spaces"] %}
+    {{warning}}<br>
+    {% endfor%}
+    {% endif %}
+    {% endif %}
+
 </div>

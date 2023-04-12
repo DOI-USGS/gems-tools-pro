@@ -259,18 +259,9 @@ within the list of errors#}
   {% if val["sr_warnings"]|length > 1 or val["end_spaces"]|length > 1 %}
   <a href='{{val["errors_path"]}}#Warnings'>There are {{val["sr_warnings"]|length +
     val["end_spaces"]|length}} warnings:</a><br>
-  {% if val["sr_warnings"]|length > 1%}
-  {% for warning in val["sr_warnings"] %}
-  {{warning}}<br>
-  {% endfor%}
-  {% endif %}
-  {% if val["end_spaces"]|length > 1%}
-  {% for warning in val["end_spaces"] %}
-  {{warning}}<br>
-  {% endfor%}
-  {% endif %}
+
   {% else %}
-  <a href='{{val["errors_path"]}}#Warnings'>There are 0 warnings.</a>
+  There are 0 warnings.<br>
   {% endif %}
 </div>
 
