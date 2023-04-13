@@ -72,6 +72,7 @@ from importlib import reload
 reload(gdef)
 reload(tp)
 
+# values dictionary gets sent to report_template.jinja errors_template.jinja
 val = {}
 
 version_string = "validate_database.py, version of 24 March 2023"
@@ -1074,6 +1075,13 @@ def inventory(db_dict):
     return inv_list
 
 
+def del_extra(db_dict, table, field, all_terms):
+    with arcpy.da.UpdateCursor(table, field) as cursor:
+        for row in cursor:
+            if not row[0] in all_terms:
+                cursor.deleteRow()
+
+
 ##############start here##################
 # get inputs
 
@@ -1343,9 +1351,15 @@ val["rule3_3"] = rule3_3(db_dict)
 ap("3.4 No missing terms in Glossary")
 val["rule3_4"], all_gloss_terms = glossary_check(db_dict, 3, all_gloss_terms)
 
+
 # rule 3.5
 # No unnecessary terms in Glossary
 ap("3.5 No unnecessary terms in Glossary")
+
+if delete_extra:
+    ap("/tRemoving unused terms from Glossary")
+    del_extra(db_dict, "Glossary", "Term", all_gloss_terms)
+
 val["rule3_5"] = rule3_5_and_7("glossary", all_gloss_terms)
 
 # rule 3.6
@@ -1356,6 +1370,11 @@ val["rule3_6"], all_sources = sources_check(db_dict, 3, all_sources)
 # rule 3.7
 # No unnecessary sources in DataSources
 ap("3.7 No unnecessary sources in DataSources")
+
+if delete_extra:
+    ap("/tRemoving unused sources from DataSources")
+    del_extra(db_dict, "DataSources", "DataSource_ID", all_sources)
+
 val["rule3_7"] = rule3_5_and_7("datasources", all_sources)
 
 # rule 3.8
@@ -1425,17 +1444,14 @@ val["non_spatial"] = dump_tables(db_dict)
 ap("Building database inventory")
 val["inventory"] = inventory(db_dict)
 
-write_html("report_template.jinja", val["report_path"])
-write_html("errors_template.jinja", val["errors_path"])
-os.startfile(val["report_path"])
-sys.exit()
-
 ### Compact DB option
 if compact_db == "true":
-    ap("  Compacting " + os.path.basename(gdb_path))
+    ap(f"Compacting {gdb_name}")
     arcpy.Compact_management(gdb_path)
 else:
     pass
-summary.close()
-errors.close()
+
+write_html("report_template.jinja", val["report_path"])
+write_html("errors_template.jinja", val["errors_path"])
+os.startfile(val["report_path"])
 ap("DONE")
