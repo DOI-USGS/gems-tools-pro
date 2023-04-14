@@ -125,16 +125,14 @@ within the list of errors#}
 <div class="report" id="contents">
   <a href="#Compliance_Criteria">Compliance Criteria</a><br>
   <a href="#Extensions">Content not specified in GeMS schema</a><br>
-  <a href="bedrock_southern_knox_in_100k.gdb-Validation.html#MapUnits_Match">MapUnits in DescriptionOfMapUnits table,
-    GeologicMap feature dataset, and other feature datasets</a><br>
-  <a href="bedrock_southern_knox_in_100k.gdb-Validation.html#Contents_Nonspatial">Contents of Nonspatial Tables</a><br>
-  <span class="tab"></span><a href="bedrock_southern_knox_in_100k.gdb-Validation.html#DataSources">DataSources</a><br>
-  <span class="tab"></span><a
-    href="bedrock_southern_knox_in_100k.gdb-Validation.html#DescriptionOfMapUnits">DescriptionOfMapUnits</a><br>
-  <span class="tab"></span><a href="bedrock_southern_knox_in_100k.gdb-Validation.html#Glossary">Glossary</a><br>
-  <span class="tab"></span><a
-    href="bedrock_southern_knox_in_100k.gdb-Validation.html#MapInformation">MapInformation</a><br>
-  <a href="bedrock_southern_knox_in_100k.gdb-Validation.html#Database_Inventory">Database Inventory</a><br>
+  <a href="#MapUnits_Match">Occurrence of MapUnit in DMU, feature datasets, or geopackage tables</a><br>
+  {% if val["non_spatial"] %}
+  <a href="#Contents_Nonspatial">Contents of Nonspatial Tables</a><br>
+  {% for table in val["non_spatial"] %}
+  <span class="tab"></span><a href="#{{table}}">{{table}}</a><br>
+  {% endfor %}
+  {% endif %}
+  <a href="#Database_Inventory">Database Inventory</a><br>
 </div>
 
 <h3><a name="Compliance_Criteria"></a>Compliance Criteria</h3>
@@ -280,7 +278,7 @@ within the list of errors#}
 
 {% if val["all_units"] %}
 <div class="" report>
-  <h3><a name="MapUnits_Match"></a>Occurrence of MapUnit by DMU, feature datasets, or geopackage tables</h3>
+  <h3><a name="MapUnits_Match"></a>Occurrence of MapUnit in DMU, feature datasets, or geopackage tables</h3>
   <div class="report"></div>
   <table class="ess-tables" ; style="text-align:center">
     <tr>
@@ -310,9 +308,11 @@ within the list of errors#}
 {% if val["non_spatial"] %}
 <div class="report"></div>
 <h3><a name="Contents_Nonspatial"></a>Contents of Nonspatial Tables</h3>
-{% for table in val["non_spatial"].values()%}
-{{ table }}
-{% endfor %}
+{% for k,v in val["non_spatial"].items() %}
+<div class="report">
+  <h4><a name="{{k}}"></a>{{k}}</h4>
+  {{ v }}
+  {% endfor %}
 </div>
 {% endif %}
 

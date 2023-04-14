@@ -92,8 +92,6 @@ lc_standard_fields = []
 for f in gdef.standard_fields:
     lc_standard_fields.append(f.lower())
 
-metadata_checked = False  # script will set to True if metadata record is checked
-
 
 def check_sr(db_obj):
     sr_warnings = []
@@ -163,7 +161,7 @@ def rule2_1(db_dict):
     if not is_gpkg:
         gmaps = [k for k, v in db_dict.items() if v["gems_equivalent"] == "GeologicMap"]
         if not gmaps:
-            errors.append(f'Feature dataset <span class="table">GeologicMap</span>)')
+            errors.append(f'Feature dataset <span class="table">GeologicMap</span>')
         else:
             # check the spatial reference of each 'GeologicMap' feature dataset
             for gmap in gmaps:
@@ -185,7 +183,7 @@ def rule2_1(db_dict):
             for n in pair[2:]:
                 if "_missing_" in n:
                     errors.append(
-                        f'Feature class <span class="table"</span>{n.replace("__missing__", "")}</span>'
+                        f'Feature class <span class="table">{n.replace("__missing__", "")}</span>'
                     )
                 else:
                     # check each feature class for old datum
@@ -357,6 +355,7 @@ def check_map_units(db_dict, level, all_map_units, fds_map_units):
         return (missing, unused)
 
     dmu_units = list(set(values("DescriptionOfMapUnits", "MapUnit", "list")))
+    dmu_units = [u for u in dmu_units if not u == None]
     fds_map_units["DescriptionOfMapUnits"] = dmu_units
 
     if level == 2:
@@ -503,18 +502,6 @@ def glossary_check(db_dict, level, all_gloss_terms):
     return missing_glossary_terms, all_gloss_terms
 
 
-def gm_confidence(table):
-    """Collect the values of GeoMaterialConfidence only where GeoMaterial is not null"""
-    vals = []
-    with arcpy.da.SearchCursor(
-        db_dict[table]["catalogPath"], ["GeoMaterial", "GeoMaterialConfidence"]
-    ) as rows:
-        for row in rows:
-            if not row[0] is None:
-                vals.append.row[1]
-    return vals
-
-
 def sources_check(db_dict, level, all_sources):
     # first check for DataSources table and DataSources_ID field
     if not "DataSources" in db_dict:
@@ -633,7 +620,6 @@ def rule3_5_and_7(table, all_vals):
 
 def rule3_10():
     """HierarchyKey values in DescriptionOfMapUnits are unique and well formed"""
-    ap("Checking DescriptionOfMapUnits HKey values")
     # hkey_err_list = []
     # all_dmu_key_values = []
     hkey_errors = [
@@ -876,15 +862,15 @@ def validate_online(metadata_file):
             passes_mp = True
             message = (
                 'The database-level FGDC metadata are formally correct. The <a href="'
-                + metadata_file
+                + str(metadata_file)
                 + '">metadata record</a> should be examined by a human to verify that it is meaningful.<br>\n'
             )
         else:
             message = (
                 'The <a href="'
-                + metadata_file
+                + str(metadata_file)
                 + '">FGDC metadata record</a> for this database has <a href="'
-                + metadata_errors
+                + str(metadata_errors)
                 + '">formal errors</a>. Please fix! <br>\n'
             )
             ap(message)
@@ -909,6 +895,7 @@ def write_html(template, out_file):
 def determine_level(val):
     level2 = False
     level3 = False
+
     if all(len(n) == 3 for n in [val[f"rule2_{i}"] for i in range(1, 9)]):
         level2 = True
     if all(len(n) == 3 for n in [val[f"rule3_{i}"] for i in range(1, 13)]):
@@ -958,8 +945,6 @@ def sort_fds_units(fds_map_units):
 
 def build_tr(db_dict, tb):
     table = [
-        '<div class="report">',
-        f'<h4><a name="{tb}"></a>{tb}</h4>',
         '<table class="ess-tables">',
         "<thead>",
         "<tr>",
@@ -1125,6 +1110,7 @@ if 3 < args_len:
         metadata_file = None
 else:
     metadata_file = None
+
 val["metadata_file"] = str(metadata_file)
 val["metadata_name"] = metadata_file.name if metadata_file else "valid metadata"
 val["md_errors_name"] = (
@@ -1184,15 +1170,15 @@ if refresh_gmd:
         ap("Refreshing GeoMaterialDict")
         gmd = gdb_path / "GeoMaterialDict"
         guf.testAndDelete(str(gmd))
-        arcpy.conversion.TableToTable(ref_gmd, str(gdb_path), "GeoMaterialDict")
+        arcpy.conversion.TableToTable(str(ref_gmd), str(gdb_path), "GeoMaterialDict")
 
         if not is_gpkg:
             ap("Replacing GeoMaterial domain")
             arcpy.management.TableToDomain(
-                ref_gmd,
+                str(ref_gmd),
                 "GeoMaterial",
                 "IndentedName",
-                gdb_path,
+                str(gdb_path),
                 "GeoMaterials",
                 "",
                 "REPLACE",
@@ -1202,7 +1188,7 @@ if refresh_gmd:
             dmu_path = db_dict["DescriptionOfMapUnits"]["catalogPath"]
             dmu_fields = db_dict["DescriptionOfMapUnits"]["fields"]
             for f in dmu_fields:
-                if not f.domain == "GeoMaterials":
+                if f.name == "GeoMaterial" and not f.domain == "GeoMaterials":
                     arcpy.management.AssignDomainToField(
                         dmu_path, f.name, "GeoMaterials"
                     )
@@ -1219,6 +1205,7 @@ if "PublicationTable" in db_dict.keys():
         gdb_ver = ""
 
 # level 2 compliance
+ap("\u200B")
 ap("Looking at level 2 compliance")
 # check 2.1
 ap(
@@ -1291,6 +1278,7 @@ dmu_path = db_dict["DescriptionOfMapUnits"]["catalogPath"]
 dmu_map_units_duplicates.extend(guf.get_duplicates(dmu_path, "MapUnit"))
 val["rule2_5"] = dmu_map_units_duplicates
 
+
 # rule 2.6
 # Certain field values within required elements have entries in Glossary table
 ap("2.6 Certain field values within required elements have entries in Glossary table")
@@ -1327,8 +1315,8 @@ ds_path = db_dict["DataSources"]["catalogPath"]
 duplicated_source_ids.extend(guf.get_duplicates(ds_path, "DataSources_ID"))
 val["rule2_9"] = duplicated_source_ids
 
-
-ap("Looking at Level 3 compliance")
+ap("\u200B")
+ap("Looking at level 3 compliance")
 # rule 3.1
 # Table and field definitions conform to GeMS schema
 ap("3.1 Table and field definitions conform to GeMS schema")
@@ -1406,11 +1394,11 @@ val["rule3_12"] = rule3_12()
 
 # 3.13
 # No zero-length or whitespace-only strings
+ap("3.13 No zero-length or whitespace-only strings")
 val["rule3_13"], val["end_spaces"] = rule3_13()
 
 passes_mp = False
-if metadata_checked:
-    ap("Checking metadata")
+if metadata_file:
     if val["metadata_file"]:
         passes_mp, md_summary = validate_online(metadata_file)
     else:

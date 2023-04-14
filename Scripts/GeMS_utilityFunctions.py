@@ -319,11 +319,15 @@ def gdb_object_dict(gdb_path):
                     # set the gems_equivalent key to the GeMS CamelCase name
                     v["gems_equivalent"] = a
 
+            # caveats
             if (
                 any(k.endswith(p) for p in ("Points", "_points"))
                 and v["gems_equivalent"] == ""
             ):
                 v["gems_equivalent"] == "GenericPoints"
+
+            if "MapUnitOverlayPolys" in k or camel_to_snake("MapUnitOverlayPolys") in k:
+                v["gems_equivalent"] = "MapUnitOverlayPolys"
 
             if (
                 any(k.endswith(s) for s in ("Samples", "_samples"))
@@ -385,7 +389,8 @@ def fix_null(x):
 
 
 def get_duplicates(table_path, field):
-    vals = [r[0] for r in arcpy.da.SearchCursor(table_path, field)]
+    vals = [r[0] for r in arcpy.da.SearchCursor(table_path, field) if not r[0] is None]
     dups = list(set([n for n in vals if vals.count(n) > 1]))
     dups.sort()
+
     return dups
