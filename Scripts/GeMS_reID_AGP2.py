@@ -7,7 +7,7 @@ from string import whitespace
 from GeMS_utilityFunctions import *
 
 versionString = "GeMS_reID_Arc10.py, version of 2 September 2020"
-rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/master/Scripts/GeMS_reID_Arc10.py"
+rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/master/Scripts/GeMS_reID_AGP2.py"
 checkVersion(versionString, rawurl, "gems-tools-pro")
 
 # modified to not work on a copy of the input database. Backup first!

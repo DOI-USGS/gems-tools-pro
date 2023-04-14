@@ -16,7 +16,7 @@ import arcpy, sys, os.path
 import GeMS_utilityFunctions as guf
 
 versionString = "GeMS_CompactAndBackup_Arc10.py, version of 4 March 2018"
-rawurl = "https://raw.githubusercontent.com/DOI-USGSgems-tools-pro/master/Scripts/GeMS_CompactAndBackup_AGP2.py"
+rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/master/Scripts/GeMS_CompactAndBackup_AGP2.py"
 guf.checkVersion(versionString, rawurl, "gems-tools-pro")
 
 

@@ -59,7 +59,7 @@ from GeMS_utilityFunctions import *
 
 # see gems-tools-pro version<=2.2.2 to get earlier TopologyCheck tool
 versionString = "GeMS_TopologyCheck_Arc10.py, version of 24 January 2023"
-rawurl = ""
+rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/master/Scripts/GeMS_TopologyCheck_AGP2.py"
 checkVersion(versionString, rawurl, "gems-tools-pro")
 
 htmlStart = """<html>\n
