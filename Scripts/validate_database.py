@@ -544,19 +544,23 @@ def sources_check(db_dict, level, all_sources):
         ]
         for ds_field in ds_fields:
             d_sources = values(table, ds_field, "dictionary")
+            if table == "ContactsAndFaults":
+                arcpy.AddMessage(d_sources)
             for oid, val in d_sources.items():
                 if not guf.empty(val):
-                    for el in val.split("|"):
-                        # el_html = f'<span class="value">{el}</span>, field <span class="field">{ds_field}</span>, table <span class="table">{table}</span>'
-                        all_sources.append(el)
-                        if not el.strip() in gems_sources:
-                            missing.append(
-                                f'<span class="value">{el}</span>, field <span class="field">{ds_field}</span>, table <span class="table">{table}</span>'
-                            )
-                # else:
-                #     missing.append(
-                #         f'table <span class="table">{table}</span>, field <span class="field">{ds_field}</span>, OBJECTID {oid} has no value'
-                #     )
+                    if "|" in val:
+                        ap(val)
+                        for el in val.split("|"):
+                            # el_html = f'<span class="value">{el}</span>, field <span class="field">{ds_field}</span>, table <span class="table">{table}</span>'
+                            all_sources.append(el.strip())
+                            if not el.strip() in gems_sources:
+                                missing.append(
+                                    f'<span class="value">{el}</span>, field <span class="field">{ds_field}</span>, table <span class="table">{table}</span>'
+                                )
+                else:
+                    missing.append(
+                        f'table <span class="table">{table}</span>, field <span class="field">{ds_field}</span>, OBJECTID {oid} has no value'
+                    )
 
     missing_source_ids.extend(list(set(missing)))
 
@@ -865,6 +869,7 @@ def validate_online(metadata_file):
                 + str(metadata_file)
                 + '">metadata record</a> should be examined by a human to verify that it is meaningful.<br>\n'
             )
+            ap("The metadata for this record are formally correct.")
         else:
             message = (
                 'The <a href="'
@@ -873,7 +878,7 @@ def validate_online(metadata_file):
                 + str(metadata_errors)
                 + '">formal errors</a>. Please fix! <br>\n'
             )
-            ap(message)
+            ap(f"The metadata record for this database has errors. Please fix!")
 
     else:
         message = (
@@ -1361,7 +1366,7 @@ ap("3.7 No unnecessary sources in DataSources")
 
 if delete_extra:
     ap("/tRemoving unused sources from DataSources")
-    del_extra(db_dict, "DataSources", "DataSource_ID", all_sources)
+    del_extra(db_dict, "DataSources", "DataSources_ID", all_sources)
 
 val["rule3_7"] = rule3_5_and_7("datasources", all_sources)
 
