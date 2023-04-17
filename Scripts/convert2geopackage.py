@@ -35,7 +35,7 @@ def convert(input_gdb, output_dir):
     if output_dir in (None, "", "#"):
         output_dir = input_gdb.parent
 
-    output_gpkg = output_dir / f"{input_gdb.stem}.gpkg"
+    output_gpkg = Path(output_dir) / f"{input_gdb.stem}.gpkg"
 
     if output_gpkg.exists():
         arcpy.Delete_management(str(output_gpkg))
@@ -66,7 +66,7 @@ def convert(input_gdb, output_dir):
         ap(f"Exporting {table}")
         arcpy.ExportTable_conversion(table, str(output_gpkg / table))
 
-   ap("Export complete.")
+    ap("Export complete.")
 
 
 if __name__ == "__main__":
