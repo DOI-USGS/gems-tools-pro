@@ -17,6 +17,8 @@ Usage:
 Args:
     input_gdb (str) : Path to database. Required.
     output_dir (str) : Path to folder in which to build the geopackage. Optional.
+    prepend (boolean) : True or False prepend feature dataset name to feature classes,
+      eg., GeologicMap_ContactsAndFaults
 """
 
 import arcpy
@@ -29,7 +31,7 @@ rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/master/Scrip
 guf.checkVersion(versionString, rawurl, "gems-tools-pro")
 
 
-def convert(input_gdb, output_dir):
+def convert(input_gdb, output_dir, prepend):
     # Set up input and output paths
     input_gdb = Path(input_gdb)
     if output_dir in (None, "", "#"):
@@ -49,11 +51,12 @@ def convert(input_gdb, output_dir):
     for dataset in datasets:
         fc_list = arcpy.ListFeatureClasses("", "", dataset)
         for fc in fc_list:
-            fc_name = f"{dataset}_{fc}"
+            if prepend:
+                fc_name = f"{dataset}_{fc}"
+            else:
+                fc_name = fc
             ap(f"Exporting {fc} as {fc_name}")
-            arcpy.ExportFeatures_conversion(
-                f"{dataset}/{fc}", str(output_gpkg / fc_name)
-            )
+            arcpy.Copy_management(f"{fc}", str(output_gpkg / fc_name))
 
     # Export tables and feature classes outside feature datasets
     arcpy.env.workspace = str(input_gdb)
@@ -61,10 +64,10 @@ def convert(input_gdb, output_dir):
     table_list = arcpy.ListTables()
     for fc in fc_list:
         ap(f"Exporting {fc}")
-        arcpy.ExportFeatures_conversion(fc, str(output_gpkg / fc))
+        arcpy.Copy_management(fc, str(output_gpkg / fc))
     for table in table_list:
         ap(f"Exporting {table}")
-        arcpy.ExportTable_conversion(table, str(output_gpkg / table))
+        arcpy.Copy_management(table, str(output_gpkg / table))
 
     ap("Export complete.")
 
@@ -72,5 +75,6 @@ def convert(input_gdb, output_dir):
 if __name__ == "__main__":
     param0 = arcpy.GetParameterAsText(0)
     param1 = arcpy.GetParameterAsText(1)
+    param2 = guf.eval_bool(arcpy.GetParameterAsText(2))
 
-    convert(param0, param1)
+    convert(param0, param1, param2)

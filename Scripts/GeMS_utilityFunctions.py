@@ -13,6 +13,7 @@ debug = False
 
 # I. General utilities
 
+
 # tests for null string values and <Null> numeric values
 # Does not test for numeric nulls -9, -9999, etc.
 def stringIsGeMSNull(val):
@@ -109,6 +110,7 @@ typeTransDict = {
 }
 
 # II. Functions that presume extensions to naming scheme
+
 
 ## getCaf needs to be recoded to use a prefix value
 def getCaf(inFds, prefix=""):
@@ -315,7 +317,7 @@ def gdb_object_dict(gdb_path):
             for a in tableDict_keys:
                 # if the CamelCase or snake_case version of a gems object
                 # is found in the table name
-                if any(n in k.lower() for n in (a.lower(), camel_to_snake(a))):
+                if any(n.endswith(k.lower()) for n in (a.lower(), camel_to_snake(a))):
                     # set the gems_equivalent key to the GeMS CamelCase name
                     v["gems_equivalent"] = a
 

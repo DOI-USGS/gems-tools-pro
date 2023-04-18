@@ -69,6 +69,7 @@ from jinja2 import Environment, FileSystemLoader
 
 from importlib import reload
 
+reload(guf)
 reload(gdef)
 reload(tp)
 
@@ -440,9 +441,8 @@ def glossary_check(db_dict, level, all_gloss_terms):
 
     # decide which tables to check
     if level == 2:
-        tables = [
-            t for t in gdef.rule2_1_elements if not t in ("GeologicMap", "Glossary")
-        ]
+        req = [t for t in gdef.rule2_1_elements if not t in ("GeologicMap", "Glossary")]
+        tables = [t for t in db_dict if db_dict[t]["gems_equivalent"] in req]
         term_fields = gdef.defined_term_fields_list
         missing_header = "2.6 Missing terms in Glossary. Only one reference to each missing term is cited"
     else:
@@ -514,9 +514,8 @@ def sources_check(db_dict, level, all_sources):
     # decide which tables to check
     if level == 2:
         # just required fc and tables
-        tables = [
-            t for t in gdef.rule2_1_elements if not t in ("GeologicMap", "DataSources")
-        ]
+        req = [t for t in gdef.rule2_1_elements if not t in ("GeologicMap", "Glossary")]
+        tables = [t for t in db_dict if db_dict[t]["gems_equivalent"] in req]
         missing_header = "2.8 Missing DataSources entries. Only one reference to each missing entry is cited"
 
     if level == 3:
