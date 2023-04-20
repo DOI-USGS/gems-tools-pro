@@ -10,7 +10,6 @@ also be accompanied by a peer-reviewed geologic names report.
 Usage:
     Use parameter form in ArcGIS Pro or at command line with the arguments below. 
     Use '' or '#' for optional arguments that are not required.
-    Use 'true' or 'false' for boolean values per ArcGIS Pro parameter form values
     
 Args:
     gdb_path (str) : Path to database. Required.
@@ -60,6 +59,7 @@ import arcpy
 import os
 import sys
 import time
+import copy
 from pathlib import Path
 import GeMS_utilityFunctions as guf
 import GeMS_Definition as gdef
@@ -221,7 +221,7 @@ def check_fields(db_dict, level, schema_extensions):
     right now this only looks at controlled fields in tables that have been tagged
     with a gems_equivalent.
     """
-
+    fld_warnings = ["Recommended fields that are missing"]
     req_tables = [t for t in gdef.rule2_1_elements if t != "GeologicMap"]
     if level == 2:
         # only required tables and fcs
@@ -246,14 +246,18 @@ def check_fields(db_dict, level, schema_extensions):
 
     for table in tables:
         gems_eq = db_dict[table]["gems_equivalent"]
-        req_fields = gdef.startDict[gems_eq]
+        req_fields = copy.copy(gdef.startDict[gems_eq])
+        req_fields.append([f"{table}_ID", "String", "NoNulls", gdef.IDLength])
+
         found_fields = db_dict[table]["fields"]
         f_field_names = [f.name for f in found_fields]
         for field in req_fields:
             if not field[0] in f_field_names:
-                errors.append(
-                    f'<span class="table">{table}</span>, field <span class="field">{field[0]}</span> is missing'
-                )
+                html = f'<span class="table">{table}</span>, field <span class="field">{field[0]}</span>'
+                if gems_eq == "GenericPoints":
+                    fld_warnings.append(f'<span class="tab"></span>{html}')
+                else:
+                    errors.append(html)
             else:
                 req_type = field[1]
                 req_null = field[2]
@@ -292,7 +296,7 @@ def check_fields(db_dict, level, schema_extensions):
                 + "</span>"
             )
 
-    return errors, schema_extensions
+    return errors, schema_extensions, fld_warnings
 
 
 def check_topology(topo_pairs):
@@ -301,6 +305,18 @@ def check_topology(topo_pairs):
     topology rules. No MapUnitPolys gaps or overlaps. No ContactsAndFaults overlaps, self-overlaps,
     or self-intersections. MapUnitPoly boundaries covered by ContactsAndFaults"""
     has_been_validated = False
+    level_2_errors = [
+        "topology errors",
+        "2.3 Topology errors",
+        "topology2",
+    ]
+
+    level_3_errors = [
+        "topology errors",
+        "3.2 Topology errors",
+        "topology3",
+    ]
+
     for topo_pair in topo_pairs:
         make_topology = False
         gmap = topo_pair[0]
@@ -316,28 +332,30 @@ def check_topology(topo_pairs):
         else:
             make_topology = True
 
-    if make_topology:
-        ap(f"\tNo topology found in {gmap}")
-        top_path, has_been_validated = tp.make_topology(workdir, topo_pair, db_dict)
+        if make_topology:
+            if not is_gpkg:
+                ap(f"\tNo topology found in {gmap}")
 
-    # evaluate the topology
-    # eval_topology returns (level_2, level_3, missing_rules, top_errors)
-    # do we need to validate first?
-    # look for DirtyAreas
-    if not has_been_validated:
-        ap("\tValidating topology")
-        arcpy.ValidateTopology_management(top_path)
+            top_path, has_been_validated = tp.make_topology(workdir, topo_pair, db_dict)
 
-    ap("\tLooking at validation results for errors")
+        # evaluate the topology
+        # eval_topology returns (level_2, level_3, missing_rules, top_errors)
+        # do we need to validate first?
+        # look for DirtyAreas
+        if not has_been_validated:
+            ap("\tValidating topology")
+            arcpy.ValidateTopology_management(top_path)
 
-    # topologies have to be in feature dataset, so topology.parent.parent
-    # gets the file geodatabase, whether the original or the Topology.gdb copy
-    gmap = Path(top_path).parent.stem
-    topo_gdb = Path(top_path).parent.parent
-    top_name = Path(top_path).stem
-    level_2_errors, level_3_errors = tp.eval_topology(
-        str(topo_gdb), top_name, db_dict, gmap
-    )
+        ap("\tLooking at validation results for errors")
+
+        # topologies have to be in feature dataset, so topology.parent.parent
+        # gets the file geodatabase, whether the original or the Topology.gdb copy
+        gmap = Path(top_path).parent.stem
+        topo_gdb = Path(top_path).parent.parent
+        top_name = Path(top_path).stem
+        level_2_errors, level_3_errors = tp.eval_topology(
+            str(topo_gdb), top_name, db_dict, gmap, level_2_errors, level_3_errors
+        )
 
     return level_2_errors, level_3_errors
 
@@ -543,19 +561,22 @@ def sources_check(db_dict, level, all_sources):
         ]
         for ds_field in ds_fields:
             d_sources = values(table, ds_field, "dictionary")
-            if table == "ContactsAndFaults":
-                arcpy.AddMessage(d_sources)
+
             for oid, val in d_sources.items():
                 if not guf.empty(val):
                     if "|" in val:
-                        ap(val)
                         for el in val.split("|"):
-                            # el_html = f'<span class="value">{el}</span>, field <span class="field">{ds_field}</span>, table <span class="table">{table}</span>'
                             all_sources.append(el.strip())
                             if not el.strip() in gems_sources:
                                 missing.append(
                                     f'<span class="value">{el}</span>, field <span class="field">{ds_field}</span>, table <span class="table">{table}</span>'
                                 )
+                    else:
+                        all_sources.append(val.strip())
+                        if not val.strip() in gems_sources:
+                            missing.append(
+                                f'<span class="value">{val}</span>, field <span class="field">{ds_field}</span>, table <span class="table">{table}</span>'
+                            )
                 else:
                     missing.append(
                         f'table <span class="table">{table}</span>, field <span class="field">{ds_field}</span>, OBJECTID {oid} has no value'
@@ -604,21 +625,22 @@ def rule3_5_and_7(table, all_vals):
     3.7 No unnecessary sources in DataSources"""
     if table == "glossary":
         terms = set(values("Glossary", "Term", "list"))
-        unused_header = "3.5 Terms in Glossary that are not used in geodatabase"
+        unused = [
+            "unnecessary term(s) in Glossary",
+            "3.5 Terms in Glossary that are not used in geodatabase",
+            "UnusedTerms",
+        ]
     elif table == "datasources":
         terms = set(values("DataSources", "DataSources_ID", "list"))
-        unused_header = (
-            "3.7 DataSources_IDs in DataSources that are not used in geodatabase"
-        )
+        unused = [
+            "unused source(s) in DataSources",
+            "3.7 DataSources_IDs in DataSources that are not used in geodatabase",
+            "UnusedSources",
+        ]
 
-    unused_terms = [
-        "unnecessary term(s) in Glossary",
-        unused_header,
-        "ExcessGlossary",
-    ]
-    unused_terms.extend(list(terms - set(all_vals)))
+    unused.extend(list(terms - set(all_vals)))
 
-    return unused_terms
+    return unused
 
 
 def rule3_10():
@@ -639,7 +661,9 @@ def rule3_10():
 
     for k, v in hks.items():
         if guf.empty(v):
-            hkey_errors.append(f"OID {k} has no HierarchyKey value")
+            hkey_errors.append(
+                f'OID {k} has no <span class="field">HierarchyKey</span> value'
+            )
 
     # find the delimiter
     # make a list of all non-alphanumeric characters found in all hkeys
@@ -803,8 +827,6 @@ def rule3_13():
     ]
 
     leading_trailing_spaces = ["Text values with leading or trailing spaces:"]
-    # oxxft = """'<span class="table">{table}</span>, field <span class="field">
-    # {field_names[i]}</span>, {field_names[obj_id_index]} {str(row[obj_id_index])}"""
 
     tables = [
         k
@@ -1065,9 +1087,10 @@ def inventory(db_dict):
 
 
 def del_extra(db_dict, table, field, all_terms):
-    with arcpy.da.UpdateCursor(table, field) as cursor:
+    with arcpy.da.UpdateCursor(db_dict[table]["catalogPath"], field) as cursor:
         for row in cursor:
             if not row[0] in all_terms:
+                arcpy.AddMessage(row[0])
                 cursor.deleteRow()
 
 
@@ -1126,6 +1149,9 @@ val["md_errors_name"] = (
 # skip topology?
 if 4 < args_len:
     skip_topology = guf.eval_bool(sys.argv[4])
+    top_db = workdir / "Topology.gdb"
+    if arcpy.Exists(str(top_db)):
+        arcpy.Delete_management(str(top_db))
 else:
     skip_topology = False
 
@@ -1229,7 +1255,9 @@ ap(
 schema_extensions = [
     '<h3><a name="Extensions"></a>Content not specified in GeMS schema</h3>\n'
 ]
-val["rule2_2"], schema_extensions = check_fields(db_dict, 2, schema_extensions)
+val["rule2_2"], schema_extensions, fld_warnings = check_fields(
+    db_dict, 2, schema_extensions
+)
 
 # rule 2.3 topology
 ap(
@@ -1324,7 +1352,9 @@ ap("Looking at level 3 compliance")
 # rule 3.1
 # Table and field definitions conform to GeMS schema
 ap("3.1 Table and field definitions conform to GeMS schema")
-val["rule3_1"], schema_extensions = check_fields(db_dict, 3, schema_extensions)
+val["rule3_1"], schema_extensions, val["fld_warnings"] = check_fields(
+    db_dict, 3, schema_extensions
+)
 
 # rule 3.2
 ap(
@@ -1347,9 +1377,8 @@ val["rule3_4"], all_gloss_terms = glossary_check(db_dict, 3, all_gloss_terms)
 # rule 3.5
 # No unnecessary terms in Glossary
 ap("3.5 No unnecessary terms in Glossary")
-
 if delete_extra:
-    ap("/tRemoving unused terms from Glossary")
+    ap("\tRemoving unused terms from Glossary")
     del_extra(db_dict, "Glossary", "Term", all_gloss_terms)
 
 val["rule3_5"] = rule3_5_and_7("glossary", all_gloss_terms)
@@ -1364,7 +1393,7 @@ val["rule3_6"], all_sources = sources_check(db_dict, 3, all_sources)
 ap("3.7 No unnecessary sources in DataSources")
 
 if delete_extra:
-    ap("/tRemoving unused sources from DataSources")
+    ap("\tRemoving unused sources from DataSources")
     del_extra(db_dict, "DataSources", "DataSources_ID", all_sources)
 
 val["rule3_7"] = rule3_5_and_7("datasources", all_sources)
@@ -1416,28 +1445,31 @@ val["passes_mp"] = passes_mp
 val["metadata_summary"] = md_summary
 val["level"] = determine_level(val)
 
+ap("\u200B")
+ap("Inventorying database:")
 # other stuff
 # find extensions to schema
-ap("Looking for extensions to GeMS schema")
+ap("\tLooking for extensions to GeMS schema")
 val["extras"] = extra_tables(db_dict, schema_extensions)
 
 # prepare lists of units for Occurrence table
-ap("Finding occurrences of map units")
+ap("\tFinding occurrences of map units")
 all_map_units.sort()
 val["all_units"] = list(set(all_map_units))
 fds_map_units = sort_fds_units(fds_map_units)
 val["fds_units"] = fds_map_units
 
 # prepare contents of non-spatial tables
-ap("Storing contents of non-spatial tables")
+ap("\tStoring contents of non-spatial tables")
 val["non_spatial"] = dump_tables(db_dict)
 
 # build inventory
-ap("Building database inventory")
+ap("\tBuilding database inventory")
 val["inventory"] = inventory(db_dict)
 
 ### Compact DB option
 if compact_db == "true":
+    ap("\u200B")
     ap(f"Compacting {gdb_name}")
     arcpy.Compact_management(gdb_path)
 else:

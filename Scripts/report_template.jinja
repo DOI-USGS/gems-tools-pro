@@ -97,14 +97,16 @@ and an anchor. Iterate through those#}
 {# special case of topology where we include the feature dataset as an indented header
 within the list of errors#}
 {% if errors[0] == "topology errors" %}
-{% set i = 4 %}
-{% else %}
-{% set i = 3 %}
-{% endif %}
 <td valign="top">
-  <font color="#ff0000">FAIL &nbsp;</font><a href='{{ val["errors_path"] }}#{{ errors[2] }}'>{{ errors|length - i }}
+  <font color="#ff0000">FAIL &nbsp;</font><a href='{{ val["errors_path"] }}#{{ errors[2] }}'>multiple topology
+    errors</a>
+</td>
+{% else %}
+<td valign="top">
+  <font color="#ff0000">FAIL &nbsp;</font><a href='{{ val["errors_path"] }}#{{ errors[2] }}'>{{ errors|length - 3 }}
     {{errors[0]}}</a>
 </td>
+{% endif %}
 {% endif %}
 {% endif %}
 {%- endmacro %}
@@ -147,7 +149,7 @@ within the list of errors#}
   <i>Databases with a variety of schema may meet these criteria. This script cannot confirm LEVEL 1 compliance.</i>
   <h4><a name="Level2">LEVEL 2--MINIMALLY COMPLIANT</a></h4>
   <i>A LEVEL 2 GeMS database is accompanied by a peer-reviewed Geologic Names report, including identification of
-    suggested modifications to Geolex, and meets the following criteria:</i><br><br>
+    suggested modifications to Geolex, and meets the following criteria:</i><br>
   <table class="ess-tables">
     <tbody>
       <tr>
@@ -254,9 +256,9 @@ within the list of errors#}
   </table>
 
   <br>
-  {% if val["sr_warnings"]|length > 1 or val["end_spaces"]|length > 1 %}
+  {% if val["sr_warnings"]|length > 1 or val["end_spaces"]|length > 1 or val["fld_warnings"]|length > 1 %}
   <a href='{{val["errors_path"]}}#Warnings'>There are {{val["sr_warnings"]|length +
-    val["end_spaces"]|length}} warnings:</a><br>
+    val["end_spaces"]|length + val["fld_warnings"]|length - 1}} warnings:</a><br>
 
   {% else %}
   There are 0 warnings.<br>
@@ -269,7 +271,7 @@ within the list of errors#}
   <i>Some of the extensions to the GeMS schema identified here may be necessary to capture geologic content and are
     entirely appropriate. <b>Please document these extensions in metadata for the database, any accompanying README
       file, and (if applicable) any transmittal letter that accompanies the dataset.</b> Other extensions may be
-    intermediate datasets, fields, or files that should be deleted before distribution of the database.</i><br><br>
+    intermediate datasets, fields, or files that should be deleted before distribution of the database.</i><br>
   {% for extra in val["extras"] %}
   {{ extra }}<br>
   {% endfor %}

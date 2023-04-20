@@ -63,7 +63,7 @@ def find_topology_pairs(fcs, is_gpkg, db_dict):
     # determine the index 0 item in the list, feature dataset or prefix+suffix tag
     for pair in pairs:
         if not is_gpkg:
-            pair[1] if not "__missing__" in pair[1] else pair[2]
+            fc = pair[1] if not "__missing__" in pair[1] else pair[2]
             gmap = Path(db_dict[fc]["path"]).stem
             pair.insert(0, gmap)
         else:
@@ -77,10 +77,11 @@ def find_topology_pairs(fcs, is_gpkg, db_dict):
 def create_fd(work_dir, gmap, sr, topo_pair, db_dict):
     """create gdb and feature dataset and copy feature classes
     for topology check if they do not exist"""
-    ap("\tCreating geodatabase for topology")
     gdb_path = work_dir / "Topology.gdb"
-    if not arcpy.Exists(str(gdb_path)):
-        arcpy.CreateFileGDB_management(str(work_dir), "Topology")
+    ap(f"\tCreating geodatabase for topology - {str(gdb_path)}")
+    if arcpy.Exists(str(gdb_path)):
+        arcpy.Delete_management(str(gdb_path))
+    arcpy.CreateFileGDB_management(str(work_dir), "Topology")
 
     ap(f"\tCreating feature dataset {gmap}")
     fd_path = work_dir / "Topology.gdb" / gmap
@@ -103,6 +104,7 @@ def create_fd(work_dir, gmap, sr, topo_pair, db_dict):
 
 def add_topology(gdb_path, gmap, topo_caf, topo_mup):
     """create an empty topology for topology check. Delete any existing"""
+
     ap(f"\tCreating topology {gmap}_Topology")
     top_path = gdb_path / gmap / f"{gmap}_Topology"
     if arcpy.Exists(str(top_path)):
@@ -136,22 +138,23 @@ def add_rules(topology, caf, mup, db_dict):
 def make_topology(work_dir, topo_pair, db_dict):
     """make a topology in a scratch gdb. Called in the case of no topology
     in input gdb or geopackage
-    topo_pair  = [GeologicMap feature dataset(if gdb), fd_tag_name, mapunitpolys, contactsandfaults]"""
+    topo_pair  = [GeologicMap feature dataset(if gdb), fd_tag_name, mapunitpolys, contactsandfaults]
+    """
 
     if topo_pair[0]:
         gmap = topo_pair[0]
         sr = db_dict[gmap]["spatialReference"]
 
-    if not topo_pair[1] == "|":
+    elif not topo_pair[1] == "|":
         tags = topo_pair[1].split("|")
         tag_name = f"_{tags[0]}{tags[1]}"
         if topo_pair[0]:
-            gmap = f"{topo_pair[0]}_{tag_name}"
+            gmap = f"{topo_pair[0].rstrip('_')}_{tag_name}"
         else:
             gmap = tag_name
             sr = db_dict[topo_pair[2]]["spatialReference"]
 
-    if not topo_pair[0] and not topo_pair[1]:
+    else:
         sr = db_dict[topo_pair[2]]["spatialReference"]
         gmap = "GeologicMap"
 
@@ -222,20 +225,6 @@ def check_errors_table(ds, table, origin_id, rule_ids, dest_id=None):
                 errors.append(f"Rule '{rules_dict[n]}' has {i} errors")
             errors_pass = False
 
-        # elif n == 37:
-        #     sql = f"""SELECT * from {table} WHERE TopoRuleType = 37
-        #       and OriginClassID = {origin_id}
-        #       and DestClassID = {dest_id}
-        #       and IsException = 0"""
-        #     l = ds.ExecuteSQL(sql)
-        #     if l.GetFeatureCount() > 0:
-        #         i = l.GetFeatureCount()
-        #         if i == 1:
-        #             errors.append(f"Rule '{rules_dict[n]}' has {i} error")
-        #         else:
-        #             errors.append(f"Rule '{rules_dict[n]}' has {i} errors")
-        #         errors_pass = False
-
     return (errors_pass, errors)
 
 
@@ -269,7 +258,7 @@ def has_been_validated(top_path):
     return has_been_validated
 
 
-def eval_topology(db, top, db_dict, gmap):
+def eval_topology(db, top, db_dict, gmap, level_2_errors, level_3_errors):
     ds = ogr.GetDriverByName("OpenFileGDB").Open(db)
     top_def = get_gdb_item(ds, f"SELECT Definition FROM GDB_Items WHERE name = '{top}'")
 
@@ -280,17 +269,6 @@ def eval_topology(db, top, db_dict, gmap):
     point_errors = f"T_{top_id}_PointErrors"
     line_errors = f"T_{top_id}_LineErrors"
     poly_errors = f"T_{top_id}_PolyErrors"
-
-    level_2_errors = [
-        "topology errors",
-        "2.3 Topology errors",
-        "topology2",
-    ]
-    level_3_errors = [
-        "topology errors",
-        "3.2 Topology errors",
-        "topology3",
-    ]
 
     found_caf = False
     found_mup = False
