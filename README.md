@@ -2,6 +2,14 @@
 
 <img width="250" align="right" src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/1c/USGS_logo_green.svg/500px-USGS_logo_green.svg.png"/>
 
+> **Note**
+> New Validate Database tool on branch [`validate`](https://github.com/DOI-USGS/gems-tools-pro/tree/validate) for beta testing. 
+> * Understands custom name variations of GeMS elements, e.g., `SurficialContactsAndFaults`
+> * Validates and checks an existing topology if it exists; recognizes exceptions
+> * Checks standalone metadata file as required for submission to NGMDB
+> * Accepts multiple pipe-delimited (|) source ids in all fields ending in `SourceID`
+> * Validates OGC GeoPackages with multiple `MapUnitPolys` and `ContactsAndFaults` pairs (use name variations) to accommodate lack of feature datasets
+
 # GeMS Tools for ArcGIS Pro
 
 This repository contains an ArcGIS toolbox of Python 3 geoprocessing tools for creating, manipulating, and validating [GeMS](https://ngmdb.usgs.gov/Info/standards/GeMS/)-style geologic map databases for use in ArcGIS Pro. Additional resources; vocabularies, symbology, links to other projects, etc.; are available at the [NGMDB GeMS site](https://ngmdb.usgs.gov/Info/standards/GeMS/#reso).
