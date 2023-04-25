@@ -57,8 +57,8 @@ def find_topology_pairs(fcs, is_gpkg, db_dict):
     for fd_tag in set(fd_tags):
         mup = f"{fd_tag[0]}{req[0]}{fd_tag[1]}"
         caf = f"{fd_tag[0]}{req[1]}{fd_tag[1]}"
-        fd_name = f"{fd_tag[0]}|{fd_tag[1]}"
-        pairs.append([fd_name, n_or_missing(mup, fcs), n_or_missing(caf, fcs)])
+        tag_name = f"{fd_tag[0]}|{fd_tag[1]}"
+        pairs.append([tag_name, n_or_missing(mup, fcs), n_or_missing(caf, fcs)])
 
     # determine the index 0 item in the list, feature dataset or prefix+suffix tag
     for pair in pairs:
@@ -78,16 +78,14 @@ def create_fd(work_dir, gmap, sr, topo_pair, db_dict):
     """create gdb and feature dataset and copy feature classes
     for topology check if they do not exist"""
     gdb_path = work_dir / "Topology.gdb"
-    ap(f"\tCreating geodatabase for topology - {str(gdb_path)}")
-    if arcpy.Exists(str(gdb_path)):
-        arcpy.Delete_management(str(gdb_path))
-    arcpy.CreateFileGDB_management(str(work_dir), "Topology")
+    if not arcpy.Exists(str(gdb_path)):
+        ap(f"\t\tCreating geodatabase for topology - {str(gdb_path)}")
+        arcpy.CreateFileGDB_management(str(work_dir), "Topology")
 
-    ap(f"\tCreating feature dataset {gmap}")
     fd_path = work_dir / "Topology.gdb" / gmap
-    if arcpy.Exists(str(fd_path)):
-        arcpy.Delete_management(str(fd_path))
-    arcpy.CreateFeatureDataset_management(str(gdb_path), gmap, sr.name)
+    if not arcpy.Exists(str(fd_path)):
+        ap(f"\t\tCreating feature dataset {gmap}")
+        arcpy.CreateFeatureDataset_management(str(gdb_path), gmap, sr.name)
 
     # copy the feature
     source_mup = db_dict[topo_pair[2]]["catalogPath"]
@@ -95,7 +93,7 @@ def create_fd(work_dir, gmap, sr, topo_pair, db_dict):
     copy_mup = fd_path / topo_pair[2]
     copy_caf = fd_path / topo_pair[3]
 
-    ap("\tCopying feature classes")
+    ap("\t\tCopying feature classes")
     arcpy.ExportFeatures_conversion(str(source_mup), str(copy_mup))
     arcpy.ExportFeatures_conversion(str(source_caf), str(copy_caf))
 
@@ -105,7 +103,7 @@ def create_fd(work_dir, gmap, sr, topo_pair, db_dict):
 def add_topology(gdb_path, gmap, topo_caf, topo_mup):
     """create an empty topology for topology check. Delete any existing"""
 
-    ap(f"\tCreating topology {gmap}_Topology")
+    ap(f"\t\tCreating topology {gmap}_Topology")
     top_path = gdb_path / gmap / f"{gmap}_Topology"
     if arcpy.Exists(str(top_path)):
         arcpy.Delete_management(str(top_path))
@@ -119,7 +117,7 @@ def add_topology(gdb_path, gmap, topo_caf, topo_mup):
 
 def add_rules(topology, caf, mup, db_dict):
     """add gems-required topology rules to a new topology"""
-    ap("\tAdding topology rules to topology")
+    ap("\t\tAdding topology rules to topology")
     # caf = [fc for fc in fcs if db_dict[fc]["gems_equivalent"] == "ContactsAndFaults"][0]
     # mup = [fc for fc in fcs if db_dict[fc]["gems_equivalent"] == "MapUnitPolys"][0]
     # caf_path = Path(topology).parent / caf
@@ -147,9 +145,10 @@ def make_topology(work_dir, topo_pair, db_dict):
 
     elif not topo_pair[1] == "|":
         tags = topo_pair[1].split("|")
-        tag_name = f"_{tags[0]}{tags[1]}"
+        tag_name = f"{tags[0].strip('_')}{tags[1]}"
+
         if topo_pair[0]:
-            gmap = f"{topo_pair[0].rstrip('_')}_{tag_name}"
+            gmap = f"{topo_pair[0].strip('_')}{tag_name}"
         else:
             gmap = tag_name
             sr = db_dict[topo_pair[2]]["spatialReference"]
@@ -157,6 +156,27 @@ def make_topology(work_dir, topo_pair, db_dict):
     else:
         sr = db_dict[topo_pair[2]]["spatialReference"]
         gmap = "GeologicMap"
+
+    if not topo_pair[0] is None:  # there IS a gdb feature dataset name
+        # catching the case of a gdb feature dataset having more than
+        # one pair of MapUnitPolys and ContactsAndFaults. In that case,
+        # the feature classes must have either a prefix or suffix or both
+        # to distinguish them from other pairs. So, find those tags and
+        # make a new feature dataset name
+        if not topo_pair[1] == "|":
+            tags = topo_pair[1].split("|")
+
+            if tags[0].endswith("_") or tags[0] == "":
+                prefix = tags[0]
+            else:
+                prefix = f"{tags[0]}_"
+
+            if tags[1].startswith("_") or tags[1] == "":
+                suffix = tags[1]
+            else:
+                suffix = f"_{tags[1]}"
+
+            gmap = f"{prefix}{gmap}{suffix}"
 
     gdb_path, topo_mup, topo_caf = create_fd(work_dir, gmap, sr, topo_pair, db_dict)
     top_path = add_topology(gdb_path, gmap, topo_caf, topo_mup)

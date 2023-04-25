@@ -76,11 +76,11 @@ reload(tp)
 # values dictionary gets sent to report_template.jinja errors_template.jinja
 val = {}
 
-version_string = "validate_database.py, version of 24 March 2023"
+version_string = "validate_database.py, version of 25 April 2023"
 val["version_string"] = version_string
 val["datetime"] = time.asctime(time.localtime(time.time()))
 
-rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/master/Scripts/GeMS_ValidateDatabase_AGP2.py"
+rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/validate/Scripts/validate_database.py"
 
 py_path = __file__
 scripts_dir = Path.cwd()
@@ -343,10 +343,10 @@ def check_topology(topo_pairs):
         # do we need to validate first?
         # look for DirtyAreas
         if not has_been_validated:
-            ap("\tValidating topology")
+            ap("\t\tValidating topology")
             arcpy.ValidateTopology_management(top_path)
 
-        ap("\tLooking at validation results for errors")
+        ap("\t\tLooking at validation results for errors")
 
         # topologies have to be in feature dataset, so topology.parent.parent
         # gets the file geodatabase, whether the original or the Topology.gdb copy
@@ -862,7 +862,6 @@ def validate_online(metadata_file):
     metadata_dir = metadata_file.parent
     metadata_errors = metadata_dir / f"{metadata_name}_errors.txt"
 
-    passes_mp = False
     # send the temp file to the API
     url = r"https://www1.usgs.gov/mp/service.php"
     try:
@@ -884,7 +883,6 @@ def validate_online(metadata_file):
 
         summary = r.json()["summary"]
         if not "errors" in summary:
-            passes_mp = True
             message = (
                 'The database-level FGDC metadata are formally correct. The <a href="'
                 + str(metadata_file)
@@ -908,7 +906,7 @@ def validate_online(metadata_file):
         )
         ap(message)
 
-    return passes_mp, message
+    return message
 
 
 def write_html(template, out_file):
@@ -1130,13 +1128,13 @@ else:
     workdir.mkdir(exist_ok=True)
 
 # path to metadata file
+metadata_file = None
 if 3 < args_len:
+    if not Path(sys.argv[3]).suffix == ".xml":
+        arcpy.AddWarning("Metadata not checked. File needs to be in XML format.")
+
     if Path(sys.argv[3]).suffix == ".xml" and Path(sys.argv[3]).exists():
         metadata_file = Path(sys.argv[3])
-    else:
-        metadata_file = None
-else:
-    metadata_file = None
 
 val["metadata_file"] = str(metadata_file)
 val["metadata_name"] = metadata_file.name if metadata_file else "valid metadata"
@@ -1430,10 +1428,9 @@ val["rule3_12"] = rule3_12()
 ap("3.13 No zero-length or whitespace-only strings")
 val["rule3_13"], val["end_spaces"] = rule3_13()
 
-passes_mp = False
 if metadata_file:
     if val["metadata_file"]:
-        passes_mp, md_summary = validate_online(metadata_file)
+        md_summary = validate_online(metadata_file)
     else:
         md_summary = f"{metadata_file} does not exist."
 else:
@@ -1441,7 +1438,6 @@ else:
     md_summary = "Check Metadata option was skipped. Be sure to have prepared valid metadata and check this option to produce a complete report."
 
 # now that rules have been checked, prepare some summary entries
-val["passes_mp"] = passes_mp
 val["metadata_summary"] = md_summary
 val["level"] = determine_level(val)
 
