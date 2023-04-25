@@ -8,7 +8,7 @@
 > * Validates and checks an existing topology if it exists; recognizes exceptions
 > * Checks standalone metadata file as required for submission to NGMDB
 > * Accepts multiple pipe-delimited (|) source ids in all fields ending in `SourceID`
-> * Validates OGC geopackages with multiple `MapUnitPolys` and `ContactsAndFaults` pairs (use name variations) to accommodate lack of feature datasets
+> * Validates OGC GeoPackages with multiple `MapUnitPolys` and `ContactsAndFaults` pairs (use name variations) to accommodate lack of feature datasets
 
 # GeMS Tools for ArcGIS Pro
 
