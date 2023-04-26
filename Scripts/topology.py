@@ -112,9 +112,7 @@ def create_fd(work_dir, gmap, sr, topo_pair, db_dict):
 
     ap("\t\tCopying feature classes")
     export(source_mup, copy_mup, pro)
-    arcpy.ExportFeatures_conversion(str(), str(copy_mup))
     export(source_caf, copy_caf, pro)
-    arcpy.ExportFeatures_conversion(str(source_caf), str(copy_caf))
 
     return gdb_path, str(copy_mup), str(copy_caf)
 
