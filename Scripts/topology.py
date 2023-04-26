@@ -82,7 +82,7 @@ def find_topology_pairs(fcs, is_gpkg, db_dict):
 def export(source, dest, pro):
     # Try to use ExportFeatures first but if the version is not 3 or above
     # try the deprecated method FeatureClassToFeatureClass
-    ver = int(pro.split("."[0]))
+    ver = int(pro.split(".")[0])
     if ver == 3:
         arcpy.ExportFeatures_conversion(str(source), str(dest))
     else:

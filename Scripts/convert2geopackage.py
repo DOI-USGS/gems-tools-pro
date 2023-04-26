@@ -26,7 +26,7 @@ from pathlib import Path
 from GeMS_utilityFunctions import addMsgAndPrint as ap
 import GeMS_utilityFunctions as guf
 
-versionString = "GeMS_ALaCarte.py, version of 17 April 2023"
+versionString = "convert2geopackage.py, version of 17 April 2023"
 rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/master/Scripts/convert2geopackage.py"
 guf.checkVersion(versionString, rawurl, "gems-tools-pro")
 
