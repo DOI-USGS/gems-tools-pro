@@ -4,6 +4,11 @@ from lxml import etree
 from pathlib import Path
 from GeMS_utilityFunctions import addMsgAndPrint as ap
 
+# find the version of Pro being used
+# we have at least one 3+ only method - ExportFeatures
+# may have to test for others
+pro = arcpy.GetInstallInfo()["Version"]
+
 top_rules = [
     "esriTRTLineNoOverlap",
     "esriTRTLineNoSelfOverlap",
@@ -74,6 +79,18 @@ def find_topology_pairs(fcs, is_gpkg, db_dict):
     return pairs
 
 
+def export(source, dest, pro):
+    # Try to use ExportFeatures first but if the version is not 3 or above
+    # try the deprecated method FeatureClassToFeatureClass
+    ver = int(pro.split("."[0]))
+    if ver == 3:
+        arcpy.ExportFeatures_conversion(str(source), str(dest))
+    else:
+        arcpy.FeatureClassToFeatureClass_conversion(
+            source, str(dest.parent), str(dest.stem)
+        )
+
+
 def create_fd(work_dir, gmap, sr, topo_pair, db_dict):
     """create gdb and feature dataset and copy feature classes
     for topology check if they do not exist"""
@@ -94,7 +111,9 @@ def create_fd(work_dir, gmap, sr, topo_pair, db_dict):
     copy_caf = fd_path / topo_pair[3]
 
     ap("\t\tCopying feature classes")
-    arcpy.ExportFeatures_conversion(str(source_mup), str(copy_mup))
+    export(source_mup, copy_mup, pro)
+    arcpy.ExportFeatures_conversion(str(), str(copy_mup))
+    export(source_caf, copy_caf, pro)
     arcpy.ExportFeatures_conversion(str(source_caf), str(copy_caf))
 
     return gdb_path, str(copy_mup), str(copy_caf)
