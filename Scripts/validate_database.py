@@ -1266,9 +1266,7 @@ val["sr_warnings"] = rule2_1_results[2]
 ap(
     "Rule 2.2 - Required fields within required elements are present and correctly defined"
 )
-schema_extensions = [
-    '<h3><a name="Extensions"></a>Content not specified in GeMS schema</h3>\n'
-]
+schema_extensions = []
 val["rule2_2"], schema_extensions, fld_warnings = check_fields(
     db_dict, 2, schema_extensions
 )
