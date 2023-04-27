@@ -76,7 +76,7 @@ reload(tp)
 # values dictionary gets sent to report_template.jinja errors_template.jinja
 val = {}
 
-version_string = "validate_database.py, version of 26 April 2023"
+version_string = "validate_database.py, version of 27 April 2023"
 val["version_string"] = version_string
 val["datetime"] = time.asctime(time.localtime(time.time()))
 
@@ -138,6 +138,7 @@ def values(table, field, what, where=None):
                     db_dict[table]["catalogPath"],
                     field_names=[oid, field],
                     where_clause=where,
+                    sql_clause=(None, f"ORDER BY {field}"),
                 )
             }
         else:
@@ -643,111 +644,126 @@ def rule3_5_and_7(table, all_vals):
     return unused
 
 
+def piped(s, chrs):
+    # replace multiple delimiters with pipe
+    for c in chrs:
+        if c in s:
+            s = s.replace(c, "|")
+
+    return s
+
+
 def rule3_10():
     """HierarchyKey values in DescriptionOfMapUnits are unique and well formed"""
-    # hkey_err_list = []
-    # all_dmu_key_values = []
     hkey_errors = [
         "HierarchyKey error(s) in DMU",
         "3.10 HierarchyKey errors",
         "hkey_errors",
     ]
 
-    hks = values("DescriptionOfMapUnits", "HierarchyKey", "dictionary")
+    hkey_warnings = ["Hierarchy keys"]
+
+    # dictionary of hkey values [oid]: hkey
+    hk_dict = values("DescriptionOfMapUnits", "HierarchyKey", "dictionary")
+
     # return early if HKs is empty
-    if not hks:
+    if not hk_dict:
         hkey_errors.append("No HierarchyKey values")
         return hkey_errors
 
-    for k, v in hks.items():
+    # check for empty values
+    for k, v in hk_dict.items():
         if guf.empty(v):
             hkey_errors.append(
-                f'OID {k} has no <span class="field">HierarchyKey</span> value'
+                f'OBJECTID {k} has no <span class="field">HierarchyKey</span> value'
             )
 
     # find the delimiter
     # make a list of all non-alphanumeric characters found in all hkeys
     # if the length of the list is not 1, there are multiple delimiters.
-    # we'll look for non-numeric characters below
+    # list of just the hkeys
     delims = []
-    for hkey in hks.values():
+    for hkey in hk_dict.values():
         if not guf.empty(hkey):
             for c in hkey:
                 delims.extend([c for c in hkey if c.isalnum() == False])
+    delims = list(set(delims))
 
-    delims = set(delims)
+    frag_lengths = []
     if delims:
         # dealing with a list of character-delimited keys
+        # look for multiple delimiters
         if len(delims) > 1:
             formatted = [f"<code>{c}</code>" for c in delims]
             hkey_errors.append(f'Multiple delimiters found: {", ".join(formatted)}')
 
-        # replace all occurrences of the multiple delimiters with pipes
-        # look for duplicate values at the same time
-        # want to find duplicated numeric values, eg; 001-002 should be seen as a duplicate of 001|002
-        # so look for duplicates in the formatted hkeys (where all delimiters are replaced by pipe) not the original hkey
-        # but report the original hkey since that is what will be in the table
-        seen = set()
-        dupes = []
+        # turn each hk_dict value into a tuple (piped hkey, original hkey)
+        piped_dict = {
+            k: (piped(v, delims), v) for k, v in hk_dict.items() if not guf.empty(v)
+        }
 
-        # new_keys dictionary has entries of [pipe delimited hkey] = original hkey
-        new_keys = {}
-        for hkey in hks.values():
-            if hkey:
-                f_key = hkey
-                # make a new pipe-delimited key
-                # and the dictionary entry
-                for delim in delims:
-                    if delim != "|":
-                        f_key = f_key.replace(delim, "|")
-                new_keys[f_key] = hkey
+        # for k, v in piped_dict.items():
+        #     arcpy.AddMessage(f"{k}: {v}")
 
-                # look for duplicates
-                if f_key in seen:
-                    dupes.append(hkey)
-                else:
-                    seen.add(f_key)
+        # find duplicated pipe delim keys
+        pipe_keys = [v[0] for v in piped_dict.values()]
+        dupe_pipes = [hk for hk in pipe_keys if pipe_keys.count(hk) > 1]
+        dupe_pipes = set(dupe_pipes)
 
-        # get the length of the first fragment of the first dictionary value
-        entry1 = next(iter(new_keys))
-        fragment_length = len(new_keys[entry1].split("|")[0])
+        # iterate through dictionary items
+        for k, v in piped_dict.items():
+            new_key = v[0]
+            old_key = v[1]
+            # check for duplicated key
+            if new_key in dupe_pipes:
+                hkey_errors.append(
+                    f"OBJECTID {k} has duplicated key: {old_key} (ignore delimiter)"
+                )
 
-        # iterate through formatted hkeys
-        sort_keys = list(new_keys.keys())
-        sort_keys.sort()
-        for hkey in sort_keys:
-            elems = hkey.split("|")
-            for e in elems:
-                if e.isnumeric() == False:
-                    hkey_errors.append(f"{new_keys[hkey]} --non-numeric fragment: {e}")
+            # collect fragment length
+            for frag in new_key.split("|"):
+                frag_lengths.append(len(frag))
 
-                # inconsistent fragment length
-                if len(e) != fragment_length:
-                    hkey_errors.append(f"{new_keys[hkey]} --bad fragment length: {e}")
-            # lastHK = hkey
-
+                # look for non-numeric characters
+                for c in frag if c != "|" else c:
+                    if c.isnumeric() == False:
+                        hkey_warnings.append(
+                            f'<span class="tab"></span>OBJECTID {k}: {old_key} includes non-numeric character {c}. Please check!'
+                        )
     else:
-        # dealing with a list of integers, that is, hkey values are not materialized paths, just numbers; 1,2,3,4...
-        hks.sort()
-        seen = set()
-        dupes = []
-        for hkey in hks:
+        # dealing with a list of integers or single nibble values, that is,
+        # hkey values are not materialized paths, just numbers; 1,2,3,4...
+        # or 001, 002, 003
+
+        # look for duplicates
+        hks = [v for v in hks.values()]
+        dupes = [hk for hk in hks if hks.count(hk) > 1]
+        dupes = set(dupes)
+
+        # itrate through dictionary
+        for oid, hkey in hk_dict.items():
+            # look for dupicates
+            if hkey in dupes:
+                hkey_errors.append(f"OID {oid} has duplicated key: {hkey}")
+
+            # look for non-numeric characters
             for c in hkey:
                 if c.isnumeric == False:
-                    hkey_errors.append(f"{hkey} --non-numeric character: {c}")
+                    hkey_warnings.append(
+                        f'<span class="tab"></span>OID {oid}: {hkey} includes non-numeric character {c}. Please check!'
+                    )
 
-            # look for duplicates
-            if hkey in seen:
-                dupes.append(hkey)
-            else:
-                seen.add(hkey)
+            # collect hkey length
+            frag_lengths.append(len(hkey))
 
-    if dupes:
-        s_dupes = set(dupes)
-        for dupe in s_dupes:
-            hkey_errors.append(f"{dupe} --duplicate hierarchy key")
+    # evaluate lengths
+    frag_lengths = set(frag_lengths)
+    if frag_lengths != 1:
+        hkey_warnings.append(
+            '<span class="tab"></span>Hierarchy keys/fragments are of inconsistent length. Please check!'
+        )
 
-    return hkey_errors
+    return hkey_errors, hkey_warnings
 
 
 def rule3_11():
@@ -1409,8 +1425,7 @@ val["rule3_8"], val["rule3_9"], all_map_units, fds_map_units = check_map_units(
 # rule 3.10
 # HierarchyKey values in DescriptionOfMapUnits are unique and well formed
 ap("3.10 HierarchyKey values in DescriptionOfMapUnits are unique and well formed")
-val["rule3_10"] = rule3_10()
-
+val["rule3_10"], val["hkey_warnings"] = rule3_10()
 # 3.11
 # All values of GeoMaterial are defined in GeoMaterialDict.
 ap(

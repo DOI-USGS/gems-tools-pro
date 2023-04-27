@@ -126,6 +126,7 @@ within the list of errors#}
 <h3>Contents</h3>
 <div class="report" id="contents">
   <a href="#Compliance_Criteria">Compliance Criteria</a><br>
+  <a href="#Warnings">Warnings</a><br>
   <a href="#Extensions">Content not specified in GeMS schema</a><br>
   <a href="#MapUnits_Match">Occurrence of MapUnit in DMU, feature datasets, or geopackage tables</a><br>
   {% if val["non_spatial"] %}
@@ -256,14 +257,25 @@ within the list of errors#}
   </table>
 
   <br>
-  {% if val["sr_warnings"]|length > 1 or val["end_spaces"]|length > 1 or val["fld_warnings"]|length > 1 %}
-  <a href='{{val["errors_path"]}}#Warnings'>There are {{val["sr_warnings"]|length +
-    val["end_spaces"]|length + val["fld_warnings"]|length - 1}} warnings:</a><br>
+</div>
+
+<h3><a name="Warnings"></a>Warnings</h3>
+<div class="report">
+  {% if val["sr_warnings"]|length > 1 or val["end_spaces"]|length > 1 or val["fld_warnings"]|length > 1
+  or val["hkey_warnings"]|length > 1 %}
+  <a href='{{val["errors_path"]}}#Warnings'>There are {{
+    val["sr_warnings"]|length +
+    val["end_spaces"]|length +
+    val["fld_warnings"]|length +
+    val["hkey_warnings"]|length - 4
+    }} warnings:</a><br>
 
   {% else %}
   There are 0 warnings.<br>
+
   {% endif %}
 </div>
+
 
 {% if val["extras"]|length > 1 %}
 <h3><a name="Extensions"></a>Content not specified in GeMS schema</h3>
