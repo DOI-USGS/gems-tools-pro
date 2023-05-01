@@ -36,7 +36,7 @@ import GeMS_utilityFunctions as guf
 from pathlib import Path
 import sys
 
-versionString = "GeMS_ALaCarte.py, version of 21 March 2023"
+versionString = "GeMS_ALaCarte.py, version of 1 May 2023"
 rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/master/Scripts/GeMS_ALaCarte.py"
 guf.checkVersion(versionString, rawurl, "gems-tools-pro")
 
@@ -341,7 +341,7 @@ def process(gdb, value_table):
                         # add a _ID field
                         arcpy.AddMessage(f"{fd_tab}{fc_tab}Adding field {fc_name}_ID")
                         arcpy.AddField_management(
-                            str(fc_path), f"{fc}_ID", "TEXT", field_length=50
+                            str(fc_path), f"{fc_name}_ID", "TEXT", field_length=50
                         )
                 except:
                     arcpy.AddWarning(f"Could not add field {fc_name}_ID")
