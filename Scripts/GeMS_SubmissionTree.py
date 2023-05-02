@@ -1,6 +1,6 @@
 """Create empty GeMS submission directory tree.
 
-Create an empty directory tree based on the naming and file organiation
+Create an empty directory tree based on the naming and file organization
 convention described in the GeMS Submission Requirements document.
 
 Arguments supplied to this python script are sent to gems_mdkir.bat which
@@ -25,7 +25,7 @@ import subprocess
 from pathlib import Path
 
 version_string = "GeMS_SubmissionTree.py, version of 20 March 2023"
-rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/tree-tool/Scripts/GeMS_SubmissionTree.py"
+rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/master/Scripts/GeMS_SubmissionTree.py"
 guf.checkVersion(version_string, rawurl, "gems-tools-pro")
 
 
@@ -90,7 +90,6 @@ readme_dict = {
 
 
 def make_tree(parent_dir, postal_code, year, mapped_area, version, basedata):
-
     if version != "":
         name = f"{postal_code}_{year}_{mapped_area}_{version}"
     else:
@@ -127,7 +126,6 @@ def write_readme(f_path, readme_list):
 
 # This is used to execute code if the file was run but not imported
 if __name__ == "__main__":
-
     # Tool parameter accessed with GetParameter or GetParameterAsText
     parent_dir = arcpy.GetParameterAsText(0)
     postal_code = arcpy.GetParameterAsText(1)

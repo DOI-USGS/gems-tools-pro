@@ -10,6 +10,7 @@ import requests
 
 # I. General utilities
 
+
 # tests for null string values and <Null> numeric values
 # Does not test for numeric nulls -9, -9999, etc.
 def stringIsGeMSNull(val):
@@ -106,6 +107,7 @@ typeTransDict = {
 }
 
 # II. Functions that presume extensions to naming scheme
+
 
 ## getCaf needs to be recoded to use a prefix value
 def getCaf(inFds, prefix=""):
@@ -228,7 +230,7 @@ def checkVersion(vString, rawurl, toolbox):
             pass
             arcpy.AddMessage("This version of the tool is up to date")
         else:
-            repourl = "https://github.com/usgs/{}/releases".format(toolbox)
+            repourl = "https://github.com/DOI-USGS/{}/releases".format(toolbox)
             arcpy.AddWarning(
                 "You are using an obsolete version of this tool!\n"
                 + "Please download the latest version from {}".format(repourl)
