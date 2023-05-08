@@ -722,7 +722,8 @@ def rule3_10():
 
             # collect fragment length
             for frag in new_key.split("|"):
-                frag_lengths.append(len(frag))
+                if frag:
+                    frag_lengths.append(len(frag))
 
                 # look for non-numeric characters
                 for c in frag if c != "|" else c:
@@ -736,13 +737,13 @@ def rule3_10():
         # or 001, 002, 003
 
         # look for duplicates
-        hks = [v for v in hks.values()]
+        hks = list(hk_dict.values())
         dupes = [hk for hk in hks if hks.count(hk) > 1]
         dupes = set(dupes)
 
         # itrate through dictionary
         for oid, hkey in hk_dict.items():
-            # look for dupicates
+            # look for duplicates
             if hkey in dupes:
                 hkey_errors.append(f"OID {oid} has duplicated key: {hkey}")
 
@@ -754,11 +755,12 @@ def rule3_10():
                     )
 
             # collect hkey length
-            frag_lengths.append(len(hkey))
+            if hkey:
+                frag_lengths.append(len(hkey))
 
     # evaluate lengths
     frag_lengths = set(frag_lengths)
-    if frag_lengths != 1:
+    if frag_lengths != {1}:
         hkey_warnings.append(
             '<span class="tab"></span>Hierarchy keys/fragments are of inconsistent length. Please check!'
         )
