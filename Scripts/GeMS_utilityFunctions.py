@@ -339,7 +339,7 @@ def gdb_object_dict(gdb_path):
             if (
                 any(k.lower().endswith(n) for n in ("geologicmap", "geologic_map"))
             ) and v["concat_type"] == "Feature Dataset":
-                v["gems_equivalent"] == "GeologicMap"
+                v["gems_equivalent"] = "GeologicMap"
 
     return new_dict
 
