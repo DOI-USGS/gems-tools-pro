@@ -324,6 +324,37 @@ startDict = {
     ],
 }
 
+shape_dict = {
+    "MapUnitPolys": "Polygon",
+    "ContactsAndFaults": "Polyline",
+    "GenericPoints": "Point",
+    "GenericSamples": "Point",
+    "OrientationPoints": "Point",
+    "GeochronPoints": "Point",
+    "Stations": "Point",
+    "GeologicLines": "Polyline",
+    "CartographicLines": "Polyline",
+    "IsoValueLines": "Polyline",
+    "MapUnitLines": "Polyline",
+    "MapUnitPoints": "Point",
+    "MapUnitOverlayPolys": "Polygon",
+    "OverlayPolys": "Polygon",
+    "DataSourcePolys": "Polygon",
+    "CMUMapUnitPolys": "Polygon",
+    "CMULines": "Polyline",
+    "CMUPoints": "Point",
+    "FossilPoints": "Point",
+    "PhotoPoints": "Point",
+    "DescriptionOfMapUnits": "Table",
+    "DataSources": "Table",
+    "Glossary": "Table",
+    "GeoMaterialDict": "Table",
+    "GenericSamples": "Table",
+    "RepurposedSymbols": "Table",
+    "MiscellaneousMapInformation": "Table",
+    "LayerList": "Table",
+    "StandardLithology": "Table",
+}
 
 GeoMaterialConfidenceValues = ["High", "Medium", "Low"]
 

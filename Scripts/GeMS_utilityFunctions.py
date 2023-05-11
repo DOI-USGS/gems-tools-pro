@@ -312,34 +312,31 @@ def gdb_object_dict(gdb_path):
         v["gems_equivalent"] = ""
         tableDict_keys = list(gdef.tableDict.keys())
         tableDict_keys.append("GeoMaterialDict")
-        if not v["dataType"] == "Topology":
+        if not v["dataType"] in ("Topology", "Annotation"):
             for a in tableDict_keys:
                 # if the CamelCase or snake_case version of a gems object
                 # is found in the table name
-                if any(n in k.lower() for n in (a.lower(), camel_to_snake(a))):
+                if (
+                    any(n in k.lower() for n in (a.lower(), camel_to_snake(a)))
+                    and gdef.shape_dict[a] in v["concat_type"]
+                ):
                     # set the gems_equivalent key to the GeMS CamelCase name
                     v["gems_equivalent"] = a
 
             # caveats
-            if (
-                any(k.endswith(p) for p in ("Points", "_points"))
-                and v["gems_equivalent"] == ""
-            ):
+            if k.lower().endswith("points") and v["gems_equivalent"] == "":
                 v["gems_equivalent"] = "GenericPoints"
 
-            if "MapUnitOverlayPolys" in k or camel_to_snake("MapUnitOverlayPolys") in k:
-                v["gems_equivalent"] = "MapUnitOverlayPolys"
-
-            if (
-                any(k.endswith(s) for s in ("Samples", "_samples"))
-                and v["gems_equivalent"] == ""
-            ):
+            if k.lower().endswith("samples") and v["gems_equivalent"] == "":
                 v["gems_equivalent"] = "GenericSamples"
 
             if (
                 any(k.lower().endswith(n) for n in ("geologicmap", "geologic_map"))
             ) and v["concat_type"] == "Feature Dataset":
                 v["gems_equivalent"] = "GeologicMap"
+
+            if any(k.lower().endswith(l) for l in ("label", "labels")):
+                v["gems_equivalent"] = ""
 
     return new_dict
 

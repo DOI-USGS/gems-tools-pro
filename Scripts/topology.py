@@ -49,6 +49,7 @@ def n_or_missing(n, l):
 def find_topology_pairs(fcs, is_gpkg, db_dict):
     # collect prefix, suffix pairs
     fd_tags = []
+    arcpy.AddMessage("topology pairs")
     for fc in fcs:
         for s in (("MapUnitPolys", 12), ("ContactsAndFaults", 17)):
             if s[0] in fc:
@@ -62,8 +63,20 @@ def find_topology_pairs(fcs, is_gpkg, db_dict):
     for fd_tag in set(fd_tags):
         mup = f"{fd_tag[0]}{req[0]}{fd_tag[1]}"
         caf = f"{fd_tag[0]}{req[1]}{fd_tag[1]}"
-        tag_name = f"{fd_tag[0]}|{fd_tag[1]}"
-        pairs.append([tag_name, n_or_missing(mup, fcs), n_or_missing(caf, fcs)])
+
+        # check shapeType. process above could have discovered MapUnitLabels which
+        # does not require a topology mate ContactsAndFaultsLabels
+        include_mup = False
+        include_caf = False
+        if mup in db_dict:
+            if db_dict[mup]["shapeType"] == "Polygon":
+                include_mup = True
+        if caf in db_dict:
+            if db_dict[caf]["shapeType"] == "Polyline":
+                include_caf = True
+        if include_mup == True or include_caf == True:
+            tag_name = f"{fd_tag[0]}|{fd_tag[1]}"
+            pairs.append([tag_name, n_or_missing(mup, fcs), n_or_missing(caf, fcs)])
 
     # determine the index 0 item in the list, feature dataset or prefix+suffix tag
     for pair in pairs:
@@ -76,6 +89,8 @@ def find_topology_pairs(fcs, is_gpkg, db_dict):
 
     # mup equivalent will always be pairs[2]
     # caf equivalent will always be pairs[3]
+    arcpy.AddMessage("pairs")
+    arcpy.AddMessage(pairs)
     return pairs
 
 
