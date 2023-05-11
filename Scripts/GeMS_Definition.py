@@ -558,7 +558,8 @@ for table in startDict.keys():
     newfields = []
     for field in oldFields:
         newfields.append(field)
-    newfields.append([table + "_ID", "String", "NoNulls", IDLength])
+    if not table == "GeoMaterialDict":
+        newfields.append([table + "_ID", "String", "NoNulls", IDLength])
     tableDict[table] = newfields
 
 # build fieldNullsOKDict

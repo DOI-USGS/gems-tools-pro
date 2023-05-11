@@ -248,7 +248,8 @@ def check_fields(db_dict, level, schema_extensions):
     for table in tables:
         gems_eq = db_dict[table]["gems_equivalent"]
         req_fields = copy.copy(gdef.startDict[gems_eq])
-        req_fields.append([f"{table}_ID", "String", "NoNulls", gdef.IDLength])
+        if not table == "GeoMaterialDict":
+            req_fields.append([f"{table}_ID", "String", "NoNulls", gdef.IDLength])
 
         found_fields = db_dict[table]["fields"]
         f_field_names = [f.name for f in found_fields]
@@ -457,68 +458,114 @@ def check_map_units(db_dict, level, all_map_units, fds_map_units):
 def glossary_check(db_dict, level, all_gloss_terms):
     """Certain field values within required elements have entries in Glossary table"""
     missing = []
-
     # decide which tables to check
+    # just the core required elements...
+    req = [el for el in gdef.rule2_1_elements if not el in ("GeologicMap", "Glossary")]
     if level == 2:
-        req = [t for t in gdef.rule2_1_elements if not t in ("GeologicMap", "Glossary")]
         tables = [t for t in db_dict if db_dict[t]["gems_equivalent"] in req]
-        term_fields = gdef.defined_term_fields_list
         missing_header = "2.6 Missing terms in Glossary. Only one reference to each missing term is cited"
     else:
+        # or every other table in the database
+        # at level 3, we have already checked level 2 elements
         tables = [
             k
             for k, v in db_dict.items()
             if not v["dataType"] in ("FeatureDataset", "Annotation", "Topology")
+            and not k == "GeoMaterialDict"
+            and v["gems_equivalent"] not in req
         ]
-        tables = [t for t in tables if not t in gdef.rule2_1_elements]
-        term_suffixes = ["Type", "Method", "Confidence"]
         missing_header = "3.4 Missing terms in Glossary. Only one reference to each missing term is cited"
+        term_warnings = [
+            """Terms in GeMS-like fields that do not have definitions in the Glossary.<br>
+            All fields ending in <span class="field">type</span>, <span class="field">method</span>, 
+             or <span class="field">confidence</span> are checked.<br>
+            Please define these terms in Glossary, provide a look-up table, or at minimum define in the metadata"""
+        ]
 
     missing_glossary_terms = [
         "term(s) missing in Glossary",
         missing_header,
         f"MissingTerms{level}",
     ]
+
     # compare Term fields in the tables with the Glossary
     glossary_terms = values("Glossary", "Term", "list")
-    for table in tables:
-        if level == 2:
+    if tables:
+        for table in tables:
             # look for fields matching the controlled fields
-            fields = [f.name for f in db_dict[table]["fields"] if f.name in term_fields]
-        elif level == 3:
-            fields = []
-            # look for field names ending in a controlled suffix
-            for suffix in term_suffixes:
-                more_fields = [
-                    f.name for f in db_dict[table]["fields"] if f.name.endswith(suffix)
+            # the tables to look through get defined above depending on level
+            fields = [
+                f.name
+                for f in db_dict[table]["fields"]
+                if f.name in gdef.defined_term_fields_list
+            ]
+
+            if fields:
+                for field in fields:
+                    if field == "GeoMaterialConfidence":
+                        where = "GeoMaterial IS NOT NULL"
+                    else:
+                        where = None
+
+                    vals = values(table, field, "list", where)
+                    field_vals = list(set(vals))
+                    if None in field_vals:
+                        field_vals.remove(None)
+
+                    # put all of these glossary terms in all_gloss_terms list
+                    all_gloss_terms.extend(field_vals)
+
+                    missing_vals = [
+                        val for val in field_vals if not val in glossary_terms
+                    ]
+                    for val in missing_vals:
+                        missing.append(
+                            f'<span class="value">{val}</span>, field <span class="field">{field}</span>, table <span class="table">{table}</span>'
+                        )
+
+            if level == 3:
+                # also look for all non-GeMS field names in all tables ending in a controlled suffix, GeMS-sy fields
+                tables = [
+                    k
+                    for k, v in db_dict.items()
+                    if not v["dataType"] in ("FeatureDataset", "Annotation", "Topology")
+                    and not k == "GeoMaterialDict"
                 ]
-                if more_fields:
-                    fields.extend(more_fields)
+                if tables:
+                    for table in tables:
+                        gemsy_fields = []
+                        term_suffixes = ["type", "method", "confidence"]
+                        for suffix in term_suffixes:
+                            more_fields = [
+                                f.name
+                                for f in db_dict[table]["fields"]
+                                if f.name.lower().endswith(suffix)
+                                and not f.name in gdef.defined_term_fields_list
+                            ]
+                            gemsy_fields.extend(more_fields)
 
-        if fields:
-            for field in fields:
-                if field == "GeoMaterialConfidence":
-                    where = "GeoMaterial IS NOT NULL"
-                else:
-                    where = None
+                        if gemsy_fields:
+                            for g_field in gemsy_fields:
+                                vals = values(table, g_field, "list")
+                                field_vals = list(set(vals))
+                                if None in field_vals:
+                                    field_vals.remove(None)
 
-                vals = values(table, field, "list", where)
-                field_vals = list(set(vals))
-                if None in field_vals:
-                    field_vals.remove(None)
-
-                # put all of these glossary terms in all_gloss_terms list
-                all_gloss_terms.extend(field_vals)
-
-                missing_vals = [val for val in field_vals if not val in glossary_terms]
-                for val in missing_vals:
-                    missing.append(
-                        f'<span class="value">{val}</span>, field <span class="field">{field}</span>, table <span class="table">{table}</span>'
-                    )
+                                missing_vals = [
+                                    val
+                                    for val in field_vals
+                                    if not val in glossary_terms
+                                ]
+                                for val in missing_vals:
+                                    html = f'</span><span class="value">{val}</span>, field <span class="field">{g_field}</span>, table <span class="table">{table}</span>'
+                                    term_warnings.append(f'<span class="tab">{html}')
 
     missing_glossary_terms.extend(list(set(missing)))
 
-    return missing_glossary_terms, all_gloss_terms
+    if level == 2:
+        return missing_glossary_terms, all_gloss_terms
+    else:
+        return missing_glossary_terms, all_gloss_terms, term_warnings
 
 
 def sources_check(db_dict, level, all_sources):
@@ -533,7 +580,7 @@ def sources_check(db_dict, level, all_sources):
     # decide which tables to check
     if level == 2:
         # just required fc and tables
-        req = [t for t in gdef.rule2_1_elements if not t in ("GeologicMap", "Glossary")]
+        req = [t for t in gdef.rule2_1_elements if not t == "GeologicMap"]
         tables = [t for t in db_dict if db_dict[t]["gems_equivalent"] in req]
         missing_header = "2.8 Missing DataSources entries. Only one reference to each missing entry is cited"
 
@@ -631,6 +678,7 @@ def rule3_5_and_7(table, all_vals):
             "3.5 Terms in Glossary that are not used in geodatabase",
             "UnusedTerms",
         ]
+
     elif table == "datasources":
         terms = set(values("DataSources", "DataSources_ID", "list"))
         unused = [
@@ -702,9 +750,6 @@ def rule3_10():
             k: (piped(v, delims), v) for k, v in hk_dict.items() if not guf.empty(v)
         }
 
-        # for k, v in piped_dict.items():
-        #     arcpy.AddMessage(f"{k}: {v}")
-
         # find duplicated pipe delim keys
         pipe_keys = [v[0] for v in piped_dict.values()]
         dupe_pipes = [hk for hk in pipe_keys if pipe_keys.count(hk) > 1]
@@ -770,8 +815,17 @@ def rule3_10():
 
 def rule3_11():
     """All values of GeoMaterial are defined in GeoMaterialDict."""
-    errors = ["GeoMaterial error(s)", "3.11 GeoMaterial Errors", "gmErrors"]
-    geomat_tables = []
+    errors = [
+        "GeoMaterial error(s)",
+        "3.11 GeoMaterial Errors - values not found in GeoMaterialDict",
+        "gmErrors",
+    ]
+
+    # list of GeoMaterials in GeoMaterialDicts; reference GeoMaterials
+    ref_geomats = values("GeoMaterialDict", "GeoMaterial", "list")
+    ref_geomats = [v.lower() for v in ref_geomats]
+
+    # exclude some tables to look for GeoMaterial field
     db_tables = [
         k
         for k, v in db_dict.items()
@@ -779,20 +833,25 @@ def rule3_11():
         and not k == "GeoMaterialDict"
         and not "Annotation" in v["concat_type"]
     ]
+
+    # list of tables that do have a GeoMaterial field
+    geomat_tables = []
     for table in db_tables:
         for f in [f.name for f in db_dict[table]["fields"]]:
             if "GeoMaterial" in f:
                 geomat_tables.append(table)
 
-    all_geomat_vals = []
+    # iterate through those tables
     for table in geomat_tables:
-        all_geomat_vals.extend(list(set(values(table, "GeoMaterial", "list"))))
-
-    ref_geomats = values("GeoMaterialDict", "GeoMaterial", "list")
-    unused_geomats = list(set(all_geomat_vals) - set(ref_geomats))
-
-    if unused_geomats != [None]:
-        errors.extend(unused_geomats)
+        # list of GeoMaterials in the table
+        tbl_geomats = list(set(values(table, "GeoMaterial", "list")))
+        if None in tbl_geomats:
+            tbl_geomats.remove(None)
+        if tbl_geomats:
+            for geomat in tbl_geomats:
+                if not geomat.lower() in ref_geomats and not guf.empty(geomat):
+                    html = f'<span class="value">{geomat}</span>, table <span class="table">{table}</span>'
+                    errors.append(html)
 
     return errors
 
@@ -1106,7 +1165,6 @@ def del_extra(db_dict, table, field, all_terms):
     with arcpy.da.UpdateCursor(db_dict[table]["catalogPath"], field) as cursor:
         for row in cursor:
             if not row[0] in all_terms:
-                arcpy.AddMessage(row[0])
                 cursor.deleteRow()
 
 
@@ -1385,8 +1443,10 @@ val["rule3_3"] = rule3_3(db_dict)
 # rule 3.4
 # No missing terms in Glossary
 ap("3.4 No missing terms in Glossary")
-val["rule3_4"], all_gloss_terms = glossary_check(db_dict, 3, all_gloss_terms)
-
+term_warnings = []
+val["rule3_4"], all_gloss_terms, val["term_warnings"] = glossary_check(
+    db_dict, 3, all_gloss_terms
+)
 
 # rule 3.5
 # No unnecessary terms in Glossary
@@ -1394,6 +1454,7 @@ ap("3.5 No unnecessary terms in Glossary")
 if delete_extra:
     ap("\tRemoving unused terms from Glossary")
     del_extra(db_dict, "Glossary", "Term", all_gloss_terms)
+
 
 val["rule3_5"] = rule3_5_and_7("glossary", all_gloss_terms)
 
@@ -1450,7 +1511,7 @@ if metadata_file:
         md_summary = f"{metadata_file} does not exist."
 else:
     ap("Check Metadata option was skipped")
-    md_summary = "Check Metadata option was skipped. Be sure to have prepared valid metadata and check this option to produce a complete report."
+    md_summary = "<b>Check Metadata</b> option was skipped. Be sure to have prepared valid metadata and check this option to produce a complete report."
 
 # now that rules have been checked, prepare some summary entries
 val["metadata_summary"] = md_summary

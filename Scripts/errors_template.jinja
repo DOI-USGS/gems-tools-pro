@@ -125,15 +125,16 @@
 or val["end_spaces"]|length > 1
 or val["fld_warnings"]|length > 1
 or val["hkey_warnings"]|length > 1
+or val["terms_warnings"]|length > 1
 %}
 <h3><a name="Warnings">Warnings</a></h3>
 <div class="report">
 
-    {% for n in ("sr_warnings", "end_spaces", "fld_warnings", "hkey_warnings") %}
+    {% for n in ("sr_warnings", "end_spaces", "fld_warnings", "hkey_warnings", "term_warnings") %}
     {% if val[n]|length > 1 %}
     {% for warning in val[n] %}
     {{warning}}<br>
-    {% endfor %}
+    {% endfor %}<br>
     {% endif %}
     {% endfor %}
     {% endif %}
