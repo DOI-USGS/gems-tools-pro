@@ -76,7 +76,7 @@ reload(tp)
 # values dictionary gets sent to report_template.jinja errors_template.jinja
 val = {}
 
-version_string = "validate_database.py, version of 8 May 2023"
+version_string = "validate_database.py, version of 11 May 2023"
 val["version_string"] = version_string
 val["datetime"] = time.asctime(time.localtime(time.time()))
 
@@ -274,7 +274,7 @@ def check_fields(db_dict, level, schema_extensions):
                     )
                 if req_null != field[2]:
                     errors.append(
-                        f'<span class="table">{table}</span>, field <span class="field">{field}</span> should  be {req_null}'
+                        f'<span class="table">{table}</span>, field <span class="field">{field}</span> should be {req_null}'
                     )
                 if req_length:
                     if field[3] < req_length:
@@ -774,10 +774,11 @@ def rule3_10():
                 for c in frag if c != "|" else c:
                     if c.isnumeric() == False:
                         hkey_warnings.append(
-                            f'<span class="tab"></span>OBJECTID {k}: {old_key} includes non-numeric character {c}. Please check!'
+                            f"""<span class="tab"></span>OBJECTID {k}: <span class="value">{old_key}</span> 
+                            includes non-numeric character span class="value">{c}</span>. Please check!"""
                         )
     else:
-        # dealing with a list of integers or single nibble values, that is,
+        # dealing with a list of integers or single fragment values, that is,
         # hkey values are not materialized paths, just numbers; 1,2,3,4...
         # or 001, 002, 003
 
@@ -790,13 +791,14 @@ def rule3_10():
         for oid, hkey in hk_dict.items():
             # look for duplicates
             if hkey in dupes:
-                hkey_errors.append(f"OID {oid} has duplicated key: {hkey}")
+                hkey_errors.append(f"OBJECTID {oid} has duplicated key: {hkey}")
 
             # look for non-numeric characters
             for c in hkey:
                 if c.isnumeric == False:
                     hkey_warnings.append(
-                        f'<span class="tab"></span>OID {oid}: {hkey} includes non-numeric character {c}. Please check!'
+                        f"""<span class="tab"></span>OBJECTID {oid}: <span class="value">{hkey}</span> 
+                        includes non-numeric character <span class="value">{c}</span>. Please check!"""
                     )
 
             # collect hkey length
@@ -805,7 +807,7 @@ def rule3_10():
 
     # evaluate lengths
     frag_lengths = set(frag_lengths)
-    if frag_lengths != {1}:
+    if len(frag_lengths) != 1:
         hkey_warnings.append(
             '<span class="tab"></span>Hierarchy keys/fragments are of inconsistent length. Please check!'
         )
@@ -850,7 +852,7 @@ def rule3_11():
         if tbl_geomats:
             for geomat in tbl_geomats:
                 if not geomat.lower() in ref_geomats and not guf.empty(geomat):
-                    html = f'<span class="value">{geomat}</span>, table <span class="table">{table}</span>'
+                    html = f'<span class="value">{geomat}</span> in table <span class="table">{table}</span>'
                     errors.append(html)
 
     return errors
@@ -919,14 +921,14 @@ def rule3_13():
             for k, v in val_dict.items():
                 if v:
                     if v == "" or v.isspace() or v == "&ltNull&gt":
-                        html = f'<span class="table">{table}</span>, field <span class="field"> {field}</span>, OID: {str(k)}'
+                        html = f'<span class="table">{table}</span>, field <span class="field"> {field}</span>, OBJECTID {str(k)}'
                         zero_length_strings.append(html)
 
             # also collect leading_trailing_spaces for 'other stuff' report
             for n in [
                 k for k, v in val_dict.items() if v and (len(v.strip()) != len(v))
             ]:
-                html = f'<span class="tab"></span><span class="table">{table}</span>, field <span class="field"> {field}</span>, OID: {str(n)}'
+                html = f'<span class="tab"></span><span class="table">{table}</span>, field <span class="field"> {field}</span>, OBJECTID {str(n)}'
                 leading_trailing_spaces.append(html)
 
     return zero_length_strings, leading_trailing_spaces
