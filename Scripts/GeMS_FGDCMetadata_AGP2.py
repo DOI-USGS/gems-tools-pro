@@ -25,7 +25,7 @@ import spatial_utils as su
 import copy
 import requests
 
-versionString = "GeMS_FGDCMetadata_AGP2.py, version of 11 April 2023"
+versionString = "GeMS_FGDCMetadata_AGP2.py, version of 15 May 2023"
 rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/master/Scripts/GeMS_FGDCMetadata_AGP2.py"
 guf.checkVersion(versionString, rawurl, "gems-tools-pro")
 
@@ -41,6 +41,7 @@ esri_attribs = {
     "ruleid": "Integer field that stores a reference to the representation rule for each feature.",
     "override": "BLOB field that stores feature-specific overrides to the cartographic representation rules.",
 }
+
 
 ###### FUNCTIONS
 def gdb_object_dict(gdb_path):
@@ -306,7 +307,7 @@ def add_entity(fc_name, elem_dict):
 
 
 def add_attributes(fc_name, detailed_node):
-    arcpy.AddMessage(f"Adding attribute and value definitions for {fc_name}")
+    arcpy.AddMessage(f"Adding field and value definitions for {fc_name}")
     ##metadata
     ##  eainfo
     ##    detailed
@@ -400,8 +401,10 @@ def add_attributes(fc_name, detailed_node):
                 source_text = ""
 
             # add warnings if no definition and source were found
-            arcpy.AddWarning(f"Cannot find definition for {field} in {fc_name}")
-            arcpy.AddWarning(f"Cannot find definition source for {field} in {fc_name}")
+            arcpy.AddWarning(f"Cannot find definition for field {field} in {fc_name}")
+            arcpy.AddWarning(
+                f"Cannot find definition source for field {field} in {fc_name}"
+            )
 
         # append the nodes above before evaluating the value domain
         attrdef.text = def_text
@@ -477,11 +480,11 @@ def add_attributes(fc_name, detailed_node):
                     # report the missing values
                     if val_text in ["", "MISSING"]:
                         arcpy.AddWarning(
-                            f"Cannot find domain value definition for {field} in {fc_name}"
+                            f"Cannot find definition for value {val} in {field} in {fc_name}"
                         )
                     if val_source in ["", "MISSING"]:
                         arcpy.AddWarning(
-                            f"Cannot find domain value definition source for {field} in {fc_name}"
+                            f"Cannot find definition source for value {val} in {field} in {fc_name}"
                         )
 
                 # build the nodes and append
@@ -519,7 +522,14 @@ def validate_online(md_record):
     # send the temp file to the API
     url = r"https://www1.usgs.gov/mp/service.php"
     with open(temp_path, "rb") as f:
-        r = requests.post(url, files={"input_file": f})
+        try:
+            r = requests.post(url, files={"input_file": f})
+        except:
+            arcpy.AddWarning(
+                """Could not connect to online validation service. 
+                Check your internet connection and try validating metadata manually at
+                https://www1.usgs.gov/mp/"""
+            )
 
     if r.ok:
         # collect the 'link' array
