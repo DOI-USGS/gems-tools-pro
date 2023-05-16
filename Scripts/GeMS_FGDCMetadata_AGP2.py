@@ -526,9 +526,9 @@ def validate_online(md_record):
             r = requests.post(url, files={"input_file": f})
         except:
             arcpy.AddWarning(
-                """Could not connect to online validation service. 
-                Check your internet connection and try validating metadata manually at
-                https://www1.usgs.gov/mp/"""
+                "Could not connect to online validation service. "
+                + "Check your internet connection and try validating metadata manually at "
+                + "https://www1.usgs.gov/mp/"
             )
             return False
 
