@@ -605,7 +605,9 @@ def sources_check(db_dict, level, all_sources):
     missing = []
     for table in tables:
         ds_fields = [
-            f.name for f in db_dict[table]["fields"] if f.name.endswith("SourceID")
+            f.name
+            for f in db_dict[table]["fields"]
+            if f.name.lower().endswith("sourceid")
         ]
         for ds_field in ds_fields:
             d_sources = values(table, ds_field, "dictionary")
