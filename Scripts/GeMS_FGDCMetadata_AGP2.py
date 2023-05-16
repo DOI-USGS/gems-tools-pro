@@ -530,6 +530,7 @@ def validate_online(md_record):
                 Check your internet connection and try validating metadata manually at
                 https://www1.usgs.gov/mp/"""
             )
+            return False
 
     if r.ok:
         # collect the 'link' array
@@ -577,6 +578,8 @@ def validate_online(md_record):
     else:
         arcpy.AddError("Could not write metadata to disk!")
         arcpy.AddWarning(r.reason)
+
+        return False
 
 
 # #### ARGUMENTS
