@@ -49,7 +49,6 @@ def n_or_missing(n, l):
 def find_topology_pairs(fcs, is_gpkg, db_dict):
     # collect prefix, suffix pairs
     fd_tags = []
-    arcpy.AddMessage("topology pairs")
     for fc in fcs:
         for s in (("MapUnitPolys", 12), ("ContactsAndFaults", 17)):
             if s[0] in fc:
@@ -89,8 +88,6 @@ def find_topology_pairs(fcs, is_gpkg, db_dict):
 
     # mup equivalent will always be pairs[2]
     # caf equivalent will always be pairs[3]
-    arcpy.AddMessage("pairs")
-    arcpy.AddMessage(pairs)
     return pairs
 
 
