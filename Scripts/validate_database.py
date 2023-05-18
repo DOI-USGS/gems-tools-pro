@@ -76,7 +76,7 @@ reload(tp)
 # values dictionary gets sent to report_template.jinja errors_template.jinja
 val = {}
 
-version_string = "validate_database.py, version of 11 May 2023"
+version_string = "validate_database.py, version of 18 May 2023"
 val["version_string"] = version_string
 val["datetime"] = time.asctime(time.localtime(time.time()))
 
@@ -372,24 +372,30 @@ def check_map_units(db_dict, level, all_map_units, fds_map_units):
         ]
         missing = message
         unused = message
-
-        return (missing, unused)
+        if level == 2:
+            return missing, all_map_units, None
+        else:
+            return missing, unused, None, None
 
     dmu_units = list(set(values("DescriptionOfMapUnits", "MapUnit", "list")))
     dmu_units = [u for u in dmu_units if not u == None]
     fds_map_units["DescriptionOfMapUnits"] = dmu_units
 
     if level == 2:
-        # just checking MapUnitPolys
+        # just checking MapUnitPolys gems_equivalent feature classes
         mu_tables = [
             k for k, v in db_dict.items() if v["gems_equivalent"] == "MapUnitPolys"
         ]
         mu_fields = ["MapUnit"]
         missing_header = "2.4 MapUnits missing from DMU. Only one reference to each missing unit is cited"
     else:
-        # checking all other tables that have a 'MapUnit' field
+        # checking all other tables that have fields with "MapUnit" in the name.
+        # fields that equal "MapUnit" will be checked for errors
+        # fields that have "MapUnit" in the name with a prefix or suffix, eg.,
+        # "OrigMapUnit" will be checked for warnings.
         mu_tables = []
 
+        # find all tables that have MapUnit-y field names
         for table in [
             k
             for k, v in db_dict.items()
@@ -398,8 +404,9 @@ def check_map_units(db_dict, level, all_map_units, fds_map_units):
             and not k in ["DescriptionOfMapUnits", "MapUnitPolys"]
         ]:
             for f in [f.name for f in db_dict[table]["fields"]]:
-                if "MapUnit" in f and not f.endswith("_ID"):
+                if "mapunit" in f.lower() and not f.lower().endswith("_id"):
                     mu_tables.append(table)
+
         missing_header = "3.8 MapUnits missing from DMU. Only one reference to each missing unit is cited"
 
     missing = [
@@ -414,9 +421,18 @@ def check_map_units(db_dict, level, all_map_units, fds_map_units):
         f"UnusedUnits{level}",
     ]
 
+    mu_warnings = [
+        """Values in fields with <span class="field">MapUnit</span> in the name 
+                that are not in <span class="table">DescriptionOfMapUnits</span>. 
+                Please add descriptions to the database or make sure descriptions are
+                discoverable through the metadata."""
+    ]
+
+    # iterate through the tables
     mu_tables = list(set(mu_tables))
     if mu_tables:
         for mu_table in mu_tables:
+            # find out which feature dataset this table is in
             fd = (
                 db_dict[mu_table]["feature_dataset"]
                 if db_dict[mu_table]["feature_dataset"]
@@ -425,26 +441,58 @@ def check_map_units(db_dict, level, all_map_units, fds_map_units):
             if not fd in fds_map_units:
                 fds_map_units[fd] = []
 
+            # look at fields that are named "MapUnit"
+            # undefined mapunits are errors
             mu_fields = [
                 f.name
                 for f in db_dict[mu_table]["fields"]
-                if "MapUnit" in f.name and not f.name.endswith("_ID")
+                if f.name.lower() == "mapunit"
             ]
-            with arcpy.da.SearchCursor(
-                db_dict[mu_table]["catalogPath"], mu_fields
-            ) as cursor:
-                for row in cursor:
-                    for val in row:
-                        if val:
-                            all_map_units.append(val)
-                            fds_map_units[fd].extend(row)
+
+            if mu_fields:
+                with arcpy.da.SearchCursor(
+                    db_dict[mu_table]["catalogPath"], mu_fields
+                ) as cursor:
+                    for row in cursor:
+                        for i, val in enumerate(row):
+                            if val:
+                                if not val in dmu_units:
+                                    html = f"""<span class="tab"></span>
+                                        <span class="value">{val}</span>, 
+                                        field <span class="field">{mu_fields[i]}</span>, 
+                                        table <span class="table">{mu_table}</span'"""
+                                    missing.append(html)
+                                all_map_units.append(val)
+                                fds_map_units[fd].extend(row)
+
+            # look at fields that have MapUnit in the name but are qualified
+            # by a prefix or suffix, eg, OrigMapUnit
+            mu_fields = [
+                f.name
+                for f in db_dict[mu_table]["fields"]
+                if "mapunit" in f.name.lower()
+                and not f.name.lower().endswith("_id")
+                and not f.name.lower() == "mapunit"
+            ]
+
+            if mu_fields:
+                with arcpy.da.SearchCursor(
+                    db_dict[mu_table]["catalogPath"], mu_fields
+                ) as cursor:
+                    for row in cursor:
+                        for i, val in enumerate(row):
+                            if not val in dmu_units:
+                                html = f"""<span class="tab"></span>
+                                <span class="value">{val}</span>, 
+                                field <span class="field">{mu_fields[i]}</span>, 
+                                table <span class="table">{mu_table}</span'"""
+                                mu_warnings.append(html)
 
             fds_map_units[fd] = list(set(fds_map_units[fd]))
 
         all_map_units.extend(list(set(all_map_units)))
 
-    if not set(all_map_units).issubset(set(dmu_units)):
-        missing.extend(set(all_map_units) - set(dmu_units))
+    missing = [i for n, i in enumerate(missing) if i not in missing[:n]]
 
     if set(dmu_units).issubset(set(all_map_units)):
         unused.extend(list(set(dmu_units) - set(all_map_units)))
@@ -452,7 +500,7 @@ def check_map_units(db_dict, level, all_map_units, fds_map_units):
     if level == 2:
         return missing, all_map_units, fds_map_units
     else:
-        return missing, unused, all_map_units, fds_map_units
+        return missing, unused, all_map_units, fds_map_units, mu_warnings
 
 
 def glossary_check(db_dict, level, all_gloss_terms):
@@ -1374,6 +1422,8 @@ val["rule2_4"], all_map_units, fds_map_units = check_map_units(
     db_dict, 2, all_map_units, fds_map_units
 )
 
+arcpy.AddMessage(val["rule2_4"])
+
 # rule 2.5
 # No duplicate MapUnit values in DescriptionOfMapUnit table
 ap("2.5 No duplicate MapUnit values in DescriptionOfMapUnit table")
@@ -1483,9 +1533,13 @@ val["rule3_7"] = rule3_5_and_7("datasources", all_sources)
 # No unnecessary map units in DescriptionOfMapUnits
 ap("3.8 No map units without entries in DescriptionOfMapUnits")
 ap("3.9 No unnecessary map units in DescriptionOfMapUnits")
-val["rule3_8"], val["rule3_9"], all_map_units, fds_map_units = check_map_units(
-    db_dict, 3, all_map_units, fds_map_units
-)
+(
+    val["rule3_8"],
+    val["rule3_9"],
+    all_map_units,
+    fds_map_units,
+    val["mu_warnings"],
+) = check_map_units(db_dict, 3, all_map_units, fds_map_units)
 
 # rule 3.10
 # HierarchyKey values in DescriptionOfMapUnits are unique and well formed

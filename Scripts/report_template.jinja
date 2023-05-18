@@ -261,14 +261,20 @@ within the list of errors#}
 
 <h3><a name="Warnings"></a>Warnings</h3>
 <div class="report">
-  {% if val["sr_warnings"]|length > 1 or val["end_spaces"]|length > 1 or val["fld_warnings"]|length > 1
-  or val["hkey_warnings"]|length > 1 or val["term_warnings"]|length > 1 %}
+  {% if val["sr_warnings"]|length > 1 or
+  val["end_spaces"]|length > 1 or
+  val["fld_warnings"]|length > 1 or
+  val["hkey_warnings"]|length > 1 or
+  val["term_warnings"]|length > 1 or
+  val["mu_warnings"]|length > 1
+  %}
   <a href='{{val["errors_path"]}}#Warnings'>There are {{
     val["sr_warnings"]|length +
     val["end_spaces"]|length +
     val["fld_warnings"]|length +
     val["hkey_warnings"]|length +
-    val["term_warnings"]|length - 5
+    val["mu_warnings"]|length +
+    val["term_warnings"]|length - 6
     }} warnings</a><br>
 
   {% else %}
