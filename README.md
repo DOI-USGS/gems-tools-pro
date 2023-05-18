@@ -48,7 +48,7 @@ The documentation for these tools may not be complete or may be poorly formatted
 ## Getting help
 * Each tool comes with documentation inside the parameter form.
 * Check out the [wiki](https://github.com/usgs/gems-tools-pro/wiki) for help on these tools and extensive advice on using these tools to create, edit, and validate GeMS-style databases.
-* If you have a question about how to build or attribute a GeMS-compliant database or the schema in general, please visit the [Discussions](https://github.com/DOI-USGS/gems-tools-pro/discussions) tab of this repo. You will need a GitHub account to post there. <b>NOTE</b> we are no longer using Gitter for chats. 
+* If you have a question about how to build or attribute a GeMS-compliant database or the schema in general, please visit the [Discussions](https://github.com/DOI-USGS/gems-tools-pro/discussions) tab of this repo. You will need a GitHub account to post there. <b>NOTE</b> we are no longer using Gitter. 
 * Documentation for the toolbox and all tools and  is also available in **GeMS_Tools_Arc10.docx** and **GeMS_Tools_Arc10.pdf** found in the `Docs` sub-folder — these are both somewhat out-of-date; check back for new versions.
 * If, when using a tool, it fails to run and produces an error message, first check that you have the latest release of the tool. If that is not the source of the problem, start a new issue at this repository (see the [Issues](https://github.com/usgs/gems-tools-pro/issues) tab above). Provide a screenshot of the error message if you can.
 * Explore the Jupyter Notebooks at the [notebooks](https://github.com/usgs/gems-tools-pro/tree/notebooks) branch of this repo. 
