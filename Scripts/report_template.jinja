@@ -112,9 +112,13 @@ within the list of errors#}
 {%- endmacro %}
 
 <h2><a name="overview"><i>GeMS validation of </i>{{val["db_name"]}}</a></h2>
-<div class="report">Database path: {{val["db_path"]}}<br>
+<div class="report">
   File written by <i>{{val["version_string"]}}</i><br>
-  {{val["datetime"]}}<br><br>
+  {{val["datetime"]}}<br>
+  {{val["parameters"][0]}}<br>
+  {% for p in val["parameters"][1:] %}
+  <span class="tab"></span>{{p}}<br>
+  {% endfor %}
   This file should be accompanied by {{val["errors_name"]}},
   {{val["metadata_name"]}}, and {{val["md_errors_name"]}}
   in the same directory.<br><br>

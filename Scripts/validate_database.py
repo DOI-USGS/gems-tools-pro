@@ -1012,7 +1012,7 @@ def validate_online(metadata_file):
                     f.write(f"{line.decode('utf-8')}\n")
 
         summary = r.json()["summary"]
-        if not "errors" in summary:
+        if not "Error (line" in summary:
             message = (
                 'The database-level FGDC metadata are formally correct. The <a href="'
                 + str(metadata_file)
@@ -1223,15 +1223,15 @@ def del_extra(db_dict, table, field, all_terms):
 
 ##############start here##################
 # get inputs
-
+val["parameters"] = ["Runtime parameters"]
 guf.checkVersion(version_string, rawurl, "gems-tools-pro")
 args_len = len(sys.argv)
 
 # we already know sys.argv[1] exists, no check
 gdb_path = Path(sys.argv[1])
-# gdb_path = Path(r"C:\_AAA\gems\testing\testbed\dummy.gdb")
+val["parameters"].append(f"Database path: {gdb_path}")
 gdb_name = gdb_path.name
-val["db_path"] = gdb_path
+# val["db_path"] = gdb_path
 val["db_name"] = gdb_name
 
 # bail early if we don't have a gdb or gpkg
@@ -1255,6 +1255,7 @@ if 2 < args_len:
 else:
     workdir = gdb_path.parent / "validate"
     workdir.mkdir(exist_ok=True)
+val["parameters"].append(f"Output directory: {workdir}")
 
 # path to metadata file
 metadata_file = None
@@ -1271,7 +1272,9 @@ if 4 < args_len:
     if arc_md:
         metadata_file = workdir / f"{gdb_name}_metadata.xml"
 
-val["metadata_file"] = str(metadata_file)
+val["parameters"].append(f"Metadata file: {metadata_file}")
+val["parameters"].append(f"Check embedded metadata: {arc_md}")
+# val["metadata_file"] = str(metadata_file)
 val["metadata_name"] = metadata_file.name if metadata_file else "valid metadata"
 val["md_errors_name"] = (
     f"{metadata_file.name}_errors.txt"
@@ -1287,24 +1290,30 @@ if 5 < args_len:
         arcpy.Delete_management(str(top_db))
 else:
     skip_topology = False
+val["parameters"].append(f"Skip topology check: {skip_topology}")
 
 # refresh GeoMaterialDict?
 if 6 < args_len:
     refresh_gmd = guf.eval_bool(sys.argv[6])
 else:
     refresh_gmd = False
+val["parameters"].append(f"Refresh GeoMaterialDict: {refresh_gmd}")
 
 # delete extra rows in Glossary and Data Sources?
 if 7 < args_len:
     delete_extra = guf.eval_bool(sys.argv[7])
 else:
     delete_extra = False
+val["parameters"].append(
+    f"Delete extra rows in Glossary and DataSources: {delete_extra}"
+)
 
 # compact database?
 if 8 < args_len:
     compact_db = guf.eval_bool(sys.argv[8])
 else:
     compact_db = False
+val["parameters"].append(f"Compact GDB: {compact_db}")
 
 # open html report when done?
 if 9 < args_len:
@@ -1586,7 +1595,7 @@ if arc_md:
 
 
 if metadata_file:
-    if val["metadata_file"]:
+    if Path(metadata_file).exists:
         md_summary = validate_online(metadata_file)
     else:
         md_summary = f"{metadata_file} does not exist."
