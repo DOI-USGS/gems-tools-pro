@@ -47,6 +47,7 @@ local_var_name, query_proper_noun_for_thing, send_acronym_via_https
 # the header for the rule section in -ValidationErrors.html file,
 # the name of the anchor in the -ValidationErrors file for the rule,
 # error1, error2, error3, errori...]
+#
 # val dictionary entries for specific entries take the form of
 # [message in the pass/fail cell in -Validation, header for the list of errors
 # in -ValidationErrors, html anchor]
@@ -1235,7 +1236,7 @@ val["db_name"] = gdb_name
 
 # bail early if we don't have a gdb or gpkg
 if gdb_path.suffix not in [".gdb", ".gpkg"]:
-    ap("This tool can only validate File Geodatabases or Geopackages.")
+    ap("This tool only validates File Geodatabases or Geopackages.")
     guf.forceExit()
 
 # are we working with a geopackage?
@@ -1259,10 +1260,16 @@ else:
 metadata_file = None
 if 3 < args_len:
     if not Path(sys.argv[3]).suffix == ".xml":
-        arcpy.AddWarning("Metadata not checked. File needs to be in XML format.")
+        ap("Metadata not checked. File needs to be in XML format.")
 
     if Path(sys.argv[3]).suffix == ".xml" and Path(sys.argv[3]).exists():
         metadata_file = Path(sys.argv[3])
+
+arc_md = False
+if 4 < args_len:
+    arc_md = guf.eval_bool(sys.argv[4])
+    if arc_md:
+        metadata_file = workdir / f"{gdb_name}_metadata.xml"
 
 val["metadata_file"] = str(metadata_file)
 val["metadata_name"] = metadata_file.name if metadata_file else "valid metadata"
@@ -1273,8 +1280,8 @@ val["md_errors_name"] = (
 )
 
 # skip topology?
-if 4 < args_len:
-    skip_topology = guf.eval_bool(sys.argv[4])
+if 5 < args_len:
+    skip_topology = guf.eval_bool(sys.argv[5])
     top_db = workdir / "Topology.gdb"
     if arcpy.Exists(str(top_db)):
         arcpy.Delete_management(str(top_db))
@@ -1282,22 +1289,28 @@ else:
     skip_topology = False
 
 # refresh GeoMaterialDict?
-if 5 < args_len:
-    refresh_gmd = guf.eval_bool(sys.argv[5])
+if 6 < args_len:
+    refresh_gmd = guf.eval_bool(sys.argv[6])
 else:
     refresh_gmd = False
 
 # delete extra rows in Glossary and Data Sources?
-if 6 < args_len:
-    delete_extra = guf.eval_bool(sys.argv[6])
+if 7 < args_len:
+    delete_extra = guf.eval_bool(sys.argv[7])
 else:
     delete_extra = False
 
 # compact database?
-if 7 < args_len:
-    compact_db = guf.eval_bool(sys.argv[7])
+if 8 < args_len:
+    compact_db = guf.eval_bool(sys.argv[8])
 else:
     compact_db = False
+
+# open html report when done?
+if 9 < args_len:
+    open_report = guf.eval_bool(sys.argv[9])
+else:
+    open_report = False
 
 val["report_path"] = workdir / f"{gdb_name}-Validation.html"
 val["errors_name"] = f"{gdb_name}-ValidationErrors.html"
@@ -1562,6 +1575,16 @@ val["rule3_12"] = rule3_12()
 ap("3.13 No zero-length or whitespace-only strings")
 val["rule3_13"], val["end_spaces"] = rule3_13()
 
+# METADATA
+if arc_md:
+    ap("Exporting embedded ArcGIS metadata to FGDC")
+    # export the metadata from Arc
+    # this method only exports good metadata if it has been written in ArcCatalog at the
+    # gdb level or imported from an xml such as that produced at the end of Build Metadata.
+    src_md = arcpy.metadata.Metadata(str(gdb_path))
+    src_md.exportMetadata(str(metadata_file), "FGDC_CSDGM")
+
+
 if metadata_file:
     if val["metadata_file"]:
         md_summary = validate_online(metadata_file)
@@ -1607,5 +1630,8 @@ else:
 
 write_html("report_template.jinja", val["report_path"])
 write_html("errors_template.jinja", val["errors_path"])
-os.startfile(val["report_path"])
+
+if open_report:
+    os.startfile(val["report_path"])
+
 ap("DONE")
