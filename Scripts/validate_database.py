@@ -77,7 +77,7 @@ reload(tp)
 # values dictionary gets sent to report_template.jinja errors_template.jinja
 val = {}
 
-version_string = "validate_database.py, version of 18 May 2023"
+version_string = "validate_database.py, version of 1 June 2023"
 val["version_string"] = version_string
 val["datetime"] = time.asctime(time.localtime(time.time()))
 
@@ -1012,7 +1012,7 @@ def validate_online(metadata_file):
                     f.write(f"{line.decode('utf-8')}\n")
 
         summary = r.json()["summary"]
-        if not "Error (line" in summary:
+        if "No errors" in summary:
             message = (
                 'The database-level FGDC metadata are formally correct. The <a href="'
                 + str(metadata_file)
@@ -1031,7 +1031,7 @@ def validate_online(metadata_file):
 
     else:
         message = (
-            "There was a problem with the connection to the metadata validation service:<br>/n"
+            "There was a problem with the connection to the metadata validation service:<br>"
             + r.reason
         )
         ap(message)
