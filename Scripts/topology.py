@@ -47,32 +47,46 @@ def n_or_missing(n, l):
 
 
 def find_topology_pairs(fcs, is_gpkg, db_dict):
-    # collect prefix, suffix pairs
+    # collect prefixes and suffixes, call them fd_tags
     fd_tags = []
     for fc in fcs:
-        for s in (("MapUnitPolys", 12), ("ContactsAndFaults", 17)):
-            if s[0] in fc:
-                i = fc.find(s[0])
+        for s in (
+            ("mapunitpolys", 12),
+            ("map_unit_polys", 14),
+            ("contactsandfaults", 17),
+            ("contacts_and_faults", 19),
+        ):
+            if s[0] in fc.lower():
+                i = fc.lower().find(s[0])
                 prefix = fc[0:i]
                 suffix = fc[i + s[1] :]
                 fd_tags.append((prefix, suffix))
 
-    req = ("MapUnitPolys", "ContactsAndFaults")
+    include_mup = False
+    include_caf = False
     pairs = []
     for fd_tag in set(fd_tags):
-        mup = f"{fd_tag[0]}{req[0]}{fd_tag[1]}"
-        caf = f"{fd_tag[0]}{req[1]}{fd_tag[1]}"
+        mup = [
+            k
+            for k, v in db_dict.items()
+            if k.startswith(fd_tag[0])
+            and k.endswith(fd_tag[1])
+            and v["gems_equivalent"] == "MapUnitPolys"
+        ][0]
 
-        # check shapeType. process above could have discovered MapUnitLabels which
-        # does not require a topology mate ContactsAndFaultsLabels
-        include_mup = False
-        include_caf = False
-        if mup in db_dict:
-            if db_dict[mup]["shapeType"] == "Polygon":
-                include_mup = True
-        if caf in db_dict:
-            if db_dict[caf]["shapeType"] == "Polyline":
-                include_caf = True
+        caf = [
+            k
+            for k, v in db_dict.items()
+            if k.startswith(fd_tag[0])
+            and k.endswith(fd_tag[1])
+            and v["gems_equivalent"] == "ContactsAndFaults"
+        ][0]
+
+        if mup:
+            include_mup = True
+        if caf:
+            include_caf = True
+
         if include_mup == True or include_caf == True:
             tag_name = f"{fd_tag[0]}|{fd_tag[1]}"
             pairs.append([tag_name, n_or_missing(mup, fcs), n_or_missing(caf, fcs)])
@@ -88,6 +102,7 @@ def find_topology_pairs(fcs, is_gpkg, db_dict):
 
     # mup equivalent will always be pairs[2]
     # caf equivalent will always be pairs[3]
+    print(f"pairs = {pairs}")
     return pairs
 
 
