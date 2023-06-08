@@ -665,7 +665,8 @@ def sources_check(db_dict, level, all_sources):
                 if not guf.empty(val):
                     if "|" in val:
                         for el in val.split("|"):
-                            all_sources.append(el.strip())
+                            if not el.strip() in all_sources:
+                                all_sources.append(el.strip())
                             if not el.strip() in gems_sources:
                                 missing.append(
                                     f'<span class="value">{el}</span>, field <span class="field">{ds_field}</span>, table <span class="table">{table}</span>'
@@ -1448,8 +1449,6 @@ def main(argv):
     val["rule2_4"], all_map_units, fds_map_units = check_map_units(
         db_dict, 2, all_map_units, fds_map_units
     )
-
-    arcpy.AddMessage(val["rule2_4"])
 
     # rule 2.5
     # No duplicate MapUnit values in DescriptionOfMapUnit table

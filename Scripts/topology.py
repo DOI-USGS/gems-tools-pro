@@ -72,7 +72,7 @@ def find_topology_pairs(fcs, is_gpkg, db_dict):
             if k.startswith(fd_tag[0])
             and k.endswith(fd_tag[1])
             and v["gems_equivalent"] == "MapUnitPolys"
-        ][0]
+        ]
 
         caf = [
             k
@@ -80,12 +80,18 @@ def find_topology_pairs(fcs, is_gpkg, db_dict):
             if k.startswith(fd_tag[0])
             and k.endswith(fd_tag[1])
             and v["gems_equivalent"] == "ContactsAndFaults"
-        ][0]
+        ]
 
         if mup:
             include_mup = True
+            mup = mup[0]
+        else:
+            mup = f"{fd_tag[0]}MapUnitPolys{fd_tag[1]}"
         if caf:
             include_caf = True
+            caf = caf[0]
+        else:
+            caf = f"{fd_tag[0]}ContactsAndFaults{fd_tag[1]}"
 
         if include_mup == True or include_caf == True:
             tag_name = f"{fd_tag[0]}|{fd_tag[1]}"
@@ -102,7 +108,6 @@ def find_topology_pairs(fcs, is_gpkg, db_dict):
 
     # mup equivalent will always be pairs[2]
     # caf equivalent will always be pairs[3]
-    print(f"pairs = {pairs}")
     return pairs
 
 
@@ -273,9 +278,8 @@ def check_errors_table(ds, table, origin_id, rule_ids, dest_id=None):
     a valid topology will return no rows"""
     errors = []
     errors_pass = True
-    print(f"check table {table}")
+
     for n in rule_ids:
-        print(f"check rule {n}")
         # if n != 37:
         sql = f"""SELECT * from {table} WHERE TopoRuleType = {n} 
             and OriginClassID = {origin_id}
@@ -364,7 +368,6 @@ def eval_topology(db, top, db_dict, gmap, level_2_errors, level_3_errors):
             )
 
         # now, check the T_<top_id>_errors tables
-        print("check T_ table mup")
         origin_id = get_gdb_item(
             ds, f"SELECT ObjectID FROM GDB_Items WHERE Name = '{mup}'"
         )
@@ -387,7 +390,6 @@ def eval_topology(db, top, db_dict, gmap, level_2_errors, level_3_errors):
         found_caf = True
         caf_rules = top_dict[caf]
         # now, check the T_<top_id>_errors tables
-        print("check T_ table caf")
         origin_id = get_gdb_item(
             ds, f"SELECT ObjectID FROM GDB_Items WHERE Name = '{caf}'"
         )
