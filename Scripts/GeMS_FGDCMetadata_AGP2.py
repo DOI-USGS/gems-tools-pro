@@ -478,11 +478,11 @@ def add_attributes(fc_name, detailed_node):
                     # report the missing values
                     if val_text in ["", "MISSING"]:
                         arcpy.AddWarning(
-                            f"Cannot find domain value definition for {field} in {fc_name}"
+                            f'Cannot find domain value definition for value "{val}", field {field}'
                         )
                     if val_source in ["", "MISSING"]:
                         arcpy.AddWarning(
-                            f"Cannot find domain value definition source for {field} in {fc_name}"
+                            f'Cannot find domain value definition source for value "{val}", field {field}'
                         )
 
                 # build the nodes and append
