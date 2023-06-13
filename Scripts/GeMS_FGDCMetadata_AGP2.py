@@ -42,6 +42,7 @@ esri_attribs = {
     "override": "BLOB field that stores feature-specific overrides to the cartographic representation rules.",
 }
 
+
 ###### FUNCTIONS
 def gdb_object_dict(gdb_path):
     """Returns a dictionary of table_name: da.Describe_table_properties
@@ -363,7 +364,7 @@ def add_attributes(fc_name, detailed_node):
             found_attrib = True
             del res
 
-        # look for a key ending in the field name in myAttribDict
+        # look for a key myAttribDict
         try:
             res = [key for key in myDef.myAttribDict if field.endswith(key)]
         except:
