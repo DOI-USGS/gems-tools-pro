@@ -1,4 +1,4 @@
-# -*- coding: cp1252 -*-
+# -*- coding: utf-8 -*-
 # extensions to definitions given in GeMS_Definition.py
 #  largely for use in automating generation of FGDC metadata
 #  It is likely that this file will be renamed and modified
@@ -16,7 +16,6 @@
 #    2) this module is loaded by the calling script
 #    3) the calling script then executes addDefs()
 #
-#  NOTE THAT STRINGS BELOW NEED TO BE PLAIN ASCII!
 
 from GeMS_Definition import *
 
