@@ -17,6 +17,9 @@
 #    3) the calling script then executes addDefs()
 #
 
+# ALL ENTRIES HERE ARE EXAMPLES. YOU MAY DELETE ANY THAT ARE NOT
+# APPLICABLE TO YOUR DATABASE
+
 from GeMS_Definition import *
 
 # 'name of attribute (field)': ['definition', 'definition source']
