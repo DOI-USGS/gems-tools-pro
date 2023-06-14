@@ -10,20 +10,19 @@ ArcGIS Pro where spatial reference information is not exported into FGDC metadat
 sections are filled-in based on dictionaries in GeMS_Definition.py and my_definitions.py, and extraneous
 process steps (created by ArcGIS every time a geoprocessing step is performed) can be removed.
 """
-import arcpy  # arcpy needed for da.Describe(gdb) and exporting metadata')
+
+import arcpy
 from pathlib import Path
 from lxml import etree
 import sys
-import GeMS_Definition as gDef
-import GeMS_utilityFunctions as guf
-
-from osgeo import ogr  # only used in def max_bounding
-
-# to import adjacent python files as modules
-sys.path.append("../")
-import spatial_utils as su
 import copy
 import requests
+from osgeo import ogr  # only used in def max_bounding
+
+sys.path.append("../")
+import GeMS_Definition as gDef
+import GeMS_utilityFunctions as guf
+import spatial_utils as su
 
 versionString = "GeMS_FGDCMetadata_AGP2.py, version of 14 June 2023"
 rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/master/Scripts/GeMS_FGDCMetadata_AGP2.py"
