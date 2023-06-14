@@ -154,6 +154,22 @@ def catch_m2m(dictionary, field_value):
         return
 
 
+def is_domain_field(fld, tbl):
+    fields = obj_dict[tbl]["fields"]
+    fld_object = [f for f in fields if f.name == fld][0]
+    if fld_object.domain:
+        return fld_object.domain
+    else:
+        return None
+
+
+def space_or_missing():
+    if missing:
+        return "MISSING"
+    else:
+        return ""
+
+
 def which_dict(tbl, fld):
     if fld == "MapUnit":
         return units_dict
@@ -165,6 +181,14 @@ def which_dict(tbl, fld):
         return sources_dict
     else:
         return gloss_dict
+
+
+def get_domain_values(domain_name):
+    domain = [d for d in arcpy.da.ListDomains(str(db_path)) if d.name == domain_name][0]
+    if domain.domainType == "CodedValue":
+        return domain.codedValues
+    else:
+        return domain.range
 
 
 def term_dict(obj_dict, table, fields):
@@ -201,6 +225,42 @@ def term_dict(obj_dict, table, fields):
 def clear_children(element, child_tag):
     for child in element.findall(child_tag):
         element.remove(child)
+
+
+def make_domv(etype, val1, val2, val3):
+    if etype == "edom":
+        el1 = etree.Element("edomv")
+        el2 = etree.Element("edomvd")
+        el3 = etree.Element("edomvds")
+    else:  # "rdom"
+        el1 = etree.Element("rdommin")
+        el2 = etree.Element("rdommax")
+        el3 = etree.Element("attrunit")
+
+    el1.text = val1
+    el2.text = val2
+    el3.text = val3
+
+    domv = etree.Element(etype)
+    for n in el1, el2, el3:
+        domv.append(n)
+
+    # edomv = etree.Element("edomv")
+    # edomv.text = str(val)
+
+    # edomvd = etree.Element("edomvd")
+    # edomvd.text = val_text
+
+    # edomvds = etree.Element("edomvds")
+    # edomvds.text = val_source
+
+    # edom = etree.Element("edom")
+    # for n in edomv, edomvd, edomvds:
+    #     edom.append(n)
+    attrdomv = etree.Element("attrdomv")
+    attrdomv.append(domv)
+
+    return attrdomv
 
 
 def extend_branch(node, xpath):
@@ -335,6 +395,10 @@ def add_attributes(fc_name, detailed_node):
 
     fc_fields = [f.name for f in obj_dict[fc_name]["fields"]]
     for field in fc_fields:
+        # if field == "SamplePretreatment":
+        #     arcpy.AddMessage(field)
+        #     if is_domain_field(field, fc_name):
+        #         arcpy.AddMessage(get_domain_values(is_domain_field(field, fc_name)))
         # create Attribute node
         attr = etree.Element("attr")
 
@@ -364,7 +428,7 @@ def add_attributes(fc_name, detailed_node):
             found_attrib = True
             del res
 
-        # look for a key myAttribDict
+        # look for a key in myAttribDict
         try:
             res = [key for key in myDef.myAttribDict if field.endswith(key)]
         except:
@@ -401,8 +465,8 @@ def add_attributes(fc_name, detailed_node):
                 source_text = ""
 
             # add warnings if no definition and source were found
-            arcpy.AddWarning(f"Cannot find definition for {field} in {fc_name}")
-            arcpy.AddWarning(f"Cannot find definition source for {field} in {fc_name}")
+            arcpy.AddWarning(f"Cannot find definition for {field}")
+            arcpy.AddWarning(f"Cannot find definition source for {field}")
 
         # append the nodes above before evaluating the value domain
         attrdef.text = def_text
@@ -419,44 +483,36 @@ def add_attributes(fc_name, detailed_node):
             attrdomv.append(udom)
             attr.append(attrdomv)
 
-        # # value might be found in myUnrepresentableDomainDict
-        # if key in myunrepresentableDomainDict:
-        # arcpy.AddMessage("        Author-defined unrepresentable value domain")
-        # attrdomv = etree.Element('attrdomv')
-        # udom = etree.Element('udom')
-        # udom.text = myUnrepresentableDomainDict[key]
-        # attrdomv.append(udom)
-        # attr.append(attrdomv)
-
         # look for fields that have range domains
         elif key in gDef.rangeDomainDict:
-            arcpy.AddMessage("        Range value domain definition found")
+            arcpy.AddMessage("  Getting range values from definitions file")
             attrdomv = etree.Element("attrdomv")
+
             rdom = etree.Element("rdom")
             for n, i in [["rdommin", 0], ["rdommax", 1], ["attrunit", 2]]:
                 range_attr = etree.Element(n)
                 range_attr.text = gDef.rangeDomainDict[key][i]
                 rdom.append(range_attr)
+
             attrdomv.append(rdom)
             attr.append(attrdomv)
 
         # look for fields that have enumerated domains
         elif key in gDef.enumeratedValueDomainFieldList:
+            # arcpy.AddMessage("  Getting domain values from definitions file")
             # collect a unique set of all the values of this attribute
             with arcpy.da.SearchCursor(
                 obj_dict[fc_name]["catalogPath"], field
             ) as cursor:
                 fld_vals = set([row[0] for row in cursor if not row[0] is None])
 
-            # special case for listing the values in *SourceID fields
-            # with other tables, the value of Source in DataSources would
-            # go into edomvds, the value definition source, but when enumerating
-            # the values of DataSourceID, we will put Source into edomvd,
-            # the value definition
             for val in fld_vals:
-                # if enumerated values, have to build an attrdomv node for each value
-                attrdomv = etree.Element("attrdomv")
                 if field.endswith("SourceID"):
+                    # special case for listing the values in *SourceID fields
+                    # with other tables, the value of Source in DataSources would
+                    # go into edomvds, the value definition source, but when enumerating
+                    # the values of DataSourceID, we will put Source into edomvd,
+                    # the value definition
                     val_text = catch_m2m(sources_dict, val)
                     val_source = "This report"
 
@@ -468,12 +524,8 @@ def add_attributes(fc_name, detailed_node):
                         val_text = val_dict[val][0]
                         val_source = val_dict[val][1]
                     else:
-                        if missing:
-                            val_text = ""
-                            val_source = ""
-                        else:
-                            val_text = "MISSING"
-                            val_source = "MISSING"
+                        val_text = space_or_missing()
+                        val_source = space_or_missing()
 
                     # report the missing values
                     if val_text in ["", "MISSING"]:
@@ -485,19 +537,72 @@ def add_attributes(fc_name, detailed_node):
                             f'Cannot find domain value definition source for value "{val}", field {field}'
                         )
 
-                # build the nodes and append
-                edom = etree.Element("edom")
-                edomv = etree.Element("edomv")
-                edomv.text = str(val)
-                edomvd = etree.Element("edomvd")
-                edomvd.text = val_text
-                edomvds = etree.Element("edomvds")
-                edomvds.text = val_source
-
-                for n in [edomv, edomvd, edomvds]:
-                    edom.append(n)
-                attrdomv.append(edom)
+                attrdomv = make_domv("edom", val, val_text, val_source)
                 attr.append(attrdomv)
+
+        # check to see if there is an embedded domain
+        elif is_domain_field(field, fc_name):
+            # get the domain name for this field
+            domain_name = is_domain_field(field, fc_name)
+            # arcpy.AddMessage(
+            #     f"  Getting domain values from embedded domain {domain_name} for {field}"
+            # )
+
+            # get the values from this domain
+            # get_domain_values returns a dictionary for coded value domains
+            # and a list for range domains
+            domain = get_domain_values(domain_name)
+            if type(domain) is dict:
+                # coded value domain, enumerate as edomvd
+                # get the values in this field
+                with arcpy.da.SearchCursor(
+                    obj_dict[fc_name]["catalogPath"], field
+                ) as cursor:
+                    fld_vals = set([row[0] for row in cursor if not row[0] is None])
+
+                # look up each value
+                for val in fld_vals:
+                    if val in domain:
+                        val_text = domain[val]
+                        val_source = space_or_missing()
+                    else:
+                        val_text = space_or_missing()
+                        val_source = space_or_missing()
+
+                    # report the missing values
+                    if val_text in ["", "MISSING"]:
+                        arcpy.AddWarning(
+                            f'Cannot find domain value definition for value "{val}", field {field}'
+                        )
+                    if val_source in ["", "MISSING"]:
+                        arcpy.AddWarning(
+                            f'Cannot find domain value definition source for value "{val}", field {field}'
+                        )
+
+                    attrdomv = make_domv("edom", val, val_text, val_source)
+                    attr.append(attrdomv)
+            else:  # domain is a tuple of range minimum, range maximum
+                min = str(domain[0])
+                max = str(domain[1])
+
+                # attrdomv = etree.Element("attrdomv")
+
+                # rdomin = etree.Element("rdomin")
+                # rdomin.text = str(domain[0])
+
+                # rdomax = etree.Element("rdomax")
+                # rdomax.text = str(domain[1])
+
+                # attrunit = etree.Element("attrunit")
+                # attrunit.text = space_or_missing()
+
+                # rdom = etree.Element("rdom")
+                # for n in rdomin, rdomax, attrunit:
+                #     rdom.append(n)
+
+                rdom = make_domv("rdom", min, max, space_or_missing())
+                # attrdomv.append(rdom)
+                attr.append(rdom)
 
         else:
             attrdomv = etree.Element("attrdomv")
@@ -796,7 +901,7 @@ if base_md.find("spdoinfo") is None:
     spdoinfo = su.get_spdoinfo(str(db_path), fcs[0])
     ptvctinf = spdoinfo.find("ptvctinf")
     for fc in fcs[1:]:
-        arcpy.AddMessage(f"\rspdoinfo/sdtsterm for {fc}")
+        arcpy.AddMessage(f"  spdoinfo/sdtsterm for {fc}")
         lyr_spdo = su.get_spdoinfo(str(db_path), fc)
         sdtsterm = lyr_spdo.find("ptvctinf/sdtsterm")
         ptvctinf.append(sdtsterm)
@@ -804,7 +909,7 @@ if base_md.find("spdoinfo") is None:
     base_md.insert(2, spdoinfo)
 
 if base_md.find("spref") is None:
-    arcpy.AddMessage("spref")
+    arcpy.AddMessage("  spref")
     try:
         spref_node = su.get_spref(str(db_path), "MapUnitPolys")
     except Exception as e:
@@ -843,7 +948,7 @@ for n in g_nodes:
 extend_branch(base_md, deez_nodes["source_nodes"]["lineage"]["xpath"])
 if sources_param in [1, 4, 5, 7]:
     if "DataSources" in obj_dict:
-        arcpy.AddMessage("Adding DataSources")
+        arcpy.AddMessage("Adding data sources")
         source_nodes = deez_nodes["source_nodes"]
         lineage = base_md.find(source_nodes["lineage"]["xpath"])
 

@@ -73,7 +73,6 @@ myEntityDict = {
 }
 
 myUnrepresentableDomainDict = {
-    "SamplePretreatment": "Arbitrary string",
     "AnalysisMethod": "Arbitrary string",
     "ElevationFt": "Real number",
     "delta_13C": "Real number",
