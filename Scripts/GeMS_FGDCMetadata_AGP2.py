@@ -20,7 +20,7 @@ import requests
 from osgeo import ogr  # only used in def max_bounding
 
 sys.path.append("../")
-import GeMS_Definition as gDef
+import GeMS_Definition as gdef
 import GeMS_utilityFunctions as guf
 import spatial_utils as su
 
@@ -173,7 +173,7 @@ def which_dict(tbl, fld):
     if fld == "MapUnit":
         return units_dict
     elif fld == "GeoMaterialConfidence" and tbl == "DescriptionOfMapUnits":
-        return gDef.GeoMatConfDict
+        return gdef.GeoMatConfDict
     elif fld == "GeoMaterial":
         return geomat_dict
     elif fld.find("SourceID") > -1:
@@ -244,18 +244,6 @@ def make_domv(etype, val1, val2, val3):
     for n in el1, el2, el3:
         domv.append(n)
 
-    # edomv = etree.Element("edomv")
-    # edomv.text = str(val)
-
-    # edomvd = etree.Element("edomvd")
-    # edomvd.text = val_text
-
-    # edomvds = etree.Element("edomvds")
-    # edomvds.text = val_source
-
-    # edom = etree.Element("edom")
-    # for n in edomv, edomvd, edomvds:
-    #     edom.append(n)
     attrdomv = etree.Element("attrdomv")
     attrdomv.append(domv)
 
@@ -318,8 +306,8 @@ def add_entity(fc_name, elem_dict):
 
     # if the table name is in the GeMS entityDict, this is a GeMS controlled table
     # no annotation feature classes are described in entityDict
-    if fc_name in gDef.entityDict:
-        desc = f"{gDef.entityDict[fc_name]} {append}".strip()
+    if fc_name in gdef.entityDict:
+        desc = f"{gdef.entityDict[fc_name]} {append}".strip()
         desc_source = gems
 
     # users might have their own tables defined in myEntityDict
@@ -332,6 +320,14 @@ def add_entity(fc_name, elem_dict):
     # if this is an annotation feature class, this is an ESRI controlled table
     elif elem_dict["concat_type"] == "Annotation Polygon FeatureClass":
         desc = "ArcGIS annotation feature class"
+        desc_source = "ESRI"
+
+    elif elem_dict["concat_type"] == "Topology":
+        desc = "ArcGIS topology class. Visible only within ArcGIS software"
+        desc_source = "ESRI"
+
+    elif elem_dict["concat_type"] == "FeatureDataset":
+        desc = "ArcGIS feature dataset. Visible only within ArcGIS software"
         desc_source = "ESRI"
 
     else:
@@ -416,11 +412,11 @@ def add_attributes(fc_name, detailed_node):
         # might not be used much, but is also inexpensive to implement and
         # is, at least partially, useful to catch _ID field names
         found_attrib = False
-        res = [key for key in gDef.attribDict if field.endswith(key)]
+        res = [key for key in gdef.attribDict if field.endswith(key)]
         key = None
         if res:
             key = res[0]
-            def_text = gDef.attribDict[
+            def_text = gdef.attribDict[
                 key
             ]  # assuming here that if res isn't empty, there is only one key!
             source_text = gems
@@ -475,29 +471,29 @@ def add_attributes(fc_name, detailed_node):
 
         # UNREPRESENTABLE DOMAINS
         # value might be found in unrepresentableDomainDict
-        if key in gDef.unrepresentableDomainDict:
+        if key in gdef.unrepresentableDomainDict:
             attrdomv = etree.Element("attrdomv")
             udom = etree.Element("udom")
-            udom.text = gDef.unrepresentableDomainDict[key]
+            udom.text = gdef.unrepresentableDomainDict[key]
             attrdomv.append(udom)
             attr.append(attrdomv)
 
         # look for fields that have range domains
-        elif key in gDef.rangeDomainDict:
+        elif key in gdef.rangeDomainDict:
             arcpy.AddMessage("  Getting range values from definitions file")
             attrdomv = etree.Element("attrdomv")
 
             rdom = etree.Element("rdom")
             for n, i in [["rdommin", 0], ["rdommax", 1], ["attrunit", 2]]:
                 range_attr = etree.Element(n)
-                range_attr.text = gDef.rangeDomainDict[key][i]
+                range_attr.text = gdef.rangeDomainDict[key][i]
                 rdom.append(range_attr)
 
             attrdomv.append(rdom)
             attr.append(attrdomv)
 
         # look for fields that have enumerated domains
-        elif key in gDef.enumeratedValueDomainFieldList:
+        elif key in gdef.enumeratedValueDomainFieldList:
             # arcpy.AddMessage("  Getting domain values from definitions file")
             # collect a unique set of all the values of this attribute
             with arcpy.da.SearchCursor(
@@ -680,7 +676,7 @@ def validate_online(md_record):
 # the database
 db_path = Path(sys.argv[1])
 arcpy.AddMessage("Building dictionary of database contents")
-obj_dict = gdb_object_dict(str(db_path))
+obj_dict = guf.gdb_object_dict(str(db_path))
 
 # export embedded metadata? concert string to boolean
 if sys.argv[2].lower() in ["true", "yes"]:
@@ -706,12 +702,12 @@ if my_defs_path.is_file():
     # try updating the GeMS dictionaries, but if the custom ones do not exist don't throw an
     # error, just pass
     try:
-        gDef.unrepresentableDomainDict.update(myDef.myUnrepresentableDomainDict)
+        gdef.unrepresentableDomainDict.update(myDef.myUnrepresentableDomainDict)
     except:
         pass
 
     try:
-        gDef.rangeDomainDict.update(myDef.myRangeDomainDict)
+        gdef.rangeDomainDict.update(myDef.myRangeDomainDict)
     except:
         pass
 else:
