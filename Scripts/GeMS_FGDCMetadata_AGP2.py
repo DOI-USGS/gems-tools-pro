@@ -25,7 +25,7 @@ import spatial_utils as su
 import copy
 import requests
 
-versionString = "GeMS_FGDCMetadata_AGP2.py, version of 11 April 2023"
+versionString = "GeMS_FGDCMetadata_AGP2.py, version of 14 June 2023"
 rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/master/Scripts/GeMS_FGDCMetadata_AGP2.py"
 guf.checkVersion(versionString, rawurl, "gems-tools-pro")
 
@@ -584,21 +584,6 @@ def add_attributes(fc_name, detailed_node):
             else:  # domain is a tuple of range minimum, range maximum
                 min = str(domain[0])
                 max = str(domain[1])
-
-                # attrdomv = etree.Element("attrdomv")
-
-                # rdomin = etree.Element("rdomin")
-                # rdomin.text = str(domain[0])
-
-                # rdomax = etree.Element("rdomax")
-                # rdomax.text = str(domain[1])
-
-                # attrunit = etree.Element("attrunit")
-                # attrunit.text = space_or_missing()
-
-                # rdom = etree.Element("rdom")
-                # for n in rdomin, rdomax, attrunit:
-                #     rdom.append(n)
 
                 rdom = make_domv("rdom", min, max, space_or_missing())
                 # attrdomv.append(rdom)
