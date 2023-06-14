@@ -19,6 +19,7 @@
 
 from GeMS_Definition import *
 
+# 'name of attribute (field)': ['definition', 'definition source']
 myAttribDict = {
     "SamplePretreatment": [
         "Procedure(s) by which some samples were pretreated, before carbon extraction, to minimize the effects of later contamination.",
@@ -68,10 +69,12 @@ myAttribDict = {
     ],
 }
 
+# 'name of table': ['definition', 'definition source']
 myEntityDict = {
     "C14Points": "Table that documents locales, sample and analytic information, and significance of selected radiocarbon ages from map area."
 }
 
+# no definition source necessary for unrepresentable domains
 myUnrepresentableDomainDict = {
     "AnalysisMethod": "Arbitrary string",
     "ElevationFt": "Real number",
@@ -86,6 +89,7 @@ myUnrepresentableDomainDict = {
     "StratigraphicContext": "Arbitrary string",
 }
 
+# list the fields that contain terms that can be looked up in the Glossary
 myEnumeratedValueDomainFieldList = []
 
 

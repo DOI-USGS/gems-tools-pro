@@ -19,7 +19,7 @@ import copy
 import requests
 from osgeo import ogr  # only used in def max_bounding
 
-sys.path.append("../")
+# sys.path.append("../")
 import GeMS_Definition as gdef
 import GeMS_utilityFunctions as guf
 import spatial_utils as su
@@ -719,6 +719,13 @@ if my_defs_path.is_file():
 
     try:
         gdef.rangeDomainDict.update(myDef.myRangeDomainDict)
+    except:
+        pass
+
+    try:
+        gdef.enumeratedValueDomainFieldList.extend(
+            myDef.myEnumeratedValueDomainFieldList
+        )
     except:
         pass
 else:
