@@ -480,7 +480,7 @@ def add_attributes(fc_name, detailed_node):
 
         # look for fields that have range domains
         elif key in gdef.rangeDomainDict:
-            arcpy.AddMessage("  Getting range values from definitions file")
+            # arcpy.AddMessage("  Getting range values from definitions file")
             attrdomv = etree.Element("attrdomv")
 
             rdom = etree.Element("rdom")
@@ -499,49 +499,54 @@ def add_attributes(fc_name, detailed_node):
             with arcpy.da.SearchCursor(
                 obj_dict[fc_name]["catalogPath"], field
             ) as cursor:
-                fld_vals = set([row[0] for row in cursor if not row[0] is None])
+                fld_vals = set([row[0] for row in cursor])
 
-            for val in fld_vals:
-                if field.endswith("SourceID"):
-                    # special case for listing the values in *SourceID fields
-                    # with other tables, the value of Source in DataSources would
-                    # go into edomvds, the value definition source, but when enumerating
-                    # the values of DataSourceID, we will put Source into edomvd,
-                    # the value definition
-                    val_text = catch_m2m(sources_dict, val)
-                    val_source = "This report"
-
-                # otherwise, find the appropriate dictionary and put the definition
-                # and definition source into def_text and def_source
-                else:
-                    val_dict = which_dict(fc_name, field)
-                    if val in val_dict:
-                        val_text = val_dict[val][0]
-                        val_source = val_dict[val][1]
-                    else:
-                        val_text = space_or_missing()
-                        val_source = space_or_missing()
-
-                    # report the missing values
-                    if val_text in ["", "MISSING"]:
-                        arcpy.AddWarning(
-                            f'Cannot find domain value definition for value "{val}", field {field}'
-                        )
-                    if val_source in ["", "MISSING"]:
-                        arcpy.AddWarning(
-                            f'Cannot find domain value definition source for value "{val}", field {field}'
-                        )
-
-                attrdomv = make_domv("edom", val, val_text, val_source)
+            if fld_vals == {None}:
+                attrdomv = make_domv("edom", "null", "null", "no values in this field")
                 attr.append(attrdomv)
+            else:
+                fld_vals = [val for val in fld_vals if not val is None]
+                for val in fld_vals:
+                    if field.endswith("SourceID"):
+                        # special case for listing the values in *SourceID fields
+                        # with other tables, the value of Source in DataSources would
+                        # go into edomvds, the value definition source, but when enumerating
+                        # the values of DataSourceID, we will put Source into edomvd,
+                        # the value definition
+                        val_text = catch_m2m(sources_dict, val)
+                        val_source = "This report"
+
+                    # otherwise, find the appropriate dictionary and put the definition
+                    # and definition source into def_text and def_source
+                    else:
+                        val_dict = which_dict(fc_name, field)
+                        if val in val_dict:
+                            val_text = val_dict[val][0]
+                            val_source = val_dict[val][1]
+                        else:
+                            val_text = space_or_missing()
+                            val_source = space_or_missing()
+
+                        # report the missing values
+                        if val_text in ["", "MISSING"]:
+                            arcpy.AddWarning(
+                                f'Cannot find domain value definition for value "{val}", field {field}'
+                            )
+                        if val_source in ["", "MISSING"]:
+                            arcpy.AddWarning(
+                                f'Cannot find domain value definition source for value "{val}", field {field}'
+                            )
+
+                    attrdomv = make_domv("edom", val, val_text, val_source)
+                    attr.append(attrdomv)
 
         # check to see if there is an embedded domain
         elif is_domain_field(field, fc_name):
             # get the domain name for this field
             domain_name = is_domain_field(field, fc_name)
-            # arcpy.AddMessage(
-            #     f"  Getting domain values from embedded domain {domain_name} for {field}"
-            # )
+            arcpy.AddMessage(
+                f"  Getting domain values from embedded domain {domain_name} for {field}"
+            )
 
             # get the values from this domain
             # get_domain_values returns a dictionary for coded value domains
@@ -553,29 +558,35 @@ def add_attributes(fc_name, detailed_node):
                 with arcpy.da.SearchCursor(
                     obj_dict[fc_name]["catalogPath"], field
                 ) as cursor:
-                    fld_vals = set([row[0] for row in cursor if not row[0] is None])
-
-                # look up each value
-                for val in fld_vals:
-                    if val in domain:
-                        val_text = domain[val]
-                        val_source = space_or_missing()
-                    else:
-                        val_text = space_or_missing()
-                        val_source = space_or_missing()
-
-                    # report the missing values
-                    if val_text in ["", "MISSING"]:
-                        arcpy.AddWarning(
-                            f'Cannot find domain value definition for value "{val}", field {field}'
-                        )
-                    if val_source in ["", "MISSING"]:
-                        arcpy.AddWarning(
-                            f'Cannot find domain value definition source for value "{val}", field {field}'
-                        )
-
-                    attrdomv = make_domv("edom", val, val_text, val_source)
+                    fld_vals = set([row[0] for row in cursor])
+                if fld_vals == {None}:
+                    attrdomv = make_domv(
+                        "edom", "null", "null", "no values in this field"
+                    )
                     attr.append(attrdomv)
+                else:
+                    # look up each value
+                    fld_vals = [val for val in fld_vals if not val is None]
+                    for val in fld_vals:
+                        if val in domain:
+                            val_text = domain[val]
+                            val_source = space_or_missing()
+                        else:
+                            val_text = space_or_missing()
+                            val_source = space_or_missing()
+
+                        # report the missing values
+                        if val_text in ["", "MISSING"]:
+                            arcpy.AddWarning(
+                                f'Cannot find domain value definition for value "{val}", field {field}'
+                            )
+                        if val_source in ["", "MISSING"]:
+                            arcpy.AddWarning(
+                                f'Cannot find domain value definition source for value "{val}", field {field}'
+                            )
+
+                        attrdomv = make_domv("edom", val, val_text, val_source)
+                        attr.append(attrdomv)
             else:  # domain is a tuple of range minimum, range maximum
                 min = str(domain[0])
                 max = str(domain[1])
