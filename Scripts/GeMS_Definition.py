@@ -580,6 +580,19 @@ rule2_1_elements = [
 ]
 
 required_geologic_map_feature_classes = ["ContactsAndFaults", "MapUnitPolys"]
+
+# when missing, these fields will be logged as warnings, not errors
+# so far only for Stations
+recommended_fields = [
+    "LocationMethod",
+    "TimeDate",
+    "Observer",
+    "SignificantDimensionMeters",
+    "GPSX",
+    "GPSY",
+    "PDOP",
+]
+
 # ***************************************************
 tableDict = {}
 

@@ -257,31 +257,40 @@ def check_fields(db_dict, level, schema_extensions):
         for field in req_fields:
             if not field[0] in f_field_names:
                 html = f'<span class="table">{table}</span>, field <span class="field">{field[0]}</span>'
-                if gems_eq == "GenericPoints":
+                # if gems_eq == "GenericPoints":
+                if field[0] in gdef.recommended_fields:
                     fld_warnings.append(f'<span class="tab"></span>{html}')
                 else:
                     errors.append(html)
             else:
                 req_type = field[1]
-                req_null = field[2]
+                if field[2].lower() in ["optional", "nullsok"]:
+                    req_null = True
+                elif field[2].lower() in ["nonulls"]:
+                    req_null = False
+
                 if len(field) == 4:
                     req_length = field[3]
                 else:
                     req_length = None
 
-                if req_type != field[1]:
-                    errors.append(
-                        f'<span class="table">{table}</span>, field <span class="field">{field}</span> should be type {req_type}'
-                    )
-                if req_null != field[2]:
-                    errors.append(
-                        f'<span class="table">{table}</span>, field <span class="field">{field}</span> should be {req_null}'
-                    )
-                if req_length:
-                    if field[3] < req_length:
+                # get field object from the gdb/feature class dictionary for this required field
+                cur_field = [f for f in found_fields if f.name.endswith(field[0])]
+                if cur_field:
+                    cur_field = cur_field[0]
+                    if req_type != cur_field.type:
                         errors.append(
-                            f'<span class="table">{table}</span>, field <span class="field">{field}</span> should be at least {req_length} long'
+                            f'<span class="table">{table}</span>, field <span class="field">{cur_field.name}</span> should be type {req_type}'
                         )
+                    if req_null != cur_field.isNullable:
+                        errors.append(
+                            f'<span class="table">{table}</span>, field <span class="field">{cur_field.name}</span> should be NullsOK = {req_null}'
+                        )
+                    if req_length:
+                        if cur_field.length < field[3]:
+                            errors.append(
+                                f'<span class="table">{table}</span>, field <span class="field">{cur_field.name}</span> should be at least {req_length} long'
+                            )
 
         req_names = [f[0] for f in req_fields]
         for field in [
@@ -867,7 +876,7 @@ def rule3_10(db_dict):
     return hkey_errors, hkey_warnings
 
 
-def rule3_11(db_dict):
+def rule3_11(db_dict, ref_gmd):
     """All values of GeoMaterial are defined in GeoMaterialDict."""
     errors = [
         "GeoMaterial error(s)",
@@ -876,7 +885,8 @@ def rule3_11(db_dict):
     ]
 
     # list of GeoMaterials in GeoMaterialDicts; reference GeoMaterials
-    ref_geomats = values(db_dict, "GeoMaterialDict", "GeoMaterial", "list")
+    # ref_geomats = values(db_dict, "GeoMaterialDict", "GeoMaterial", "list")
+    ref_geomats = [r[0] for r in arcpy.da.SearchCursor(str(ref_gmd), "GeoMaterial")]
     ref_geomats = [v.lower() for v in ref_geomats]
 
     # exclude some tables to look for GeoMaterial field
@@ -1578,7 +1588,7 @@ def main(argv):
     ap(
         "3.11 All values of GeoMaterial are defined in GeoMaterialDict. GeoMaterialDict is as specified in the GeMS standard"
     )
-    val["rule3_11"] = rule3_11(db_dict)
+    val["rule3_11"] = rule3_11(db_dict, ref_gmd)
 
     # 3.12
     # No duplicate _ID values

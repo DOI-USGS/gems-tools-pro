@@ -249,8 +249,8 @@ def process(gdb, value_table):
             if template:
                 fc_fields = [f.name for f in arcpy.ListFields(fc_path)]
                 field_defs = gdef.startDict[template]
+
                 for fDef in field_defs:
-                    dom_spaces = ""
                     if not fDef[0] in fc_fields:
                         try:
                             arcpy.AddMessage(f"{fd_tab}{fc_tab}Adding field {fDef[0]}")
@@ -341,7 +341,7 @@ def process(gdb, value_table):
                         # add a _ID field
                         arcpy.AddMessage(f"{fd_tab}{fc_tab}Adding field {fc_name}_ID")
                         arcpy.AddField_management(
-                            str(fc_path), f"{fc}_ID", "TEXT", field_length=50
+                            str(fc_path), f"{fc_name}_ID", "TEXT", field_length=50
                         )
                 except:
                     arcpy.AddWarning(f"Could not add field {fc_name}_ID")
