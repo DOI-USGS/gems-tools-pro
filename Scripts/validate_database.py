@@ -249,6 +249,8 @@ def check_fields(db_dict, level, schema_extensions):
     for table in tables:
         gems_eq = db_dict[table]["gems_equivalent"]
         req_fields = copy.copy(gdef.startDict[gems_eq])
+
+        # add an _ID field for the table
         if not table == "GeoMaterialDict":
             req_fields.append([f"{table}_ID", "String", "NoNulls", gdef.IDLength])
 
@@ -256,18 +258,11 @@ def check_fields(db_dict, level, schema_extensions):
         f_field_names = [f.name for f in found_fields]
         for field in req_fields:
             if not field[0] in f_field_names:
-                html = f'<span class="table">{table}</span>, field <span class="field">{field[0]}</span>'
-                # if gems_eq == "GenericPoints":
-                if field[0] in gdef.recommended_fields:
-                    fld_warnings.append(f'<span class="tab"></span>{html}')
-                else:
+                if not field[2] == "Optional":
+                    html = f'<span class="table">{table}</span> missing field <span class="field">{field[0]}</span>'
                     errors.append(html)
             else:
                 req_type = field[1]
-                if field[2].lower() in ["optional", "nullsok"]:
-                    req_null = True
-                elif field[2].lower() in ["nonulls"]:
-                    req_null = False
 
                 if len(field) == 4:
                     req_length = field[3]
@@ -278,19 +273,13 @@ def check_fields(db_dict, level, schema_extensions):
                 cur_field = [f for f in found_fields if f.name.endswith(field[0])]
                 if cur_field:
                     cur_field = cur_field[0]
+                    html = f'<span class="table">{table}</span>, field <span class="field">{cur_field.name}</span> should be'
                     if req_type != cur_field.type:
-                        errors.append(
-                            f'<span class="table">{table}</span>, field <span class="field">{cur_field.name}</span> should be type {req_type}'
-                        )
-                    if req_null != cur_field.isNullable:
-                        errors.append(
-                            f'<span class="table">{table}</span>, field <span class="field">{cur_field.name}</span> should be NullsOK = {req_null}'
-                        )
+                        errors.append(f"{html} type {req_type}")
+
                     if req_length:
                         if cur_field.length < field[3]:
-                            errors.append(
-                                f'<span class="table">{table}</span>, field <span class="field">{cur_field.name}</span> should be at least {req_length} long'
-                            )
+                            errors.append(f"{html} at least {req_length} long")
 
         req_names = [f[0] for f in req_fields]
         for field in [

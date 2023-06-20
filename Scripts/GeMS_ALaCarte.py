@@ -1,4 +1,4 @@
-"""Add GeMS objects a la carte to a geodatabased
+﻿"""Add GeMS objects a la carte to a geodatabased
 
     Create or augment a GeMS or GeMS-like file geodatabase by adding one or more
     objects as needed
@@ -341,7 +341,11 @@ def process(gdb, value_table):
                         # add a _ID field
                         arcpy.AddMessage(f"{fd_tab}{fc_tab}Adding field {fc_name}_ID")
                         arcpy.AddField_management(
-                            str(fc_path), f"{fc_name}_ID", "TEXT", field_length=50
+                            str(fc_path),
+                            f"{fc_name}_ID",
+                            "TEXT",
+                            field_length=50,
+                            field_is_nullable=False,
                         )
                 except:
                     arcpy.AddWarning(f"Could not add field {fc_name}_ID")
