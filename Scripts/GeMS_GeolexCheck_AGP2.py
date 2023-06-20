@@ -43,6 +43,7 @@ checkVersion(versionString, rawurl, "gems-tools-pro")
 # displaying redundant matches.
 usages = []
 
+
 # STRING AND USAGE
 def sanitize_text(usage_text):
     """Clean up usage text so that it only includes alphanumeric characters"""
@@ -124,19 +125,26 @@ def units_query(name):
     """Prepare and send the GET request"""
     units_api = r"https://ngmdb.usgs.gov/connect/apiv1/geolex/units/?"
     params = {"units_in": name}
-    response = requests.get(units_api, params)  # .text
-
-    if not response.status_code == 200:
-        arcpy.AddMessage("")
-        arcpy.AddMessage(f"Server error {response.status_code} with the following url:")
-        arcpy.AddMessage(response.url)
+    try:
+        response = requests.get(units_api, params)  # .text
+        if not response.status_code == 200:
+            arcpy.AddMessage("")
+            arcpy.AddMessage(
+                f"Server error {response.status_code} with the following url:"
+            )
+            arcpy.AddMessage(response.url)
+            arcpy.AddMessage(
+                "The server may be down. Try again later or write to gems@usgs.gov"
+            )
+            arcpy.AddMessage("")
+            raise SystemError
+        else:
+            return response.json()["results"]
+    except ConnectionError as e:
         arcpy.AddMessage(
-            "The server may be down. Try again later or write to gems@usgs.gov"
+            "There was a problem connecting to Geolex. Check your internet connection."
         )
-        arcpy.AddMessage("")
-        raise SystemError
-    else:
-        return response.json()["results"]
+        arcpy.AddMessage(e)
 
 
 # EXCEL
