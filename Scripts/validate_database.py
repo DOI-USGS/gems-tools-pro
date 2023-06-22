@@ -416,7 +416,7 @@ def check_map_units(db_dict, level, all_map_units, fds_map_units):
 
     unused = [
         "missing map unit(s) in DMU",
-        "3.9 MapUnits in DMU that are not present on map, in CMU, or elsewhere",
+        "3.9 MapUnits in DMU that are not present in non-core elements",
         f"UnusedUnits{level}",
     ]
 
@@ -424,7 +424,7 @@ def check_map_units(db_dict, level, all_map_units, fds_map_units):
         """Values in fields with <span class="field">MapUnit</span> in the name 
                 that are not in <span class="table">DescriptionOfMapUnits</span>. 
                 Please add descriptions to the database or make sure descriptions are
-                discoverable through the metadata."""
+                in the metadata."""
     ]
 
     # iterate through the tables
@@ -480,7 +480,7 @@ def check_map_units(db_dict, level, all_map_units, fds_map_units):
                 ) as cursor:
                     for row in cursor:
                         for i, val in enumerate(row):
-                            if not val in dmu_units:
+                            if not val in dmu_units and not val == None:
                                 html = f"""<span class="tab"></span>
                                 <span class="value">{val}</span>, 
                                 field <span class="field">{mu_fields[i]}</span>, 
@@ -493,13 +493,18 @@ def check_map_units(db_dict, level, all_map_units, fds_map_units):
 
     missing = [i for n, i in enumerate(missing) if i not in missing[:n]]
 
-    if set(dmu_units).issubset(set(all_map_units)):
-        unused.extend(list(set(dmu_units) - set(all_map_units)))
+    unused.extend(list(set(dmu_units) - set(all_map_units)))
 
     if level == 2:
-        return missing, all_map_units, fds_map_units
+        return list(set(missing)), list(set(all_map_units)), fds_map_units
     else:
-        return missing, unused, all_map_units, fds_map_units, list(set(mu_warnings))
+        return (
+            list(set(missing)),
+            unused,
+            list(set(all_map_units)),
+            fds_map_units,
+            list(set(mu_warnings)),
+        )
 
 
 def glossary_check(db_dict, level, all_gloss_terms):
