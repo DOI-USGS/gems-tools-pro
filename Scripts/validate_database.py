@@ -976,7 +976,7 @@ def rule3_13(db_dict):
             val_dict = values(db_dict, table, field, "dictionary")
             for k, v in val_dict.items():
                 if v:
-                    if v == "" or v.isspace() or v == "&ltNull&gt":
+                    if v.isspace() or v.lower() in ["&ltnull&gt", "<null>", ""]:
                         html = f'<span class="table">{table}</span>, field <span class="field"> {field}</span>, OBJECTID {str(k)}'
                         zero_length_strings.append(html)
 
