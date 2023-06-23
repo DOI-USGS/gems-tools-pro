@@ -77,7 +77,7 @@ reload(tp)
 # values dictionary gets sent to report_template.jinja errors_template.jinja
 val = {}
 
-version_string = "validate_database.py, version of 6 June 2023"
+version_string = "validate_database.py, version of 22 June 2023"
 val["version_string"] = version_string
 val["datetime"] = time.asctime(time.localtime(time.time()))
 
@@ -85,14 +85,17 @@ rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/validate/Scr
 
 py_path = __file__
 scripts_dir = Path.cwd()
-toolbox_path = scripts_dir.parent
-resources_path = toolbox_path / "Resources"
+toolbox_dir = scripts_dir.parent
+resources_path = toolbox_dir / "Resources"
 
 ap = guf.addMsgAndPrint
 
 lc_standard_fields = []
 for f in gdef.standard_fields:
     lc_standard_fields.append(f.lower())
+
+global use_idfield
+use_idfield = True
 
 
 def check_sr(db_obj, db_dict):
@@ -133,6 +136,11 @@ def values(db_dict, table, field, what, where=None):
         fields = db_dict[table]["fields"]
         if what == "dictionary":
             oid = [f.name for f in fields if f.type == "OID"][0]
+            if use_idfield:
+                gemsid = [f.name for f in fields if f.name.lower().endswith("_id")]
+                if gemsid:
+                    oid = gemsid[0]
+
             vals = {
                 r[0]: r[1]
                 for r in arcpy.da.SearchCursor(
@@ -150,6 +158,19 @@ def values(db_dict, table, field, what, where=None):
                 )
             ]
     return vals
+
+
+def which_id(db_dict, table):
+    # for reporting errors, report the value in the table's _ID field or OBJECTID
+    if use_idfield:
+        fields = db_dict[table]["fields"]
+        gemsid = [f.name for f in fields if f.name.lower().endswith("_id")]
+        if gemsid:
+            return gemsid[0]
+        else:
+            return "OBJECTID"
+    else:
+        return "OBJECTID"
 
 
 def rule2_1(db_dict, is_gpkg):
@@ -665,7 +686,8 @@ def sources_check(db_dict, level, all_sources):
             d_sources = values(db_dict, table, ds_field, "dictionary")
 
             for oid, val in d_sources.items():
-                if not guf.empty(val):
+                # if not guf.empty(val):
+                if val:
                     if "|" in val:
                         for el in val.split("|"):
                             if not el.strip() in all_sources:
@@ -682,7 +704,7 @@ def sources_check(db_dict, level, all_sources):
                             )
                 else:
                     missing.append(
-                        f'table <span class="table">{table}</span>, field <span class="field">{ds_field}</span>, OBJECTID {oid} has no value'
+                        f'table <span class="table">{table}</span>, field <span class="field">{ds_field}</span>, {which_id(db_dict, table)} {oid} has no value'
                     )
 
     missing_source_ids.extend(list(set(missing)))
@@ -778,7 +800,7 @@ def rule3_10(db_dict):
     for k, v in hk_dict.items():
         if guf.empty(v):
             hkey_errors.append(
-                f'OBJECTID {k} has no <span class="field">HierarchyKey</span> value'
+                f'{which_id(db_dict, "DescriptionOfMapUnits")} {k} has no <span class="field">HierarchyKey</span> value'
             )
 
     # find the delimiter
@@ -817,7 +839,7 @@ def rule3_10(db_dict):
             # check for duplicated key
             if new_key in dupe_pipes:
                 hkey_errors.append(
-                    f"OBJECTID {k} has duplicated key: {old_key} (ignore delimiter)"
+                    f"{which_id(db_dict, 'DescriptionOfMapUnits')} {k} has duplicated key: {old_key} (ignore delimiter)"
                 )
 
             # collect fragment length
@@ -829,7 +851,7 @@ def rule3_10(db_dict):
                 for c in frag if c != "|" else c:
                     if c.isnumeric() == False:
                         hkey_warnings.append(
-                            f"""<span class="tab"></span>OBJECTID {k}: <span class="value">{old_key}</span> 
+                            f"""<span class="tab"></span>{which_id(db_dict, "DescriptionOfMapUnits")} {k}: <span class="value">{old_key}</span> 
                             includes non-numeric character span class="value">{c}</span>. Please check!"""
                         )
     else:
@@ -846,13 +868,15 @@ def rule3_10(db_dict):
         for oid, hkey in hk_dict.items():
             # look for duplicates
             if hkey in dupes:
-                hkey_errors.append(f"OBJECTID {oid} has duplicated key: {hkey}")
+                hkey_errors.append(
+                    f"{which_id(db_dict, 'DescriptionOfMapUnits')} {oid} has duplicated key: {hkey}"
+                )
 
             # look for non-numeric characters
             for c in hkey:
                 if c.isnumeric == False:
                     hkey_warnings.append(
-                        f"""<span class="tab"></span>OBJECTID {oid}: <span class="value">{hkey}</span> 
+                        f"""<span class="tab"></span>{which_id(db_dict, 'DescriptionOfMapUnits')} {oid}: <span class="value">{hkey}</span> 
                         includes non-numeric character <span class="value">{c}</span>. Please check!"""
                     )
 
@@ -957,7 +981,7 @@ def rule3_13(db_dict):
     """No zero-length or whitespace-only strings"""
     zero_length_strings = [
         "zero-length or whitespace string(s)",
-        '3.13 Zero-length, whitespace-only, or "&ltNull&gt" text values that probably should be &lt;Null&gt;',
+        "3.13 Zero-length, whitespace-only, or bad null value",
         "zero_length_strings",
     ]
 
@@ -976,15 +1000,15 @@ def rule3_13(db_dict):
             val_dict = values(db_dict, table, field, "dictionary")
             for k, v in val_dict.items():
                 if v:
-                    if v.isspace() or v.lower() in ["&ltnull&gt", "<null>", ""]:
-                        html = f'<span class="table">{table}</span>, field <span class="field"> {field}</span>, OBJECTID {str(k)}'
+                    if v.isspace() or v.lower() in ("&ltnull&gt", "<null>", ""):
+                        html = f'<span class="table">{table}</span>, field <span class="field"> {field}</span>, {which_id(db_dict, table)} {str(k)}'
                         zero_length_strings.append(html)
 
             # also collect leading_trailing_spaces for 'other stuff' report
             for n in [
                 k for k, v in val_dict.items() if v and (len(v.strip()) != len(v))
             ]:
-                html = f'<span class="tab"></span><span class="table">{table}</span>, field <span class="field"> {field}</span>, OBJECTID {str(n)}'
+                html = f'<span class="tab"></span><span class="table">{table}</span>, field <span class="field"> {field}</span>, {which_id(db_dict, table)} {str(n)}'
                 leading_trailing_spaces.append(html)
 
     return zero_length_strings, leading_trailing_spaces
@@ -1288,9 +1312,16 @@ def main(argv):
         else "a metadata summary from mp"
     )
 
-    # skip topology?
+    # use _ID field value instead of OBJECTID for reporting errors?
+    use_idfield
     if 5 < args_len:
-        skip_topology = guf.eval_bool(argv[5])
+        use_idfield = guf.eval_bool(argv[5])
+    else:
+        use_idfield = False
+
+    # skip topology?
+    if 6 < args_len:
+        skip_topology = guf.eval_bool(argv[6])
         top_db = workdir / "Topology.gdb"
         if arcpy.Exists(str(top_db)):
             arcpy.Delete_management(str(top_db))
@@ -1299,15 +1330,15 @@ def main(argv):
     val["parameters"].append(f"Skip topology check: {skip_topology}")
 
     # refresh GeoMaterialDict?
-    if 6 < args_len:
-        refresh_gmd = guf.eval_bool(argv[6])
+    if 7 < args_len:
+        refresh_gmd = guf.eval_bool(argv[7])
     else:
         refresh_gmd = False
     val["parameters"].append(f"Refresh GeoMaterialDict: {refresh_gmd}")
 
     # delete extra rows in Glossary and Data Sources?
-    if 7 < args_len:
-        delete_extra = guf.eval_bool(argv[7])
+    if 8 < args_len:
+        delete_extra = guf.eval_bool(argv[8])
     else:
         delete_extra = False
     val["parameters"].append(
@@ -1315,15 +1346,15 @@ def main(argv):
     )
 
     # compact database?
-    if 8 < args_len:
-        compact_db = guf.eval_bool(argv[8])
+    if 9 < args_len:
+        compact_db = guf.eval_bool(argv[9])
     else:
         compact_db = False
     val["parameters"].append(f"Compact GDB: {compact_db}")
 
     # open html report when done?
-    if 9 < args_len:
-        open_report = guf.eval_bool(argv[9])
+    if 10 < args_len:
+        open_report = guf.eval_bool(argv[10])
     else:
         open_report = False
 
