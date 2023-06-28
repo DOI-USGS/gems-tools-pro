@@ -36,7 +36,7 @@ import GeMS_utilityFunctions as guf
 from pathlib import Path
 import sys
 
-versionString = "GeMS_ALaCarte.py, version of 1 May 2023"
+versionString = "GeMS_ALaCarte.py, version of 27 June 2023"
 rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/master/Scripts/GeMS_ALaCarte.py"
 guf.checkVersion(versionString, rawurl, "gems-tools-pro")
 
@@ -212,6 +212,7 @@ def process(db, value_table):
             conf_domain(db)
 
         # feature dataset
+        fd_tab = ""
         if is_gdb:
             if not fd == "":
                 fd_path = Path(db) / fd
@@ -223,8 +224,6 @@ def process(db, value_table):
                     arcpy.AddMessage(f"New feature dataset {fd} created")
                 out_path = str(fd_path)
                 fd_tab = "  "
-            else:
-                fd_tab = ""
 
         # feature class or table
         template = None
