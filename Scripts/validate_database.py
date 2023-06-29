@@ -77,7 +77,7 @@ reload(tp)
 # values dictionary gets sent to report_template.jinja errors_template.jinja
 val = {}
 
-version_string = "validate_database.py, version of 22 June 2023"
+version_string = "validate_database.py, version of 28 June 2023"
 val["version_string"] = version_string
 val["datetime"] = time.asctime(time.localtime(time.time()))
 
@@ -302,13 +302,14 @@ def check_fields(db_dict, level, schema_extensions):
                         if cur_field.length < field[3]:
                             errors.append(f"{html} at least {req_length} long")
 
-        req_names = [f[0] for f in req_fields]
+        req_names = [f[0].lower() for f in req_fields]
+        lower_standard = [n.lower() for n in gdef.standard_fields]
         for field in [
             f.name
             for f in found_fields
-            if f.name not in req_names
-            and not f.name.endswith("_ID")
-            and not f.name in gdef.standard_fields
+            if f.name.lower() not in req_names
+            and not f.name.lower().endswith("_id")
+            and not f.name.lower() in lower_standard
         ]:
             schema_extensions.append(
                 '<span class="table">'
@@ -477,16 +478,18 @@ def check_map_units(db_dict, level, all_map_units, fds_map_units):
                         for i, val in enumerate(row):
                             if val:
                                 if not val in dmu_units:
-                                    html = f"""<span class="tab"></span>
+                                    html = f"""
                                         <span class="value">{val}</span>, 
                                         field <span class="field">{mu_fields[i]}</span>, 
-                                        table <span class="table">{mu_table}</span'"""
+                                        table <span class="table">{mu_table}</span>"""
                                     missing.append(html)
                                 all_map_units.append(val)
                                 fds_map_units[fd].extend(row)
 
+            # reset mu_fields and check again
             # look at fields that have MapUnit in the name but are qualified
-            # by a prefix or suffix, eg, OrigMapUnit
+            # by a prefix or suffix, eg, OrigMapUnit. Accommodates compilations
+            # where new DMU does not have the same units as new DMU
             mu_fields = [
                 f.name
                 for f in db_dict[mu_table]["fields"]
@@ -505,7 +508,7 @@ def check_map_units(db_dict, level, all_map_units, fds_map_units):
                                 html = f"""<span class="tab"></span>
                                 <span class="value">{val}</span>, 
                                 field <span class="field">{mu_fields[i]}</span>, 
-                                table <span class="table">{mu_table}</span"""
+                                table <span class="table">{mu_table}</span>"""
                                 mu_warnings.append(html)
 
             fds_map_units[fd] = list(set(fds_map_units[fd]))
@@ -517,14 +520,14 @@ def check_map_units(db_dict, level, all_map_units, fds_map_units):
     unused.extend(list(set(dmu_units) - set(all_map_units)))
 
     if level == 2:
-        return list(set(missing)), list(set(all_map_units)), fds_map_units
+        return (missing, all_map_units, fds_map_units)
     else:
         return (
-            list(set(missing)),
+            missing,
             unused,
-            list(set(all_map_units)),
+            all_map_units,
             fds_map_units,
-            list(set(mu_warnings)),
+            mu_warnings,
         )
 
 
@@ -1313,7 +1316,6 @@ def main(argv):
     )
 
     # use _ID field value instead of OBJECTID for reporting errors?
-    use_idfield
     if 5 < args_len:
         use_idfield = guf.eval_bool(argv[5])
     else:

@@ -17,16 +17,16 @@ top_rules = [
     "esriTRTAreaNoGaps",
     "esriTRTAreaBoundaryCoveredByLine",
 ]
-level_2_rules = [
-    "esriTRTAreaNoOverlap",
-    "esriTRTAreaNoGaps",
-    "esriTRTAreaBoundaryCoveredByLine",
-]
-level_3_rules = [
-    "esriTRTLineNoOverlap",
-    "esriTRTLineNoSelfOverlap",
-    "esriTRTLineNoSelfIntersect",
-]
+level_2_rules = {
+    "esriTRTAreaNoOverlap": "Must Not Overlap (Area)",
+    "esriTRTAreaNoGaps": "Must Not Have Gaps (Area)",
+    "esriTRTAreaBoundaryCoveredByLine": "Boundary Must Be Covered By (Area-Line)",
+}
+level_3_rules = {
+    "esriTRTLineNoOverlap": "Must Not Overlap (Line)",
+    "esriTRTLineNoSelfOverlap": "Must Not Self-Overlap (Line)",
+    "esriTRTLineNoSelfIntersect": "Must Not Self-Intersect (Line)",
+}
 level_2_ids = [1, 3, 37]
 level_3_ids = [19, 39, 40]
 rules_dict = {
@@ -353,31 +353,35 @@ def eval_topology(db, top, db_dict, gmap, level_2_errors, level_3_errors):
         mup_rules = top_dict[mup]
         mup_dest = top_dict["mup_dest"]
 
-        if set(mup_rules) != set(level_2_rules):
+        if set(mup_rules) != set(list(level_2_rules.keys())):
             level_2_errors.extend(
                 [
-                    f"&emsp;Rule {r} is missing"
+                    f"&emsp;Rule '{level_2_rules[r]}' is missing"
                     for r in level_2_rules
                     if not r in mup_rules
                 ]
             )
 
-        if not db_dict[mup_dest]["gems_equivalent"] == "ContactsAndFaults":
-            level_2_errors.append(
-                f"&emsp;Wrong line featureclass for rule Boundary Must Be Covered By (Area-Line), {mup_dest}"
-            )
+        if not mup_dest == None:
+            if not db_dict[mup_dest]["gems_equivalent"] == "ContactsAndFaults":
+                level_2_errors.append(
+                    f"&emsp;Wrong line featureclass for rule Boundary Must Be Covered By (Area-Line), {mup_dest}"
+                )
 
         # now, check the T_<top_id>_errors tables
         origin_id = get_gdb_item(
             ds, f"SELECT ObjectID FROM GDB_Items WHERE Name = '{mup}'"
         )
-        dest_id = get_gdb_item(
-            ds, f"SELECT ObjectID FROM GDB_Items WHERE Name = '{mup_dest}'"
-        )
+        dest_id = None
+        if mup_dest:
+            dest_id = get_gdb_item(
+                ds, f"SELECT ObjectID FROM GDB_Items WHERE Name = '{mup_dest}'"
+            )
+
         for table in [line_errors, poly_errors]:
             results = check_errors_table(ds, table, origin_id, level_2_ids, dest_id)
             if not results[0]:
-                level_2_errors.extend([f"&emsp;{r}" for r in results[1]])
+                level_2_errors.extend([f"&emsp;{res}" for res in results[1]])
 
     # now look for a level 3 / ContactsAndFaults rules
     caf_list = [
@@ -395,7 +399,11 @@ def eval_topology(db, top, db_dict, gmap, level_2_errors, level_3_errors):
         )
 
         level_3_errors.extend(
-            [f"&emsp;Rule {r} is missing" for r in level_3_rules if not r in caf_rules]
+            [
+                f"&emsp;Rule '{level_3_errors[r]}' is missing"
+                for r in level_3_rules
+                if not r in caf_rules
+            ]
         )
 
         for table in [point_errors, line_errors, poly_errors]:
