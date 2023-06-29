@@ -126,6 +126,7 @@ def export(source, dest, pro):
 def create_fd(work_dir, gmap, sr, topo_pair, db_dict):
     """create gdb and feature dataset and copy feature classes
     for topology check if they do not exist"""
+    work_dir = Path(work_dir)
     gdb_path = work_dir / "Topology.gdb"
     if not arcpy.Exists(str(gdb_path)):
         ap(f"\t\tCreating geodatabase for topology - {str(gdb_path)}")

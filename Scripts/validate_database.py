@@ -736,13 +736,13 @@ def rule3_3(db_dict):
         def_fields = gdef.startDict[gems_eq]
         no_nulls = [n[0] for n in def_fields if n[2] == "NoNulls"]
         fields = [f.name for f in db_dict[table]["fields"] if f.name in no_nulls]
-        oid = [f.name for f in db_dict[table]["fields"] if f.type == "OID"][0]
+        # oid = [f.name for f in db_dict[table]["fields"] if f.type == "OID"][0]
         for field in fields:
             vals = values(db_dict, table, field, "dictionary")
             for k, v in vals.items():
                 if guf.empty(v) or guf.is_bad_null(v):
                     missing_required_values.append(
-                        f'<span class="table">{table}</span>, field <span class="field">{field}</span>, {oid} {k}'
+                        f'<span class="table">{table}</span>, field <span class="field">{field}</span>, {which_id(db_dict, table)} {k}'
                     )
 
     return missing_required_values
@@ -768,6 +768,9 @@ def rule3_5_and_7(db_dict, table, all_vals):
         ]
 
     unused.extend(list(terms - set(all_vals)))
+    print(f"terms = {terms}")
+    print(f"all_vals = {set(all_vals)}")
+    print(f"unused sources = {unused}")
 
     return unused
 
