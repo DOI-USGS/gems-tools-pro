@@ -1,0 +1,19 @@
+site_name: GeMS documentation
+site_url: https://example.com/
+nav:
+    - Home: index.md
+    - Tools: GeMS-Tools-Documentation.md
+    - Setup: 
+        - Keeping-up-to-date-with-new-releases.md
+        - Configure-Arc-Map.md
+        - Hard-Drive-Hygiene.md
+
+    - Workflows:
+        - CMU's and DMU's: CMU-and-DMU.md
+        - Make polygons: Make-Color-Polygons.md
+        - Make new geomorphic map: Make-New-Geomorphic-Map.md
+    - Finalize:
+        - Build Metadata: Complete-Metadata.md
+        - Topology check: Topology-Check.md
+  
+theme: readthedocs
