@@ -77,7 +77,7 @@ reload(tp)
 # values dictionary gets sent to report_template.jinja errors_template.jinja
 val = {}
 
-version_string = "validate_database.py, version of 28 June 2023"
+version_string = "validate_database.py, version of 29 June 2023"
 val["version_string"] = version_string
 val["datetime"] = time.asctime(time.localtime(time.time()))
 
@@ -93,9 +93,6 @@ ap = guf.addMsgAndPrint
 lc_standard_fields = []
 for f in gdef.standard_fields:
     lc_standard_fields.append(f.lower())
-
-global use_idfield
-use_idfield = True
 
 
 def check_sr(db_obj, db_dict):
@@ -162,6 +159,7 @@ def values(db_dict, table, field, what, where=None):
 
 def which_id(db_dict, table):
     # for reporting errors, report the value in the table's _ID field or OBJECTID
+    global use_idfield
     if use_idfield:
         fields = db_dict[table]["fields"]
         gemsid = [f.name for f in fields if f.name.lower().endswith("_id")]
@@ -680,6 +678,7 @@ def sources_check(db_dict, level, all_sources):
     gems_sources = list(set(values(db_dict, "DataSources", "DataSources_ID", "list")))
     missing = []
     for table in tables:
+        id_fld = which_id(db_dict, table)
         ds_fields = [
             f.name
             for f in db_dict[table]["fields"]
@@ -707,7 +706,7 @@ def sources_check(db_dict, level, all_sources):
                             )
                 else:
                     missing.append(
-                        f'table <span class="table">{table}</span>, field <span class="field">{ds_field}</span>, {which_id(db_dict, table)} {oid} has no value'
+                        f'table <span class="table">{table}</span>, field <span class="field">{ds_field}</span>, {id_fld} {oid} has no value'
                     )
 
     missing_source_ids.extend(list(set(missing)))
@@ -731,6 +730,7 @@ def rule3_3(db_dict):
     ]
 
     for table in tables:
+        id_fld = which_id(db_dict, table)
         # collect all NoNulls fields
         gems_eq = db_dict[table]["gems_equivalent"]
         def_fields = gdef.startDict[gems_eq]
@@ -739,10 +739,14 @@ def rule3_3(db_dict):
         # oid = [f.name for f in db_dict[table]["fields"] if f.type == "OID"][0]
         for field in fields:
             vals = values(db_dict, table, field, "dictionary")
+
+            if table == "OrientationPoints":
+                arcpy.AddMessage(vals)
+
             for k, v in vals.items():
                 if guf.empty(v) or guf.is_bad_null(v):
                     missing_required_values.append(
-                        f'<span class="table">{table}</span>, field <span class="field">{field}</span>, {which_id(db_dict, table)} {k}'
+                        f'<span class="table">{table}</span>, field <span class="field">{field}</span>, {id_fld} {k}'
                     )
 
     return missing_required_values
@@ -803,10 +807,11 @@ def rule3_10(db_dict):
         return hkey_errors
 
     # check for empty values
+    id_fld = which_id(db_dict, "DescriptionOfMapUnits")
     for k, v in hk_dict.items():
         if guf.empty(v):
             hkey_errors.append(
-                f'{which_id(db_dict, "DescriptionOfMapUnits")} {k} has no <span class="field">HierarchyKey</span> value'
+                f'{id_fld} {k} has no <span class="field">HierarchyKey</span> value'
             )
 
     # find the delimiter
@@ -821,6 +826,7 @@ def rule3_10(db_dict):
     delims = list(set(delims))
 
     frag_lengths = []
+    id_fld = which_id(db_dict, "DescriptionOfMapUnits")
     if delims:
         # dealing with a list of character-delimited keys
         # look for multiple delimiters
@@ -845,7 +851,7 @@ def rule3_10(db_dict):
             # check for duplicated key
             if new_key in dupe_pipes:
                 hkey_errors.append(
-                    f"{which_id(db_dict, 'DescriptionOfMapUnits')} {k} has duplicated key: {old_key} (ignore delimiter)"
+                    f"{id_fld} {k} has duplicated key: {old_key} (ignore delimiter)"
                 )
 
             # collect fragment length
@@ -857,7 +863,7 @@ def rule3_10(db_dict):
                 for c in frag if c != "|" else c:
                     if c.isnumeric() == False:
                         hkey_warnings.append(
-                            f"""<span class="tab"></span>{which_id(db_dict, "DescriptionOfMapUnits")} {k}: <span class="value">{old_key}</span> 
+                            f"""<span class="tab"></span>{id_fld} {k}: <span class="value">{old_key}</span> 
                             includes non-numeric character span class="value">{c}</span>. Please check!"""
                         )
     else:
@@ -874,15 +880,13 @@ def rule3_10(db_dict):
         for oid, hkey in hk_dict.items():
             # look for duplicates
             if hkey in dupes:
-                hkey_errors.append(
-                    f"{which_id(db_dict, 'DescriptionOfMapUnits')} {oid} has duplicated key: {hkey}"
-                )
+                hkey_errors.append(f"{id_fld} {oid} has duplicated key: {hkey}")
 
             # look for non-numeric characters
             for c in hkey:
                 if c.isnumeric == False:
                     hkey_warnings.append(
-                        f"""<span class="tab"></span>{which_id(db_dict, 'DescriptionOfMapUnits')} {oid}: <span class="value">{hkey}</span> 
+                        f"""<span class="tab"></span>{id_fld} {oid}: <span class="value">{hkey}</span> 
                         includes non-numeric character <span class="value">{c}</span>. Please check!"""
                     )
 
@@ -1001,20 +1005,21 @@ def rule3_13(db_dict):
         and not "Annotation" in v["concat_type"]
     ]
     for table in tables:
+        id_fld = which_id(db_dict, table)
         text_fields = [f.name for f in db_dict[table]["fields"] if f.type == "String"]
         for field in text_fields:
             val_dict = values(db_dict, table, field, "dictionary")
             for k, v in val_dict.items():
                 if v:
                     if v.isspace() or v.lower() in ("&ltnull&gt", "<null>", ""):
-                        html = f'<span class="table">{table}</span>, field <span class="field"> {field}</span>, {which_id(db_dict, table)} {str(k)}'
+                        html = f'<span class="table">{table}</span>, field <span class="field"> {field}</span>, {id_fld} {str(k)}'
                         zero_length_strings.append(html)
 
             # also collect leading_trailing_spaces for 'other stuff' report
             for n in [
                 k for k, v in val_dict.items() if v and (len(v.strip()) != len(v))
             ]:
-                html = f'<span class="tab"></span><span class="table">{table}</span>, field <span class="field"> {field}</span>, {which_id(db_dict, table)} {str(n)}'
+                html = f'<span class="tab"></span><span class="table">{table}</span>, field <span class="field"> {field}</span>, {id_fld} {str(n)}'
                 leading_trailing_spaces.append(html)
 
     return zero_length_strings, leading_trailing_spaces
@@ -1319,6 +1324,7 @@ def main(argv):
     )
 
     # use _ID field value instead of OBJECTID for reporting errors?
+    global use_idfield
     if 5 < args_len:
         use_idfield = guf.eval_bool(argv[5])
     else:
