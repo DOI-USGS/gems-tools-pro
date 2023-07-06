@@ -35,7 +35,9 @@ from openpyxl.styles import Font, PatternFill, Alignment
 import tempfile
 from GeMS_utilityFunctions import *
 
-versionString = "GeMS_GeolexCheck_AGP2.py, 2/19/2021"
+from requests.adapters import HTTPAdapter, Retry
+
+/versionString = "GeMS_GeolexCheck_AGP2.py, 7/5/2023"
 rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/master/Scripts/GeMS_GeolexCheck_AGP2.py"
 checkVersion(versionString, rawurl, "gems-tools-pro")
 
@@ -124,9 +126,16 @@ def parse_age(age_str):
 def units_query(name):
     """Prepare and send the GET request"""
     units_api = r"https://ngmdb.usgs.gov/connect/apiv1/geolex/units/?"
-    params = {"units_in": name}
+    payload = {"units_in": name}
     try:
-        response = requests.get(units_api, params)  # .text
+        s = requests.Session()
+        retries = Retry(
+            total=5, backoff_factor=0.1, status_forcelist=[500, 502, 503, 504]
+        )
+        s.mount("https://", HTTPAdapter(max_retries=retries))
+
+        # response = requests.get(units_api, params)  # .text
+        response = s.get(units_api, params=payload)
         if not response.status_code == 200:
             arcpy.AddMessage("")
             arcpy.AddMessage(
