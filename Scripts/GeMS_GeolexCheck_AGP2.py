@@ -130,7 +130,7 @@ def units_query(name):
     try:
         s = requests.Session()
         retries = Retry(
-            total=5, backoff_factor=0.1, status_forcelist=[500, 502, 503, 504]
+            total=0, backoff_factor=0.1, status_forcelist=[500, 502, 503, 504]
         )
         s.mount("https://", HTTPAdapter(max_retries=retries))
 
@@ -151,10 +151,11 @@ def units_query(name):
             return response.json()["results"]
     # except ConnectionError as e:
     except Exception as e:
-        arcpy.AddMessage(
+        arcpy.AddWarning(
             "There was a problem connecting to Geolex. Check your internet connection."
         )
-        arcpy.AddMessage(e)
+        arcpy.AddWarning(e)
+        return "no connection"
 
 
 # EXCEL
@@ -510,7 +511,10 @@ for row in dmu_df.itertuples():
             fn_results = units_query(fn)
 
         # if there are name and fullname matches, take the intersection of the sets
-        if (sn_results and fn_results) or (sn_results and not fn_results):
+        if sn_results == "no connection" and fn_results == "no connection":
+            results = "no connection"
+
+        elif (sn_results and fn_results) or (sn_results and not fn_results):
             results = sn_results
             check_name = sn
 
@@ -536,9 +540,9 @@ for row in dmu_df.itertuples():
         # this will allow the output table to be sorted on HierarchyKey correctly
         ch = "a"
 
-        if results:
-            arcpy.AddMessage(f"Looking for GEOLEX names in {check_name}")
+        if results and not results == "no connection":
             names_only = [result["unit_name"] for result in results]
+            arcpy.AddMessage(f"Looking for GEOLEX names in {check_name}")
             names_only = sanitize_matches(names_only, check_name)
         else:
             names_only = None
@@ -609,7 +613,27 @@ for row in dmu_df.itertuples():
 
         # there is no match
         else:
-            nomatch = unit_list.extend(["", "", "", "", "", "", "no", "", "", "", ""])
+            if results == "no connection":
+                arcpy.AddMessage("no connection")
+                nomatch = unit_list.extend(
+                    [
+                        "FAILED TO CONNECT TO GEOLEX",
+                        "",
+                        "",
+                        "",
+                        "",
+                        "",
+                        "no",
+                        "",
+                        "",
+                        "",
+                        "",
+                    ]
+                )
+            else:
+                nomatch = unit_list.extend(
+                    ["", "", "", "", "", "", "no", "", "", "", ""]
+                )
 
             # add list to dataframe
             unit_series = pd.Series(unit_list, index=df.columns)
