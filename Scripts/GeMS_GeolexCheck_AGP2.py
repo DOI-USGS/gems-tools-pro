@@ -140,7 +140,8 @@ def units_query(name):
             raise SystemError
         else:
             return response.json()["results"]
-    except ConnectionError as e:
+    # except ConnectionError as e:
+    except Exception as e:
         arcpy.AddMessage(
             "There was a problem connecting to Geolex. Check your internet connection."
         )
