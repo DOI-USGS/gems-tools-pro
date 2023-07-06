@@ -37,7 +37,7 @@ from GeMS_utilityFunctions import *
 
 from requests.adapters import HTTPAdapter, Retry
 
-/versionString = "GeMS_GeolexCheck_AGP2.py, 7/5/2023"
+versionString = "GeMS_GeolexCheck_AGP2.py, 7/5/2023"
 rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/master/Scripts/GeMS_GeolexCheck_AGP2.py"
 checkVersion(versionString, rawurl, "gems-tools-pro")
 
