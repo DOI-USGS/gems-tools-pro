@@ -25,7 +25,7 @@ import os, sys
 import string
 import arcpy
 import requests
-import json
+from requests.adapters import HTTPAdapter, Retry
 from distutils.util import strtobool
 import re
 import pandas as pd
@@ -33,13 +33,12 @@ from openpyxl import load_workbook
 from openpyxl.styles.borders import Border, Side
 from openpyxl.styles import Font, PatternFill, Alignment
 import tempfile
-from GeMS_utilityFunctions import *
+import GeMS_utilityFunctions as guf
 
-from requests.adapters import HTTPAdapter, Retry
 
-versionString = "GeMS_GeolexCheck_AGP2.py, 7/5/2023"
+versionString = "GeMS_GeolexCheck_AGP2.py, 7/6/2023"
 rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/master/Scripts/GeMS_GeolexCheck_AGP2.py"
-checkVersion(versionString, rawurl, "gems-tools-pro")
+guf.checkVersion(versionString, rawurl, "gems-tools-pro")
 
 # initialize empty list to collect usage matches in order to avoid
 # displaying redundant matches.
@@ -130,7 +129,7 @@ def units_query(name):
     try:
         s = requests.Session()
         retries = Retry(
-            total=0, backoff_factor=0.1, status_forcelist=[500, 502, 503, 504]
+            total=5, backoff_factor=0.1, status_forcelist=[500, 502, 503, 504]
         )
         s.mount("https://", HTTPAdapter(max_retries=retries))
 
@@ -151,9 +150,7 @@ def units_query(name):
             return response.json()["results"]
     # except ConnectionError as e:
     except Exception as e:
-        arcpy.AddWarning(
-            "There was a problem connecting to Geolex. Check your internet connection."
-        )
+        arcpy.AddWarning("There was a problem connecting to GEOLEX.")
         arcpy.AddWarning(e)
         return "no connection"
 
@@ -505,9 +502,11 @@ for row in dmu_df.itertuples():
         sn_results = None
         fn_results = None
         if sn:
+            arcpy.AddMessage(f"Looking for GEOLEX names in {sn}")
             sn_results = units_query(sn)
 
         if fn:
+            arcpy.AddMessage(f"Looking for GEOLEX names in {fn}")
             fn_results = units_query(fn)
 
         # if there are name and fullname matches, take the intersection of the sets
@@ -542,7 +541,6 @@ for row in dmu_df.itertuples():
 
         if results and not results == "no connection":
             names_only = [result["unit_name"] for result in results]
-            arcpy.AddMessage(f"Looking for GEOLEX names in {check_name}")
             names_only = sanitize_matches(names_only, check_name)
         else:
             names_only = None
