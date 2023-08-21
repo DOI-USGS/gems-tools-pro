@@ -19,6 +19,28 @@ def eval_bool(boo):
         return False
 
 
+def empty(x):
+    if x == None:
+        return True
+    try:
+        if str(x).strip() == "":
+            return True
+        else:
+            return False
+    except:  # Fail because we tried to strip() on a non-string value
+        return False
+
+
+def is_bad_null(x):
+    try:
+        if str(x).lower() == "<null>" or str(x) == "" or str(x).strip() == "":
+            return True
+    except:
+        return False
+    else:
+        return False
+
+
 def get_duplicates(table_path, field):
     vals = [r[0] for r in arcpy.da.SearchCursor(table_path, field) if not r[0] is None]
     dups = list(set([n for n in vals if vals.count(n) > 1]))
@@ -336,6 +358,24 @@ def camel_to_snake(s):
 def convert_bool(boo):
     # converts boolean-like strings to Type boolean
     if boo in [True, "True", "true", "Yes", "yes", "Y", "y", 1]:
+        return True
+    else:
+        return False
+
+def camel_to_space(s):
+    return "".join([" " + c.upper() if c.isupper() else c for c in s]).lstrip(" ")
+
+
+def fix_null(x):
+    # x = x.encode('ascii','xmlcharrefreplace')
+    if x.lower() == "<null>":
+        return "&lt;Null&gt;"
+    else:
+        return x
+        
+def not_empty(x):
+    # will converting x to string ever return an unexpected value?
+    if x != None and str(x).strip() != "":
         return True
     else:
         return False

@@ -83,6 +83,11 @@ import topology as tp
 import requests
 from jinja2 import Environment, FileSystemLoader
 
+from importlib import reload
+
+reload(tp)
+reload(guf)
+
 # values dictionary gets sent to report_template.jinja errors_template.jinja
 val = {}
 
@@ -211,6 +216,7 @@ def rule2_1(db_dict, is_gpkg):
     ]
     # find_topology_pairs returns [GeologicMap feature dataset(if gdb), fd_tag_name, mapunitpolys, contactsandfaults]
     possible_pairs = tp.find_topology_pairs(fcs, is_gpkg, db_dict)
+    arcpy.AddMessage(possible_pairs)
     if possible_pairs:
         # check each tagged name pair in the case of no feature dataset (pair[0])
         for pair in possible_pairs:
