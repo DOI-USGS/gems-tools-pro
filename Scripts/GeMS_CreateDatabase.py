@@ -32,8 +32,8 @@ from GeMS_Definition import (
 from GeMS_utilityFunctions import *
 import copy
 
-versionString = "GeMS_CreateDatabase_AGP2.py, version of 2 February 2021"
-rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/master/Scripts/GeMS_CreateDatabase_AGP2.py"
+versionString = "GeMS_CreateDatabase.py, version of 8/21/23"
+rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/master/Scripts/GeMS_CreateDatabase.py"
 checkVersion(versionString, rawurl, "gems-tools-pro")
 
 debug = True
