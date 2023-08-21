@@ -16,10 +16,8 @@
 import arcpy, sys, os
 from GeMS_utilityFunctions import *
 
-versionString = "mapOutline.py, version of 8/21/23"
-rawurl = (
-    "https://raw.githubusercontent.com/usgs/gems-tools-pro/master/Scripts/mapOutline.py"
-)
+versionString = "GeMS_MapOutline.py, version of 8/21/23"
+rawurl = "https://raw.githubusercontent.com/usgs/gems-tools-pro/master/Scripts/GeMS_MapOutline.py"
 checkVersion(versionString, rawurl, "gems-tools-pro")
 
 """
