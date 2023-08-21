@@ -66,30 +66,40 @@ def find_topology_pairs(fcs, is_gpkg, db_dict):
     include_caf = False
     pairs = []
     for fd_tag in set(fd_tags):
-        mup = [
-            k
-            for k, v in db_dict.items()
-            if k.startswith(fd_tag[0])
-            and k.endswith(fd_tag[1])
-            and v["gems_equivalent"] == "MapUnitPolys"
+        # mup = [
+        #     k
+        #     for k, v in db_dict.items()
+        #     if k.startswith(fd_tag[0])
+        #     and k.endswith(fd_tag[1])
+        #     and v["gems_equivalent"] == "MapUnitPolys"
+        # ]
+
+        mups = [
+            k for k in db_dict.items() if k == f"{fd_tag[0]}MapUnitPolys{fd_tag[1]}"
         ]
 
-        caf = [
+        # caf = [
+        #     k
+        #     for k, v in db_dict.items()
+        #     if k.startswith(fd_tag[0])
+        #     and k.endswith(fd_tag[1])
+        #     and v["gems_equivalent"] == "ContactsAndFaults"
+        # ]
+
+        cafs = [
             k
-            for k, v in db_dict.items()
-            if k.startswith(fd_tag[0])
-            and k.endswith(fd_tag[1])
-            and v["gems_equivalent"] == "ContactsAndFaults"
+            for k in db_dict.items()
+            if k == f"{fd_tag[0]}ContactsAndFaults{fd_tag[1]}"
         ]
 
-        if mup:
+        if mups:
             include_mup = True
-            mup = mup[0]
+            mup = mups[0]
         else:
             mup = f"{fd_tag[0]}MapUnitPolys{fd_tag[1]}"
-        if caf:
+        if cafs:
             include_caf = True
-            caf = caf[0]
+            caf = cafs[0]
         else:
             caf = f"{fd_tag[0]}ContactsAndFaults{fd_tag[1]}"
 

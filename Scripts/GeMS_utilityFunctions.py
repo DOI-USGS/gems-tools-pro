@@ -11,6 +11,22 @@ import requests
 # I. General utilities
 
 
+def eval_bool(boo):
+    # converts boolean-like strings to Type boolean
+    if boo in [True, "True", "true", "Yes", "yes", "Y", "y", 1]:
+        return True
+    else:
+        return False
+
+
+def get_duplicates(table_path, field):
+    vals = [r[0] for r in arcpy.da.SearchCursor(table_path, field) if not r[0] is None]
+    dups = list(set([n for n in vals if vals.count(n) > 1]))
+    dups.sort()
+
+    return dups
+
+
 # tests for null string values and <Null> numeric values
 # Does not test for numeric nulls -9, -9999, etc.
 def stringIsGeMSNull(val):
