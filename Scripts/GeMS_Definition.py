@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+# -*- coding: cp1252 -*-
 # GeMS_Definition.py
 # module with definitions for GeMS geodatabase schema for
 # ArcGIS geodatabases (personal or file) for geologic map data
@@ -6,7 +6,7 @@
 #  Ralph Haugerud, 19 August 2016
 #
 
-versionString = "GeMS_Definition.py, version of 13 June 2023"
+versionString = "GeMS_Definition.py, version of 8/21/2023"
 
 # fixes errors in Station feature class definition
 # 16 Jan 2014: added ObservedMapUnit to Station feature class definition
@@ -32,9 +32,6 @@ versionString = "GeMS_Definition.py, version of 13 June 2023"
 # 2 June 2021: In Stations feature class, changed GPSX and GPSY to NullsOK. Removed MapX and MapY, to conform to published standard
 # 30 June 2021: In Stations, changed MapUnit to NullsOK. See Issue 71 and per documentation
 # 2/14/22 StationsID had gone back to StationID! Re-changed this - ET
-# 6/13/23: add definitions and sources to attribDict for recommended additional fields in Stations (Table 25)
-#          added definition for 'StationID' to attribDict. If it occurs, it might as well be defined even if not strictly compliant
-#          changed encoding declaration at top to utf-8 - ET
 
 # to think about: Maybe change all NoNulls to NullsOK?
 
@@ -172,7 +169,7 @@ startDict = {
         ["Label", "String", "NullsOK", IDLength],
         ["PlotAtScale", "Single", "NoNulls"],
         ["DataSourceID", "String", "NoNulls", IDLength],
-        ["Notes", "String", "NullsOK", defaultLength],
+        ["Notes", "String", "Optional", defaultLength],
         ["LocationMethod", "String", "Optional", defaultLength],
         ["TimeDate", "Date", "Optional"],
         ["Observer", "String", "Optional", defaultLength],
@@ -327,6 +324,37 @@ startDict = {
     ],
 }
 
+shape_dict = {
+    "MapUnitPolys": "Polygon",
+    "ContactsAndFaults": "Polyline",
+    "GenericPoints": "Point",
+    "GenericSamples": "Point",
+    "OrientationPoints": "Point",
+    "GeochronPoints": "Point",
+    "Stations": "Point",
+    "GeologicLines": "Polyline",
+    "CartographicLines": "Polyline",
+    "IsoValueLines": "Polyline",
+    "MapUnitLines": "Polyline",
+    "MapUnitPoints": "Point",
+    "MapUnitOverlayPolys": "Polygon",
+    "OverlayPolys": "Polygon",
+    "DataSourcePolys": "Polygon",
+    "CMUMapUnitPolys": "Polygon",
+    "CMULines": "Polyline",
+    "CMUPoints": "Point",
+    "FossilPoints": "Point",
+    "PhotoPoints": "Point",
+    "DescriptionOfMapUnits": "Table",
+    "DataSources": "Table",
+    "Glossary": "Table",
+    "GeoMaterialDict": "Table",
+    "GenericSamples": "Table",
+    "RepurposedSymbols": "Table",
+    "MiscellaneousMapInformation": "Table",
+    "LayerList": "Table",
+    "StandardLithology": "Table",
+}
 
 GeoMaterialConfidenceValues = ["High", "Medium", "Low"]
 
@@ -428,7 +456,6 @@ attribDict = {
     "IndentedName": "Name with addition of leading spaces to help show rank within a hierarchical list.",
     "IsConcealed": "Flag for contacts and faults covered by overlying map unit.",
     "Label": 'Plain-text equivalent of the desired annotation for a feature: for example "14 Ma", or "^c" which (when used with the FGDC GeoAge font) results in the geologic map-unit label TRc (with TR run together to make the Triassic symbol).',
-    "LocationMethod": "Technique used to determine this station location",
     "LocationConfidenceMeters": "Estimated half-width in meters of positional uncertainty envelope; position is relative to other features in database.",
     "LocationSourceID": "Source of location; foreign key to table DataSources.",
     "MapProperty": 'Name of map property. Examples include "Scale", "Authors and affiliations", "Magnetic declination".',
@@ -441,20 +468,15 @@ attribDict = {
     "NewExplanation": "Explanation of usage of symbol in this map portrayal",
     "Notes": "Additional information specific to a particular feature or table entry.",
     "NumericAge": "Numeric age of sample, measured in AgeUnits. May be interpreted from one or several analyses; is not necessarily the date calculated from a single set of measurements.",
-    "Observer": "Name and affiliation of person who located this station",
     "OldExplanation": "Explanatory text from FGDC standard for meaning of symbol",
     "OrientationConfidenceDegrees": "Estimated angular precision of combined azimuth AND inclination measurements, in degrees.",
     "OrientationSourceID": "Source of orientation data; foreign key to table DataSources.",
     "ParagraphStyle": "Token that identifies formatting of paragraph(s) within traditional Description of Map Units that correspond to this table entry.",
-    "PDOP": "Position Dilution Of Precision at this station; estimator of GPS accuracy",
     "PlotAtScale": "At what scale (or larger) should this observation or analysis be plotted? At smaller scales, it should not be plotted. Useful to prevent crowding of display at small scales and to display progressively more data at larger and larger scales. Value is scale denominator.",
-    "SignificantDimensionMeters": "Significant dimension of exposure (in meters) at this station",
     "Source": "Plain-text short description that identifies the data source.",
-    "StationID": "Foreign key to Stations point feature class.",
     "StationsID": "Foreign key to Stations point feature class.",
     "Symbol": "Reference to a point marker, line symbol, or area-fill symbol that is used on the map graphic to denote the feature: perhaps a star for a K-Ar age locality, or a heavy black line for a fault.",
     "Term": "Plain-language word for a concept. Values must be unique within database as a whole.",
-    "TimeDate": "	Time and date of observation at this station",
     "Type": "Classifier that specifies what kind of geologic feature is represented by a database element: that a certain line within feature class ContactsAndFaults is a contact, or thrust fault, or water boundary; or that a point in GeochronPoints represents a K-Ar date.",
     "URL": "Universal Resource Locator (URL) or Document Object Identifier (DOI), identifies a document on the World Wide Web.",
     "Value": "Numeric value (e.g., elevation, concentration) associated with an isovalue (contour, isopleth) line. Units identified in feature TYPE definition.",
@@ -551,12 +573,15 @@ rule2_1_elements = [
     "DataSources",
     "DescriptionOfMapUnits",
     "GeoMaterialDict",
+    "Glossary",
     "GeologicMap",
     "ContactsAndFaults",
     "MapUnitPolys",
 ]
 
 required_geologic_map_feature_classes = ["ContactsAndFaults", "MapUnitPolys"]
+
+
 # ***************************************************
 tableDict = {}
 
@@ -566,7 +591,8 @@ for table in startDict.keys():
     newfields = []
     for field in oldFields:
         newfields.append(field)
-    newfields.append([table + "_ID", "String", "NoNulls", IDLength])
+    if not table == "GeoMaterialDict":
+        newfields.append([table + "_ID", "String", "NoNulls", IDLength])
     tableDict[table] = newfields
 
 # build fieldNullsOKDict

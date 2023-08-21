@@ -1,0 +1,348 @@
+{# templates/results.html #}
+
+<style>
+  .report {
+    font-family: Courier New, Courier, monospace;
+    margin-left: 20px;
+    margin-right: 20px;
+  }
+
+  h2,
+  h3 {
+    background-color: lightgray;
+    padding: 5px;
+    border-radius: 4px;
+    font-family: "Century Gothic", CenturyGothic, AppleGothic, sans-serif;
+  }
+
+  h4 {
+    margin-bottom: 4px;
+    font-size: larger;
+  }
+
+  .ess-tables {
+    width: 95%;
+    margin-left: 20px;
+  }
+
+  .table-header:hover {
+    cursor: pointer;
+  }
+
+  table,
+  th,
+  td {
+    border: 1px solid gray;
+    border-collapse: collapse;
+    padding: 3px;
+  }
+
+  .table {
+    color: darkorange;
+    font-weight: bold;
+  }
+
+  .field {
+    color: darkblue;
+    font-weight: bold;
+  }
+
+  .value {
+    color: darkgreen;
+    font-weight: bold;
+  }
+
+  .highlight {
+    background-color: #f2fcd6;
+    padding: 0 2px;
+    border-radius: 3px;
+    border-bottom: 1px solid gray;
+  }
+
+  li {
+    list-style: disc;
+    margin-top: 1px;
+    margin-bottom: 1px;
+  }
+
+  #back-to-top {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: 10px;
+    margin: 10px;
+    background-color: rgba(250, 250, 250, 0.7);
+    border-radius: 5px;
+  }
+
+  .tab {
+    display: inline-block;
+    margin-left: 40px;
+  }
+</style>
+
+{% macro rule_cell(errors) -%}
+{% if errors|length == 3 %}
+<td valign="top">PASS</td>
+{% else %}
+{# if error is only one item, there is no list of errors to post to
+-ValidationErrors, just FAIL and print error[0]#}
+{% if errors|length == 1 %}
+<td valign="top">
+  <font color="#ff0000">FAIL {{errors[0]}}</font>
+</td>
+{% else %}
+{# otherwise, there is text for pass/fail cell, a header for -ValidationErrors,
+and an anchor. Iterate through those#}
+{# special case of topology where we include the feature dataset as an indented header
+within the list of errors#}
+{% if errors[0] == "topology errors" %}
+<td valign="top">
+  <font color="#ff0000">FAIL &nbsp;</font><a href='{{ val["errors_name"] }}#{{ errors[2] }}'>multiple topology
+    errors</a>
+</td>
+{% else %}
+<td valign="top">
+  <font color="#ff0000">FAIL &nbsp;</font><a href='{{ val["errors_name"] }}#{{ errors[2] }}'>{{ errors|length - 3 }}
+    {{errors[0]}}</a>
+</td>
+{% endif %}
+{% endif %}
+{% endif %}
+{%- endmacro %}
+<h2><a name="overview"><i>GeMS validation of </i>{{val["db_name"]}}</a></h2>
+<div class="report">
+  File written by <b>{{val["version_string"]}}</b><br>
+  {{val["datetime"]}}<br>
+  {{val["parameters"][0]}}<br>
+  {% for p in val["parameters"][1:] %}
+  <span class="tab"></span>{{p}}<br>
+  {% endfor %}<br>
+  {{val["level"]}}<br><br>
+  {{val["metadata_summary"]}}<br>
+  This file should be accompanied by {{val["errors_name"]}} and {{val["md_errors_name"]}}
+  in the same directory.<br><br>
+  If this database will be submitted to the NGMDB, it also needs to be accompanied by
+  a reviewed Geologic Names report that includes identification of any suggested modifications to <a
+    href="https://ngmdb.usgs.gov/Geolex/">Geolex</a>. Use the
+  <a href="https://github.com/DOI-USGS/gems-tools-pro/wiki/GeMS-Tools-Documentation#geologic-names-check">Geologic Names
+    Check</a> tool to generate that report.<br><br>
+</div>
+<div id="back-to-top"><a href="#overview">Back to Top</a></div>
+<h3>Contents</h3>
+<div class="report" id="contents">
+  <a href="#Compliance_Criteria">Compliance Criteria</a><br>
+  <a href="#Warnings">Warnings</a><br>
+  <a href="#Extensions">Content not specified in GeMS schema</a><br>
+  <a href="#MapUnits_Match">Occurrence of MapUnits in DMU, feature datasets, or geopackage tables</a><br>
+  {% if val["non_spatial"] %}
+  <a href="#Contents_Nonspatial">Contents of Nonspatial Tables</a><br>
+  {% for table in val["non_spatial"] %}
+  <span class="tab"></span><a href="#{{table}}">{{table}}</a><br>
+  {% endfor %}
+  {% endif %}
+  <a href="#Database_Inventory">Database Inventory</a><br>
+</div>
+<h3><a name="Compliance_Criteria"></a>Compliance Criteria</h3>
+<div class="report">
+  <h4><a name="Level1">LEVEL 1</a></h4>
+  <i>Criteria for a LEVEL 1 GeMS database are:</i>
+  <ul>
+    <li>No overlaps or internal gaps in map-unit polygon layer</li>
+    <li>Contacts and faults in single feature class</li>
+    <li>Map-unit polygon boundaries are covered by contacts and faults lines</li>
+  </ul>
+  <i>Databases with a variety of schema may meet these criteria. This script cannot confirm LEVEL 1 compliance.</i>
+  <h4><a name="Level2">LEVEL 2--MINIMALLY COMPLIANT</a></h4>
+  <i>A LEVEL 2 GeMS database is accompanied by a peer-reviewed Geologic Names report, including identification of
+    suggested modifications to Geolex, and meets the following criteria:</i><br>
+  <table class="ess-tables">
+    <tbody>
+      <tr>
+        <td valign="top">2.1 Has required elements: nonspatial tables DataSources, DescriptionOfMapUnits,
+          GeoMaterialDict; feature dataset GeologicMap with feature classes ContactsAndFaults and MapUnitPolys</td>
+        {{rule_cell(val["rule2_1"])}}
+      </tr>
+      <tr>
+        <td valign="top">2.2 Required fields within required elements are present and correctly defined</td>
+        {{rule_cell(val["rule2_2"])}}
+      </tr>
+      <tr>
+        <td valign="top">2.3 All MapUnitPolys and ContactsAndFaults based feature classes obey Level 2 topology rules:
+          no internal gaps or overlaps in MapUnitPolys, boundaries of MapUnitPolys are covered by ContactsAndFaults</td>
+        {{rule_cell(val["rule2_3"])}}
+      </tr>
+      <tr>
+        <td valign="top">2.4 All map units in MapUnitPolys have entries in DescriptionOfMapUnits table</td>
+        {{rule_cell(val["rule2_4"])}}
+      </tr>
+      <tr>
+        <td valign="top">2.5 No duplicate MapUnit values in DescriptionOfMapUnit table</td>
+        {{rule_cell(val["rule2_5"])}}
+      </tr>
+      <tr>
+        <td valign="top">2.6 Certain field values within required elements have entries in Glossary table</td>
+        {{rule_cell(val["rule2_6"])}}
+      </tr>
+      <tr>
+        <td valign="top">2.7 No duplicate Term values in Glossary table</td>
+        {{rule_cell(val["rule2_7"])}}
+      </tr>
+      <tr>
+        <td valign="top">2.8 All xxxSourceID values in required elements have entries in DataSources table</td>
+        {{rule_cell(val["rule2_8"])}}
+        </td>
+      </tr>
+      <tr>
+        <td valign="top">2.9 No duplicate DataSources_ID values in DataSources table</td>
+        {{rule_cell(val["rule2_9"])}}
+      </tr>
+    </tbody>
+  </table>
+  <h4><a name="Level3">LEVEL 3--FULLY COMPLIANT</a></h4>
+  <i>A LEVEL 3 GeMS database meets these additional criteria:</i><br>
+  <table class="ess-tables">
+    <tbody>
+      <tr>
+        <td valign="top">3.1 Table and field definitions beyond Level 2 conform to GeMS schema</td>
+        {{rule_cell(val["rule3_1"])}}
+      </tr>
+      <tr>
+        <td valign="top">3.2 All MapUnitPolys and ContactsAndFaults based feature classes obey Level 3 topology rules:
+          No ContactsAndFaults overlaps, self-overlaps, or self-intersections. </td>
+        {{rule_cell(val["rule3_2"])}}
+      </tr>
+      <tr>
+        <td valign="top">3.3 No missing required values</td>
+        {{rule_cell(val["rule3_3"])}}
+      </tr>
+      <tr>
+        <td valign="top">3.4 No missing terms in Glossary</td>
+        {{rule_cell(val["rule3_4"])}}
+      </tr>
+      <tr>
+        <td valign="top">3.5 No unnecessary terms in Glossary</td>
+        {{rule_cell(val["rule3_5"])}}
+      </tr>
+      <tr>
+        <td valign="top">3.6 No missing sources in DataSources</td>
+        {{rule_cell(val["rule3_6"])}}
+      </tr>
+      <tr>
+        <td valign="top">3.7 No unnecessary sources in DataSources</td>
+        {{rule_cell(val["rule3_7"])}}
+      </tr>
+      <tr>
+        <td valign="top">3.8 No map units without entries in DescriptionOfMapUnits</td>
+        {{rule_cell(val["rule3_8"])}}
+      </tr>
+      <tr>
+        <td valign="top">3.9 No unnecessary map units in DescriptionOfMapUnits</td>
+        {{rule_cell(val["rule3_9"])}}
+      </tr>
+      <tr>
+        <td valign="top">3.10 HierarchyKey values in DescriptionOfMapUnits are unique and well formed</td>
+        {{rule_cell(val["rule3_10"])}}
+      </tr>
+      <tr>
+        <td valign="top">3.11 All values of GeoMaterial are defined in GeoMaterialDict. GeoMaterialDict is as specified
+          in the GeMS standard</td>
+        {{rule_cell(val["rule3_11"])}}
+      </tr>
+      <tr>
+        <td valign="top">3.12 No duplicate _ID values</td>
+        {{rule_cell(val["rule3_12"])}}
+      </tr>
+      <tr>
+        <td valign="top">3.13 No zero-length, whitespace-only, or bad null values</td>
+        {{rule_cell(val["rule3_13"])}}
+      </tr>
+    </tbody>
+  </table>
+  <br>
+</div>
+<h3><a name="Warnings"></a>Warnings</h3>
+<div class="report">
+  {% if val["sr_warnings"]|length > 1 or
+  val["end_spaces"]|length > 1 or
+  val["fld_warnings"]|length > 1 or
+  val["hkey_warnings"]|length > 1 or
+  val["term_warnings"]|length > 1 or
+  val["mu_warnings"]|length > 1 or
+  val["et_warnings"]|length > 1 or
+  val["missing_warnings"]|length > 1
+  %}
+  <a href='{{val["errors_name"]}}#Warnings'>There are {{
+    val["sr_warnings"]|length +
+    val["end_spaces"]|length +
+    val["fld_warnings"]|length +
+    val["hkey_warnings"]|length +
+    val["mu_warnings"]|length +
+    val["term_warnings"]|length +
+    val["missing_warnings"]|length +
+    val["et_warnings"]|length - 8
+    }} warnings</a><br>
+  {% else %}
+  <a href='{{val["errors_name"]}}#Warnings'>There are 0 warnings</a><br>
+  {% endif %}
+</div>
+{% if val["extras"]|length > 1 %}
+<h3><a name="Extensions"></a>Content not specified in GeMS schema</h3>
+<div class="report">
+  <i>Some of the extensions to the GeMS schema identified here may be necessary to capture geologic content and are
+    entirely appropriate. <b>Please document these extensions in metadata for the database, any accompanying README
+      file, and (if applicable) any transmittal letter that accompanies the dataset.</b> Other extensions may be
+    intermediate datasets, fields, or files that should be deleted before distribution of the database.</i><br><br>
+  {% for extra in val["extras"] %}
+  {{ extra }}<br>
+  {% endfor %}
+</div>
+{% endif %}
+{% if val["all_units"] %}
+<div class="" report>
+  <h3><a name="MapUnits_Match"></a>Occurrence of MapUnit in DMU, feature datasets, or geopackage tables</h3>
+  <div class="report"></div>
+  <table class="ess-tables" ; style="text-align:center">
+    <tr>
+      <th>MapUnit</th>
+      {% if val["fds_units"] %}
+      {% for k in val["fds_units"] %}
+      <th>{{k}}</th>
+      {% endfor %}
+    </tr>
+    {% for mu in val["all_units"] %}
+    <tr>
+      <td>{{mu}}</td>
+      {% for v in val["fds_units"].values() %}
+      {% if mu in v %}
+      <td>X</td>
+      {% else %}
+      <td>--</td>
+      {% endif %}
+      {% endfor %}
+    </tr>
+    {% endfor %}
+    {% endif %}
+  </table>
+</div>
+{% endif %}
+{% if val["non_spatial"] %}
+<div class="report"></div>
+<h3><a name="Contents_Nonspatial"></a>Contents of Nonspatial Tables</h3>
+{% for k,v in val["non_spatial"].items() %}
+<div class="report">
+  <h4><a name="{{k}}"></a>{{k}}</h4>
+  {{ v }}
+  {% endfor %}
+</div>
+{% endif %}
+<h3><a name="Database_Inventory"></a>Database Inventory</h3>
+<div class="report">
+  <i>This summary of database content is provided as a convenience to GIS analysts, reviewers, and others. It is not
+    part of the GeMS compliance criteria.</i>
+  <br>
+  <br>
+  {% for n in val["inventory"] %}
+  {{ n }}<br>
+  {% endfor %}
+</div>
