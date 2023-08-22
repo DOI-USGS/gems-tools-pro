@@ -296,49 +296,65 @@ def format_excel(xlf):
         start_color="fabf8f", end_color="fabf8f", fill_type="solid"
     )
 
-    ws.insert_rows(1)
-    ws["A1"] = "DMU Contents"
+    # insert header info
+    # name of table and link to readme
+    ws.insert_rows(1, 3)
+
+    dmu_base = os.path.basename(dmu)
+    dmu_parent = os.path.dirname(dmu)
+    if dmu_parent.endswith(".gdb") or dmu_parent.endswith(".gpkg"):
+        dmu_name = os.path.join(os.path.basename(dmu_parent), dmu_base)
+    else:
+        dmu_name = dmu_base
+
+    ws["A1"] = f"Geologic Names Check report: {dmu_name}"
     ws["A1"].font = Font(bold=True)
-    ws["A1"].alignment = Alignment(horizontal="center")
-    ws.merge_cells("A1:F1")
+    readme = "https://ngmdb.usgs.gov/Info/standards/GeMS/docs/GeologicNamesCheck_report_README.pdf"
+    link(ws["A2"], readme, "How do I fill out this report?")
 
-    ws["G1"] = "Geolex Results"
-    ws["G1"].font = Font(bold=True)
-    ws["G1"].alignment = Alignment(horizontal="center")
-    ws.merge_cells("G1:L1")
+    ws.insert_rows(3)
+    ws["A4"] = "DMU Contents"
+    ws["A4"].font = Font(bold=True)
+    ws["A4"].alignment = Alignment(horizontal="center")
+    ws.merge_cells("A4:F4")
 
-    ws["M1"] = "Author Review"
-    ws["M1"].font = Font(bold=True)
-    ws["M1"].alignment = Alignment(horizontal="center")
-    ws.merge_cells("M1:Q1")
+    ws["G4"] = "Geolex Results"
+    ws["G4"].font = Font(bold=True)
+    ws["G4"].alignment = Alignment(horizontal="center")
+    ws.merge_cells("G4:L4")
+
+    ws["M4"] = "Author Review"
+    ws["M4"].font = Font(bold=True)
+    ws["M4"].alignment = Alignment(horizontal="center")
+    ws.merge_cells("M4:Q4")
 
     maxRow = ws.max_row + 1
 
     # color the sections
     for colNum in range(1, 7):
-        for rowNum in range(1, maxRow):
+        for rowNum in range(4, maxRow):
             ws.cell(row=rowNum, column=colNum).fill = greenFill
             ws.cell(row=rowNum, column=colNum).border = border
 
     for colNum in range(7, 13):
-        for rowNum in range(1, maxRow):
+        for rowNum in range(4, maxRow):
             ws.cell(row=rowNum, column=colNum).fill = yellowFill
             ws.cell(row=rowNum, column=colNum).border = border
 
     for colNum in range(13, 18):
-        for rowNum in range(1, maxRow):
+        for rowNum in range(4, maxRow):
             ws.cell(row=rowNum, column=colNum).fill = orangeFill
             ws.cell(row=rowNum, column=colNum).border = border
 
     # apply hyperlink styling to column K, URL
-    for rowNum in range(3, maxRow):
+    for rowNum in range(6, maxRow):
         ws_cell = ws.cell(row=rowNum, column=12)
         if not ws_cell.value is None:
             link(ws_cell, ws_cell.value, ws_cell.value)
 
     # re-apply black borders around the header cells
     for colNum in range(1, 18):
-        for rowNum in range(1, 3):
+        for rowNum in range(4, 6):
             ws.cell(row=rowNum, column=colNum).border = blackBorder
 
     # adjust the width of the cells
