@@ -83,11 +83,6 @@ import topology as tp
 import requests
 from jinja2 import Environment, FileSystemLoader
 
-from importlib import reload
-
-reload(tp)
-reload(guf)
-
 # values dictionary gets sent to report_template.jinja errors_template.jinja
 val = {}
 
@@ -216,7 +211,6 @@ def rule2_1(db_dict, is_gpkg):
     ]
     # find_topology_pairs returns [GeologicMap feature dataset(if gdb), fd_tag_name, mapunitpolys, contactsandfaults]
     possible_pairs = tp.find_topology_pairs(fcs, is_gpkg, db_dict)
-    arcpy.AddMessage(possible_pairs)
     if possible_pairs:
         # check each tagged name pair in the case of no feature dataset (pair[0])
         for pair in possible_pairs:
@@ -1116,7 +1110,7 @@ def rule3_13(db_dict):
             for n in [
                 k for k, v in val_dict.items() if v and (len(v.strip()) != len(v))
             ]:
-                html = f'<span class="tab"></span><span class="table">{table}</span>, field <span class="field"> {field}</span>, {id_fld} {str(n)}'
+                html = f'<span class="table">{table}</span>, field <span class="field"> {field}</span>, {id_fld} {str(n)}'
                 leading_trailing_spaces.append(html)
 
     return zero_length_strings, leading_trailing_spaces
@@ -1739,7 +1733,7 @@ def main(argv):
     for k, v in db_dict.items():
         if "editorTrackingEnabled" in v:
             if v["editorTrackingEnabled"]:
-                html = f'<span class="tab"></span><span class="table">{k}</span>'
+                html = f'<span class="table">{k}</span>'
                 val["et_warnings"].append(html)
 
     # METADATA

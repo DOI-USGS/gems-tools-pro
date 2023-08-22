@@ -323,12 +323,14 @@ def gdb_object_dict(gdb_path):
     # Annotation Polygon FeatureClass
     # this will go into Entity_Type_Definition
     for k, v in new_dict.items():
+        if "dataType" in v:
+            d_type = camel_to_space(v["dataType"])
         if v["dataType"] == "Table":
             v["concat_type"] = "Nonspatial Table"
         elif v["dataType"] == "FeatureClass":
-            v["concat_type"] = f"{v['featureType']} {v['shapeType']} {v['dataType']}"
+            v["concat_type"] = f"{v['featureType']} {v['shapeType']} {d_type}"
         else:
-            v["concat_type"] = v["dataType"]
+            v["concat_type"] = d_type
 
         # for objects that are based on a GeMS object but have a
         # prefix or suffix, record the name of the required GeMS object
@@ -337,12 +339,31 @@ def gdb_object_dict(gdb_path):
         v["gems_equivalent"] = ""
         tableDict_keys = list(gdef.tableDict.keys())
         tableDict_keys.append("GeoMaterialDict")
-        for a in tableDict_keys:
-            # if the CamelCase or snake_case version of a gems object
-            # is found in the table name
-            if any(n in k.lower() for n in (a.lower(), camel_to_snake(a))):
-                # set the gems_equivalent key to the GeMS CamelCase name
-                v["gems_equivalent"] = a
+        if not v["dataType"] in ("Topology", "Annotation"):
+            for a in tableDict_keys:
+                # if the CamelCase or snake_case version of a gems object
+                # is found in the table name
+                if (
+                    any(n in k.lower() for n in (a.lower(), camel_to_snake(a)))
+                    and gdef.shape_dict[a] in v["concat_type"]
+                ):
+                    # set the gems_equivalent key to the GeMS CamelCase name
+                    v["gems_equivalent"] = a
+
+            # caveats
+            if k.lower().endswith("points") and v["gems_equivalent"] == "":
+                v["gems_equivalent"] = "GenericPoints"
+
+            if k.lower().endswith("samples") and v["gems_equivalent"] == "":
+                v["gems_equivalent"] = "GenericSamples"
+
+            if (
+                any(k.lower().endswith(n) for n in ("geologicmap", "geologic_map"))
+            ) and v["concat_type"] == "Feature Dataset":
+                v["gems_equivalent"] = "GeologicMap"
+
+            if any(k.lower().endswith(l) for l in ("label", "labels")):
+                v["gems_equivalent"] = ""
 
     return new_dict
 
@@ -362,6 +383,7 @@ def convert_bool(boo):
     else:
         return False
 
+
 def camel_to_space(s):
     return "".join([" " + c.upper() if c.isupper() else c for c in s]).lstrip(" ")
 
@@ -372,7 +394,8 @@ def fix_null(x):
         return "&lt;Null&gt;"
     else:
         return x
-        
+
+
 def not_empty(x):
     # will converting x to string ever return an unexpected value?
     if x != None and str(x).strip() != "":
