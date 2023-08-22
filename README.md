@@ -9,7 +9,7 @@
 <img width="250" align="right" src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/1c/USGS_logo_green.svg/500px-USGS_logo_green.svg.png"/>
 
 > **Note**
-> New Validate Database tool on branch [`validate`](https://github.com/DOI-USGS/gems-tools-pro/tree/validate) for beta testing. 
+> New Validate Database tool has been moved from beta into the main toolbox.
 > * Understands custom name variations of GeMS elements, e.g., `SurficialContactsAndFaults`
 > * Validates and checks an existing topology if it exists; recognizes exceptions
 > * Checks standalone metadata file as required for submission to NGMDB
