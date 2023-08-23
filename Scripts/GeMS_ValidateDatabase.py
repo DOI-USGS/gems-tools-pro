@@ -90,7 +90,7 @@ version_string = "GeMS_ValidateDatabase.py, version of 8/21/2023"
 val["version_string"] = version_string
 val["datetime"] = time.asctime(time.localtime(time.time()))
 
-rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/Scripts/GeMS_ValidateDatabase.py"
+rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/master/Scripts/GeMS_ValidateDatabase.py"
 
 py_path = __file__
 scripts_dir = Path.cwd()
