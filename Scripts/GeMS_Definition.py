@@ -103,7 +103,7 @@ startDict = {
         ["Label", "String", "NullsOK", IDLength],
         ["LocationConfidenceMeters", "Single", "NoNulls"],
         ["PlotAtScale", "Single", "NoNulls"],
-        ["StationsID", "String", "NullsOK", IDLength],
+        ["StationsID", "String", "Optional", IDLength],
         ["MapUnit", "String", "NullsOK", mapUnitLength],
         ["LocationSourceID", "String", "NoNulls", IDLength],
         ["DataSourceID", "String", "NoNulls", IDLength],
@@ -118,7 +118,7 @@ startDict = {
         ["MaterialAnalyzed", "String", "NullsOK", defaultLength],
         ["LocationConfidenceMeters", "Single", "NoNulls"],
         ["PlotAtScale", "Single", "NoNulls"],
-        ["StationsID", "String", "NullsOK", IDLength],
+        ["StationsID", "String", "Optional", IDLength],
         ["MapUnit", "String", "NoNulls", mapUnitLength],
         ["LocationSourceID", "String", "NoNulls", IDLength],
         ["DataSourceID", "String", "NoNulls", IDLength],
@@ -134,7 +134,7 @@ startDict = {
         ["IdentityConfidence", "String", "NoNulls", 50],
         ["OrientationConfidenceDegrees", "Single", "NoNulls"],
         ["PlotAtScale", "Single", "NoNulls"],
-        ["StationsID", "String", "NullsOK", IDLength],
+        ["StationsID", "String", "Optional", IDLength],
         ["MapUnit", "String", "NoNulls", mapUnitLength],
         ["LocationSourceID", "String", "NoNulls", IDLength],
         ["OrientationSourceID", "String", "NoNulls", IDLength],
@@ -155,7 +155,7 @@ startDict = {
         ["AgeMinusError", "Single", "NullsOK"],
         ["ErrorMeasure", "String", "NullsOK", defaultLength],
         ["AgeUnits", "String", "NoNulls", IDLength],
-        ["StationsID", "String", "NullsOK", IDLength],
+        ["StationsID", "String", "Optional", IDLength],
         ["LocationSourceID", "String", "NoNulls", IDLength],
         ["AnalysisSourceID", "String", "NullsOK", IDLength],
         ["Notes", "String", "Optional", defaultLength],
@@ -578,6 +578,14 @@ rule2_1_elements = [
     "ContactsAndFaults",
     "MapUnitPolys",
 ]
+
+req_source_ids = [
+    "DataSourceID",
+    "DefinitionSourceID",
+    "LocationSourceID",
+    "OrientationSourceID",
+]
+
 
 required_geologic_map_feature_classes = ["ContactsAndFaults", "MapUnitPolys"]
 

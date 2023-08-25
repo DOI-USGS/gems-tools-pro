@@ -83,6 +83,10 @@ import topology as tp
 import requests
 from jinja2 import Environment, FileSystemLoader
 
+from importlib import reload
+
+reload(gdef)
+
 # values dictionary gets sent to report_template.jinja errors_template.jinja
 val = {}
 
@@ -246,7 +250,7 @@ def rule2_1(db_dict, is_gpkg):
     )
     if set(db_tables) != set(gdef.required_tables):
         for n in set(gdef.required_tables).difference(set(db_tables)):
-            errors.append(f'Table <span class="table">{n}</span>')
+            errors.append(f'<span class="table">{n}</span>')
 
     return (errors, tp_pairs, sr_warnings)
 
@@ -256,6 +260,10 @@ def check_fields(db_dict, level, schema_extensions):
     right now this only looks at controlled fields in tables that have been tagged
     with a gems_equivalent.
     """
+    header = "<h4>Fields</h4>"
+    if not schema_extensions:
+        schema_extensions.append(header)
+
     fld_warnings = ["Recommended fields that are missing"]
     req_tables = [t for t in gdef.rule2_1_elements if t != "GeologicMap"]
     if level == 2:
@@ -269,7 +277,8 @@ def check_fields(db_dict, level, schema_extensions):
             for k, v in db_dict.items()
             if not v["gems_equivalent"] in req_tables
             and not v["gems_equivalent"] == ""
-            and not v["dataType"] == "FeatureDataset"
+            and not v["dataType"] in ("Topology", "Annotation")
+            and not "cartographicpoints" in k.lower()
         ]
         header = "3.1 Missing or mis-defined fields"
 
@@ -282,6 +291,12 @@ def check_fields(db_dict, level, schema_extensions):
     for table in tables:
         gems_eq = db_dict[table]["gems_equivalent"]
         req_fields = copy.copy(gdef.startDict[gems_eq])
+
+        # the following is a workaround for a problem that should get fixed when a schema for
+        # a GeoChemPoints feature class is decided on. Like GeoChronPoints, GeoChemPoints shouldn't
+        # require a DataSourceID. Hopefully, there is an AnalysisSourceID or similar but we won't check it
+        if "geochempoints" in table.lower():
+            req_fields = [i for i in req_fields if not i[0] == "DataSourceID"]
 
         # add an _ID field for the table
         if not table == "GeoMaterialDict":
@@ -297,11 +312,6 @@ def check_fields(db_dict, level, schema_extensions):
             else:
                 req_type = field[1]
 
-                if len(field) == 4:
-                    req_length = field[3]
-                else:
-                    req_length = None
-
                 # get field object from the gdb/feature class dictionary for this required field
                 cur_field = [f for f in found_fields if f.name.endswith(field[0])]
                 if cur_field:
@@ -309,10 +319,6 @@ def check_fields(db_dict, level, schema_extensions):
                     html = f'<span class="table">{table}</span>, field <span class="field">{cur_field.name}</span> should be'
                     if req_type != cur_field.type:
                         errors.append(f"{html} type {req_type}")
-
-                    # if req_length:
-                    #     if cur_field.length < field[3]:
-                    #         errors.append(f"{html} at least {req_length} long")
 
         req_names = [f[0].lower() for f in req_fields]
         lower_standard = [n.lower() for n in gdef.standard_fields]
@@ -324,9 +330,9 @@ def check_fields(db_dict, level, schema_extensions):
             and not f.name.lower() in lower_standard
         ]:
             schema_extensions.append(
-                '<span class="table">'
+                '<span class="tab"></span><span class="table">'
                 + table
-                + '</span>, field <span class="field">'
+                + '</span>, <span class="field">'
                 + field
                 + "</span>"
             )
@@ -598,24 +604,25 @@ def glossary_check(db_dict, level, all_gloss_terms):
                     else:
                         where = None
 
-                    vals = values(db_dict, table, field, "dictionary", where)
+                    # vals = values(db_dict, table, field, "dictionary", where)
+                    vals = values(db_dict, table, field, "list", where)
 
                     # put all of these glossary terms in all_gloss_terms list
-                    field_vals = list(set(vals.values()))
+                    field_vals = list(set(vals))
                     if None in field_vals:
                         field_vals.remove(None)
                     all_gloss_terms.extend(field_vals)
 
-                    # sort the dictionary by id value and remove null values
-                    sorted_vals = {k: vals[k] for k in sorted(vals) if vals[k]}
+                    # sort the list and remove null values
+                    # sorted_vals = {k: vals[k] for k in sorted(vals) if vals[k]}
+                    vals = [el for el in vals if el]
+                    sorted_vals = [el for el in sorted(vals) if el]
 
-                    # look for missing values
-                    for k, v in sorted_vals.items():
-                        if not v in glossary_terms:
+                    for el in sorted_vals:
+                        if not el in glossary_terms:
                             html = f"""table <span class="table">{table}</span>, 
                                         field <span class="field">{field}</span>, 
-                                        {id_fld} {k}, 
-                                        <span class="value">{v}</span>"""
+                                        <span class="value">{el}</span>"""
                             missing.append(html)
 
             if level == 3:
@@ -642,20 +649,17 @@ def glossary_check(db_dict, level, all_gloss_terms):
                             # values in gems-like fields that are not found in the glossary are
                             # listed as warnings, not errors
                             for g_field in gemsy_fields:
-                                vals = values(db_dict, table, g_field, "dictionary")
+                                vals = values(db_dict, table, g_field, "list")
 
-                                # sort the dictionary by id value and remove null values
-                                sorted_vals = {
-                                    k: vals[k] for k in sorted(vals) if vals[k]
-                                }
+                                vals = [el for el in vals if el]
+                                sorted_vals = [el for el in sorted(vals) if el]
 
                                 # look for missing values
-                                for k, v in sorted_vals.items():
-                                    if not v in glossary_terms:
+                                for el in sorted_vals:
+                                    if not el in glossary_terms:
                                         html = f"""table <span class="table">{table}</span>, 
                                                     field <span class="field">{g_field}</span>, 
-                                                    {id_fld} {k}, 
-                                                    <span class="value">{v}</span>"""
+                                                    value <span class="value">{el}</span>"""
                                         # not sure why term_warnings gets duplicates...
                                         if not html in term_warnings:
                                             term_warnings.append(html)
@@ -714,7 +718,8 @@ def sources_check(db_dict, level, all_sources):
         else:
             where = None
 
-        id_fld = which_id(db_dict, table)
+        # id_fld = which_id(db_dict, table)
+
         ds_fields = [
             f.name
             for f in db_dict[table]["fields"]
@@ -723,26 +728,27 @@ def sources_check(db_dict, level, all_sources):
         for ds_field in ds_fields:
             d_sources = values(db_dict, table, ds_field, "dictionary", where)
 
-            for oid, val in d_sources.items():
+            for val in d_sources.values():
                 if val:
-                    if "|" in val:
-                        for el in val.split("|"):
-                            if not el.strip() in all_sources:
-                                all_sources.append(el.strip())
-                            if not el.strip() in gems_sources:
-                                missing.append(
-                                    f'table <span class="table">{table}</span>, field <span class="field">{ds_field}</span>, <span class="value">{el}</span>'
-                                )
-                    else:
-                        all_sources.append(val.strip())
-                        if not val.strip() in gems_sources:
+                    # if "|" in val:
+                    for el in val.split("|"):
+                        if not el.strip() in all_sources:
+                            all_sources.append(el.strip())
+                        if not el.strip() in gems_sources:
                             missing.append(
-                                f'table <span class="table">{table}</span>, field <span class="field">{ds_field}</span>, <span class="value">{val}</span>'
+                                f'<span class="table">{table}</span>, field <span class="field">{ds_field}</span>, <span class="value">{el}</span>'
                             )
+                    # else:
+                    #     all_sources.append(val.strip())
+                    #     if not val.strip() in gems_sources:
+                    #         missing.append(
+                    #             f'table <span class="table">{table}</span>, field <span class="field">{ds_field}</span>, <span class="value">{val}</span>'
+                    #         )
                 else:
-                    missing.append(
-                        f'table <span class="table">{table}</span>, field <span class="field">{ds_field}</span>, {id_fld} {oid} has no value'
-                    )
+                    if ds_field in gdef.req_source_ids:
+                        missing.append(
+                            f'<span class="table">{table}</span>, field <span class="field">{ds_field}</span> has null values'
+                        )
 
     missing_source_ids.extend(list(set(missing)))
 
@@ -755,12 +761,14 @@ def rule3_3(db_dict):
     tables = [
         k
         for k, v in db_dict.items()
-        if not v["gems_equivalent"] == "" and not v["dataType"] == "FeatureDataset"
+        if not v["gems_equivalent"] == ""
+        and not v["dataType"] == "FeatureDataset"
+        and not v["gems_equivalent"] == "GeoMaterialDict"
     ]
 
     missing_required_values = [
         "missing required value(s)",
-        "3.3 Fields that are missing required values",
+        "3.3 Fields that are missing required values (NULL values in critical NoNulls fields)",
         "MissingReqValues",
     ]
 
@@ -768,8 +776,9 @@ def rule3_3(db_dict):
         "Possible mistaken omissions (NULL values in non-critical NoNulls fields)"
     ]
 
+    errors = []
+    warnings = []
     for table in tables:
-        id_fld = which_id(db_dict, table)
         # collect all NoNulls fields
         gems_eq = db_dict[table]["gems_equivalent"]
         def_fields = gdef.startDict[gems_eq]
@@ -781,11 +790,14 @@ def rule3_3(db_dict):
 
             for k, v in vals.items():
                 if guf.empty(v) or guf.is_bad_null(v):
-                    html = f'<span class="table">{table}</span>, field <span class="field">{field}</span>, {id_fld} {k}'
+                    html = f'<span class="table">{table}</span>, field <span class="field">{field}</span>'
                     if field.lower() in ["fieldid"]:
-                        missing_warnings.append(html)
+                        warnings.append(html)
                     else:
-                        missing_required_values.append(html)
+                        errors.append(html)
+
+    missing_required_values.extend(list(set(errors)))
+    missing_warnings.extend(list(set(warnings)))
 
     return missing_required_values, missing_warnings
 
@@ -986,7 +998,7 @@ def rule3_11(db_dict, ref_gmd):
                         html = f'Definition of <span class="value">{k}</span> does not match GeMS standard'
                         errors.append(html)
                 else:
-                    html = f'Definition for <span class="value">{k} is missing. Check "Refresh GeoMaterial Dict" on next validation.'
+                    html = f'Definition for <span class="value">{k}</span> is missing. Check "Refresh GeoMaterial Dict" on next validation.'
                     errors.append(html)
 
             else:
@@ -1194,17 +1206,19 @@ def determine_level(val):
 def extra_tables(db_dict, schema_extensions):
     """Find extensions to GeMS by looking at the gems_equivalent entry in the
     database dictionary. If blank, it is an extension"""
+    schema_extensions.append("<h4>Tables</h4>")
     extras = [
         k
         for k, v in db_dict.items()
         if v["gems_equivalent"] == ""
+        or v["gems_equivalent"] in ["GenericSamples", "GenericPoints"]
         and not "Annotation" in v["concat_type"]
         and any(n in v["concat_type"] for n in ("Feature Class", "Table"))
     ]
     if extras:
         for table in extras:
             schema_extensions.append(
-                f'{db_dict[table]["dataType"]} <span class="table">{table}</span>'
+                f'<span class="tab"></span><span class="table">{table}</span>'
             )
 
     return schema_extensions
@@ -1546,6 +1560,7 @@ def main(argv):
         "Rule 2.2 - Required fields within required elements are present and correctly defined"
     )
     schema_extensions = []
+    # fld_warnings is not getting defined right now. Should we use it?
     val["rule2_2"], schema_extensions, fld_warnings = check_fields(
         db_dict, 2, schema_extensions
     )
