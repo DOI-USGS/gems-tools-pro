@@ -90,7 +90,7 @@ reload(gdef)
 # values dictionary gets sent to report_template.jinja errors_template.jinja
 val = {}
 
-version_string = "GeMS_ValidateDatabase.py, version of 8/21/2023"
+version_string = "GeMS_ValidateDatabase.py, version of 8/24/2023"
 val["version_string"] = version_string
 val["datetime"] = time.asctime(time.localtime(time.time()))
 
@@ -279,6 +279,7 @@ def check_fields(db_dict, level, schema_extensions):
             and not v["gems_equivalent"] == ""
             and not v["dataType"] in ("Topology", "Annotation")
             and not "cartographicpoints" in k.lower()
+            and not "cartographiclines" in k.lower()
         ]
         header = "3.1 Missing or mis-defined fields"
 
