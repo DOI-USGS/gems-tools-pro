@@ -402,16 +402,16 @@ def check_map_units(db_dict, level, all_map_units, fds_map_units):
     """All MapUnits entries can be found in DescriptionOfMapUnits table
     Rules 2.4 and 3.8
     Also, collect additions to all_mu_units and fds_map_units"""
-    if not "DescriptionOfMapUnits" in db_dict:
-        message = [
-            '<span class="table>DescriptionOfMapUnits</span> cannot be found. See Rule 2.1',
-        ]
-        missing = message
-        unused = message
-        if level == 2:
-            return missing, all_map_units, None
-        else:
-            return missing, unused, None, None
+    # if not "DescriptionOfMapUnits" in db_dict:
+    #     message = [
+    #         '<span class="table>DescriptionOfMapUnits</span> cannot be found. See Rule 2.1',
+    #     ]
+    #     missing = message
+    #     unused = message
+    #     if level == 2:
+    #         return missing, all_map_units, None
+    #     else:
+    #         return missing, unused, None, None
 
     dmu_units = list(set(values(db_dict, "DescriptionOfMapUnits", "MapUnit", "list")))
     dmu_units = [u for u in dmu_units if not u == None]
@@ -583,6 +583,8 @@ def glossary_check(db_dict, level, all_gloss_terms):
 
     # compare Term fields in the tables with the Glossary
     glossary_terms = values(db_dict, "Glossary", "Term", "list")
+    if not glossary_terms:
+        glossary_terms = [""]
     if tables:
         for table in tables:
             id_fld = which_id(db_dict, table)
@@ -675,10 +677,10 @@ def sources_check(db_dict, level, all_sources):
 
     # first check for DataSources table and DataSources_ID field
     if not "DataSources" in db_dict:
-        return "Could not find DataSources table. See Rule 2.1"
+        return "Could not find DataSources table. See Rule 2.1", []
 
     if not "DataSources_ID" in [f.name for f in db_dict["DataSources"]["fields"]]:
-        return "Could not find DataSources_ID field in DataSources. See Rule 2.1"
+        return "Could not find DataSources_ID field in DataSources. See Rule 2.1", []
 
     # found table and filed, proceeed
     # decide which tables to check
@@ -1590,9 +1592,12 @@ def main(argv):
     ap("2.4 All map units in MapUnitPolys have entries in DescriptionOfMapUnits table")
     all_map_units = []
     fds_map_units = {}
-    val["rule2_4"], all_map_units, fds_map_units = check_map_units(
-        db_dict, 2, all_map_units, fds_map_units
-    )
+    if "DescriptionOfMapUnits" in db_dict:
+        val["rule2_4"], all_map_units, fds_map_units = check_map_units(
+            db_dict, 2, all_map_units, fds_map_units
+        )
+    else:
+        val["rule2_4"] = ["DMU cannot be found. Rule not checked"]
 
     # rule 2.5
     # No duplicate MapUnit values in DescriptionOfMapUnit table
@@ -1602,9 +1607,12 @@ def main(argv):
         "Duplicated MapUnit values in DescriptionOfMapUnits",
         "DuplicatedMU",
     ]
-    dmu_path = db_dict["DescriptionOfMapUnits"]["catalogPath"]
-    dmu_map_units_duplicates.extend(guf.get_duplicates(dmu_path, "MapUnit"))
-    val["rule2_5"] = dmu_map_units_duplicates
+    if "DescriptionOfMapUnits" in db_dict:
+        dmu_path = db_dict["DescriptionOfMapUnits"]["catalogPath"]
+        dmu_map_units_duplicates.extend(guf.get_duplicates(dmu_path, "MapUnit"))
+        val["rule2_5"] = dmu_map_units_duplicates
+    else:
+        val["rule2_5"] = ["DMU cannot be found. Rule not checked"]
 
     # rule 2.6
     # Certain field values within required elements have entries in Glossary table
@@ -1622,9 +1630,12 @@ def main(argv):
         "2.7 Duplicated terms in Glossary",
         "DuplicatedTerms",
     ]
-    gloss_path = db_dict["Glossary"]["catalogPath"]
-    glossary_term_duplicates.extend(guf.get_duplicates(gloss_path, "Term"))
-    val["rule2_7"] = glossary_term_duplicates
+    if "Glossary" in db_dict:
+        gloss_path = db_dict["Glossary"]["catalogPath"]
+        glossary_term_duplicates.extend(guf.get_duplicates(gloss_path, "Term"))
+        val["rule2_7"] = glossary_term_duplicates
+    else:
+        val["rule2_7"] = ["Glossary cannot be found. Rule not checked"]
 
     # rule 2.8
     # All xxxSourceID values in required elements have entries in DataSources table
@@ -1642,9 +1653,12 @@ def main(argv):
         "Duplicated source_IDs in DataSources",
         "DuplicatedIDs",
     ]
-    ds_path = db_dict["DataSources"]["catalogPath"]
-    duplicated_source_ids.extend(guf.get_duplicates(ds_path, "DataSources_ID"))
-    val["rule2_9"] = duplicated_source_ids
+    if "DataSources" in db_dict:
+        ds_path = db_dict["DataSources"]["catalogPath"]
+        duplicated_source_ids.extend(guf.get_duplicates(ds_path, "DataSources_ID"))
+        val["rule2_9"] = duplicated_source_ids
+    else:
+        val["rule2_9"] = ["DataSources cannot be found. Rule not checked"]
 
     ap("\u200B")
     ap("Looking at level 3 compliance")
@@ -1681,12 +1695,20 @@ def main(argv):
         ap("\tRemoving unused terms from Glossary")
         del_extra(db_dict, "Glossary", "Term", all_gloss_terms)
 
-    val["rule3_5"] = rule3_5_and_7(db_dict, "glossary", all_gloss_terms)
+    if "Glossary" in db_dict:
+        val["rule3_5"] = rule3_5_and_7(db_dict, "glossary", all_gloss_terms)
+    else:
+        val["rule3_5"] = ["Glossary cannot be found. Rule not checked"]
 
     # rule 3.6
     # No missing sources in DataSources
     ap("3.6 No missing sources in DataSources")
-    val["rule3_6"], all_sources = sources_check(db_dict, 3, all_sources)
+    if "DataSources" in db_dict:
+        val["rule3_6"], all_sources = sources_check(db_dict, 3, all_sources)
+    else:
+        val["rule3_6"], all_sources = [
+            "DataSources cannot be found. Rule not checked"
+        ], []
 
     # rule 3.7
     # No unnecessary sources in DataSources
@@ -1696,7 +1718,10 @@ def main(argv):
         ap("\tRemoving unused sources from DataSources")
         del_extra(db_dict, "DataSources", "DataSources_ID", all_sources)
 
-    val["rule3_7"] = rule3_5_and_7(db_dict, "datasources", all_sources)
+    if "DataSources" in db_dict:
+        val["rule3_7"] = rule3_5_and_7(db_dict, "datasources", all_sources)
+    else:
+        val["rule3_7"] = ["DataSources cannot be found. Rule not checked"]
 
     # rule 3.8
     # No map units without entries in DescriptionOfMapUnits
@@ -1704,18 +1729,31 @@ def main(argv):
     # No unnecessary map units in DescriptionOfMapUnits
     ap("3.8 No map units without entries in DescriptionOfMapUnits")
     ap("3.9 No unnecessary map units in DescriptionOfMapUnits")
-    (
-        val["rule3_8"],
-        val["rule3_9"],
-        all_map_units,
-        fds_map_units,
-        val["mu_warnings"],
-    ) = check_map_units(db_dict, 3, all_map_units, fds_map_units)
+    if "DescriptionOfMapUnits" in db_dict:
+        (
+            val["rule3_8"],
+            val["rule3_9"],
+            all_map_units,
+            fds_map_units,
+            val["mu_warnings"],
+        ) = check_map_units(db_dict, 3, all_map_units, fds_map_units)
+    else:
+        error_list = ["DMU cannot be found. Rule not checked"]
+        val["rule3_8"] = error_list
+        val["rule3_9"] = error_list
+        all_map_units = []
+        fds_map_units = []
+        val["mu_warnings"] = []
 
     # rule 3.10
     # HierarchyKey values in DescriptionOfMapUnits are unique and well formed
     ap("3.10 HierarchyKey values in DescriptionOfMapUnits are unique and well formed")
-    val["rule3_10"], val["hkey_warnings"] = rule3_10(db_dict)
+    if "HierarchyKeys" in db_dict:
+        val["rule3_10"], val["hkey_warnings"] = rule3_10(db_dict)
+    else:
+        val["rule3_10"], val["hkey_warnings"] = [
+            "DMU cannot be found. Rule not checked"
+        ], []
     # 3.11
     # All values of GeoMaterial are defined in GeoMaterialDict.
     ap(
@@ -1771,11 +1809,15 @@ def main(argv):
     val["extras"] = extra_tables(db_dict, schema_extensions)
 
     # prepare lists of units for Occurrence table
-    ap("\tFinding occurrences of map units")
-    all_map_units.sort()
-    val["all_units"] = list(set(all_map_units))
-    fds_map_units = sort_fds_units(fds_map_units)
-    val["fds_units"] = fds_map_units
+    if "DescriptionOfMapUnits" in db_dict:
+        ap("\tFinding occurrences of map units")
+        all_map_units.sort()
+        val["all_units"] = list(set(all_map_units))
+        fds_map_units = sort_fds_units(fds_map_units)
+        val["fds_units"] = fds_map_units
+    else:
+        val["all_units"] = []
+        val["fds_units"] = []
 
     # prepare contents of non-spatial tables
     ap("\tStoring contents of non-spatial tables")
