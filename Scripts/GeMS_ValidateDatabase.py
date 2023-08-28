@@ -277,7 +277,7 @@ def check_fields(db_dict, level, schema_extensions):
             for k, v in db_dict.items()
             if not v["gems_equivalent"] in req_tables
             and not v["gems_equivalent"] == ""
-            and not v["dataType"] in ("Topology", "Annotation")
+            and not v["dataType"] in ("Topology", "Annotation", "FeatureDataset")
             and not "cartographicpoints" in k.lower()
             and not "cartographiclines" in k.lower()
         ]
