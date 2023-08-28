@@ -83,10 +83,6 @@ import topology as tp
 import requests
 from jinja2 import Environment, FileSystemLoader
 
-from importlib import reload
-
-reload(gdef)
-
 # values dictionary gets sent to report_template.jinja errors_template.jinja
 val = {}
 
@@ -1206,10 +1202,8 @@ def extra_tables(db_dict, schema_extensions):
     extras = [
         k
         for k, v in db_dict.items()
-        if v["gems_equivalent"] == ""
-        or v["gems_equivalent"] in ["GenericSamples", "GenericPoints"]
-        and not "Annotation" in v["concat_type"]
-        and any(n in v["concat_type"] for n in ("Feature Class", "Table"))
+        if v["gems_equivalent"] in ["GenericSamples", "GenericPoints", ""]
+        and not v["concat_type"] == "Topology"
     ]
     if extras:
         for table in extras:
