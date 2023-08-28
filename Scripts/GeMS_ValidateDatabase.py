@@ -90,7 +90,7 @@ reload(gdef)
 # values dictionary gets sent to report_template.jinja errors_template.jinja
 val = {}
 
-version_string = "GeMS_ValidateDatabase.py, version of 8/24/2023"
+version_string = "GeMS_ValidateDatabase.py, version of 8/28/2023"
 val["version_string"] = version_string
 val["datetime"] = time.asctime(time.localtime(time.time()))
 
@@ -739,17 +739,12 @@ def sources_check(db_dict, level, all_sources):
                             missing.append(
                                 f'<span class="table">{table}</span>, field <span class="field">{ds_field}</span>, <span class="value">{el}</span>'
                             )
-                    # else:
-                    #     all_sources.append(val.strip())
-                    #     if not val.strip() in gems_sources:
-                    #         missing.append(
-                    #             f'table <span class="table">{table}</span>, field <span class="field">{ds_field}</span>, <span class="value">{val}</span>'
-                    #         )
-                else:
-                    if ds_field in gdef.req_source_ids:
-                        missing.append(
-                            f'<span class="table">{table}</span>, field <span class="field">{ds_field}</span> has null values'
-                        )
+
+                # else:
+                #     if ds_field in gdef.req_source_ids:
+                #         missing.append(
+                #             f'<span class="table">{table}</span>, field <span class="field">{ds_field}</span> has null values. See Rule 3.3'
+                #         )
 
     missing_source_ids.extend(list(set(missing)))
 
