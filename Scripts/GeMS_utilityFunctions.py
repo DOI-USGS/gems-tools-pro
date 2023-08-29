@@ -365,6 +365,9 @@ def gdb_object_dict(gdb_path):
             if any(k.lower().endswith(l) for l in ("label", "labels")):
                 v["gems_equivalent"] = ""
 
+            if k.lower() == "mapunitoverlaypolys":
+                v["gems_equivalent"] = "MapUnitOverlayPolys"
+
     return new_dict
 
 
