@@ -86,7 +86,7 @@ from jinja2 import Environment, FileSystemLoader
 # values dictionary gets sent to report_template.jinja errors_template.jinja
 val = {}
 
-version_string = "GeMS_ValidateDatabase.py, version of 8/28/2023"
+version_string = "GeMS_ValidateDatabase.py, version of 8/29/2023"
 val["version_string"] = version_string
 val["datetime"] = time.asctime(time.localtime(time.time()))
 
@@ -762,12 +762,12 @@ def rule3_3(db_dict):
 
     missing_required_values = [
         "missing required value(s)",
-        "3.3 Fields that are missing required values (NULL values in critical NoNulls fields)",
+        "3.3 GeMS fields that are missing values (NULL values in critical NoNulls fields)",
         "MissingReqValues",
     ]
 
     missing_warnings = [
-        "Possible mistaken omissions (NULL values in non-critical NoNulls fields)"
+        "Possible omissions (NULL values in non-critical NoNulls fields)"
     ]
 
     errors = []
@@ -1620,7 +1620,12 @@ def main(argv):
         "2.6 Certain field values within required elements have entries in Glossary table"
     )
     all_gloss_terms = []
-    val["rule2_6"], all_gloss_terms = glossary_check(db_dict, 2, all_gloss_terms)
+    if "Glossary" in db_dict:
+        val["rule2_6"], all_gloss_terms = glossary_check(db_dict, 2, all_gloss_terms)
+    else:
+        val["rule2_6"], all_gloss_terms = [
+            "Glossary cannot be found. Rule not checked"
+        ], []
 
     # rule 2.7
     # No duplicate Term values in Glossary table
@@ -1643,7 +1648,12 @@ def main(argv):
         "2.8 All xxxSourceID values in required elements have entries in DataSources table"
     )
     all_sources = []
-    val["rule2_8"], all_sources = sources_check(db_dict, 2, all_sources)
+    if "DataSources" in db_dict:
+        val["rule2_8"], all_sources = sources_check(db_dict, 2, all_sources)
+    else:
+        val["rule2_8"], all_sources = [
+            "DataSources cannot be found. Rule not checked"
+        ], []
 
     # rule 2.9
     # No duplicate DataSources_ID values in DataSources table
@@ -1679,14 +1689,26 @@ def main(argv):
     # rule 3.3
     # No missing required values
     ap("3.3 No missing required values")
-    val["rule3_3"], val["missing_warnings"] = rule3_3(db_dict)
+    if "Glossary" in db_dict:
+        val["rule3_3"], val["missing_warnings"] = rule3_3(db_dict)
+    else:
+        val["rule3_3"], val["missing_warnings"] = [
+            "Glossary cannot be found. Rule not checked"
+        ], []
 
     # rule 3.4
     # No missing terms in Glossary
     ap("3.4 No missing terms in Glossary")
-    val["rule3_4"], all_gloss_terms, val["term_warnings"] = glossary_check(
-        db_dict, 3, all_gloss_terms
-    )
+    if "Glossary" in db_dict:
+        val["rule3_4"], all_gloss_terms, val["term_warnings"] = glossary_check(
+            db_dict, 3, all_gloss_terms
+        )
+    else:
+        val["rule3_4"], all_gloss_terms, val["term_warnings"] = (
+            ["Glossary cannot be found. Rule not checked"],
+            [],
+            [],
+        )
 
     # rule 3.5
     # No unnecessary terms in Glossary
@@ -1748,7 +1770,7 @@ def main(argv):
     # rule 3.10
     # HierarchyKey values in DescriptionOfMapUnits are unique and well formed
     ap("3.10 HierarchyKey values in DescriptionOfMapUnits are unique and well formed")
-    if "HierarchyKeys" in db_dict:
+    if "DescriptionOfMapUnits" in db_dict:
         val["rule3_10"], val["hkey_warnings"] = rule3_10(db_dict)
     else:
         val["rule3_10"], val["hkey_warnings"] = [
