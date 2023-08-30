@@ -35,7 +35,15 @@ def main(db):
                     if not field == gems_id:
                         arcpy.AddMessage(f"changing {field} to {gems_id}")
                         in_table = v["catalogPath"]
-                        arcpy.management.AlterField(in_table, field, gems_id, gems_id)
+                        try:
+                            arcpy.management.AlterField(
+                                in_table, field, gems_id, gems_id
+                            )
+                        except:
+                            arcpy.AddWarning(
+                                f"""Could not change {field} to {gems_id}. Check for locks on the geodatabase 
+                                or relationship classes that use the field"""
+                            )
 
 
 if __name__ == "__main__":
