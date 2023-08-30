@@ -1525,13 +1525,13 @@ def main(argv):
 
     # look for geodatabase version
     # not implemented yet
-    if "PublicationTable" in db_dict.keys():
-        ver_table = db_dict["Version"]["catalogPath"]
-        result = arcpy.GetCount_management(ver_table)
-        if result[0] == 1:
-            gdb_ver = f" version {[row[0] for row in arcpy.da.SearchCursor(ver_table, 'Version')]}"
-        else:
-            gdb_ver = ""
+    # if "PublicationTable" in db_dict.keys():
+    #     ver_table = db_dict["Version"]["catalogPath"]
+    #     result = arcpy.GetCount_management(ver_table)
+    #     if result[0] == 1:
+    #         gdb_ver = f" version {[row[0] for row in arcpy.da.SearchCursor(ver_table, 'Version')]}"
+    #     else:
+    #         gdb_ver = ""
 
     # level 2 compliance
     ap("\u200B")
