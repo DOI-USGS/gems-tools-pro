@@ -33,9 +33,9 @@ def main(db):
                     gems_id = f"{k}_ID"
 
                     if not field == gems_id:
-                        arcpy.AddMessage(f"changing {field} to {gems_id}")
                         in_table = v["catalogPath"]
                         try:
+                            arcpy.AddMessage(f"changing {field} to {gems_id}")
                             arcpy.management.AlterField(
                                 in_table, field, gems_id, gems_id
                             )
