@@ -559,6 +559,7 @@ defined_term_fields_list = (
     "AgeUnits",
     "LocationMethod",
     "ScientificConfidence",
+    "ValueConfidence",
 )
 
 

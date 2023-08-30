@@ -86,7 +86,7 @@ from jinja2 import Environment, FileSystemLoader
 # values dictionary gets sent to report_template.jinja errors_template.jinja
 val = {}
 
-version_string = "GeMS_ValidateDatabase.py, version of 8/29/2023"
+version_string = "GeMS_ValidateDatabase.py, version of 8/30/2023"
 val["version_string"] = version_string
 val["datetime"] = time.asctime(time.localtime(time.time()))
 
@@ -593,7 +593,7 @@ def glossary_check(db_dict, level, all_gloss_terms):
             fields = [
                 f.name
                 for f in db_dict[table]["fields"]
-                if f.name in gdef.defined_term_fields_list
+                if f.name in gdef.defined_term_fields_list and f.type == "String"
             ]
 
             if fields:
@@ -642,6 +642,7 @@ def glossary_check(db_dict, level, all_gloss_terms):
                                 for f in db_dict[table]["fields"]
                                 if f.name.lower().endswith(suffix)
                                 and not f.name in gdef.defined_term_fields_list
+                                and f.type == "String"
                             ]
                             gemsy_fields.extend(more_fields)
                         if gemsy_fields:
