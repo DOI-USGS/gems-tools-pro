@@ -18,7 +18,7 @@ import arcpy
 import GeMS_utilityFunctions as guf
 
 version_string = "GeMS_RenameIDFields.py, version of 8/30/2023"
-rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/master/Scripts/GeMS/GeMS_RenameIDFields.py"
+rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/master/Scripts/GeMS_RenameIDFields.py"
 
 
 def main(db):
