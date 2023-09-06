@@ -846,7 +846,7 @@ def rule3_10(db_dict):
     # return early if HKs is empty
     if not hk_dict:
         hkey_errors.append("No HierarchyKey values")
-        return hkey_errors
+        return hkey_errors, hkey_warnings
 
     # check for empty values
     id_fld = which_id(db_dict, "DescriptionOfMapUnits")
