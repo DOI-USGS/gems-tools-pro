@@ -1776,7 +1776,7 @@ def main(argv):
     else:
         val["rule3_10"], val["hkey_warnings"] = [
             "DMU cannot be found. Rule not checked"
-        ], []
+        ]
     # 3.11
     # All values of GeoMaterial are defined in GeoMaterialDict.
     ap(
