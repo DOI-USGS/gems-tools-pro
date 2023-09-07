@@ -389,7 +389,7 @@ def eval_topology(db, top, db_dict, gmap, level_2_errors, level_3_errors):
 
         level_3_errors.extend(
             [
-                f"&emsp;Rule '{level_3_errors[r]}' is missing"
+                f"&emsp;Rule '{level_3_rules[r]}' is missing"
                 for r in level_3_rules
                 if not r in caf_rules
             ]
