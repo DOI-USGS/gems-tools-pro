@@ -563,7 +563,14 @@ def glossary_check(db_dict, level, all_gloss_terms):
         tables = [
             k
             for k, v in db_dict.items()
-            if not v["dataType"] in ("FeatureDataset", "Annotation", "Topology")
+            if not v["dataType"]
+            in (
+                "FeatureDataset",
+                "Annotation",
+                "Topology",
+                "RasterBand",
+                "RasterDataset",
+            )
             and not k == "GeoMaterialDict"
             and v["gems_equivalent"] not in req
         ]
@@ -629,22 +636,32 @@ def glossary_check(db_dict, level, all_gloss_terms):
                 tables = [
                     k
                     for k, v in db_dict.items()
-                    if not v["dataType"] in ("FeatureDataset", "Annotation", "Topology")
+                    if not v["dataType"]
+                    in (
+                        "FeatureDataset",
+                        "Annotation",
+                        "Topology",
+                        "RasterBand",
+                        "RasterDataset",
+                    )
                     and not k == "GeoMaterialDict"
                 ]
                 if tables:
                     for table in tables:
                         gemsy_fields = []
                         term_suffixes = ["type", "method", "confidence"]
-                        for suffix in term_suffixes:
-                            more_fields = [
-                                f.name
-                                for f in db_dict[table]["fields"]
-                                if f.name.lower().endswith(suffix)
-                                and not f.name in gdef.defined_term_fields_list
-                                and f.type == "String"
-                            ]
-                            gemsy_fields.extend(more_fields)
+                        # table filter should catch dictionary elements that have "fields" key,
+                        # but we'll check again
+                        if "fields" in db_dict:
+                            for suffix in term_suffixes:
+                                more_fields = [
+                                    f.name
+                                    for f in db_dict[table]["fields"]
+                                    if f.name.lower().endswith(suffix)
+                                    and not f.name in gdef.defined_term_fields_list
+                                    and f.type == "String"
+                                ]
+                                gemsy_fields.extend(more_fields)
                         if gemsy_fields:
                             # values in gems-like fields that are not found in the glossary are
                             # listed as warnings, not errors
@@ -696,7 +713,14 @@ def sources_check(db_dict, level, all_sources):
         tables = [
             k
             for k, v in db_dict.items()
-            if not v["dataType"] in ["FeatureDataset", "Annotation", "Topology"]
+            if not v["dataType"]
+            in (
+                "FeatureDataset",
+                "Annotation",
+                "Topology",
+                "RasterBand",
+                "RasterDataset",
+            )
             and not k in gdef.rule2_1_elements
         ]
         # tables = [t for t in tables if not t in gdef.rule2_1_elements]
@@ -1292,14 +1316,19 @@ def dump_tables(db_dict):
 
 def raster_size(db_dict, name):
     n = db_dict[name]
-    width = int(n["width"])
     bands = int(n["bandCount"])
-    height = int(n["height"])
-    depth = n["pixelType"]
-    depth = "".join(ch for ch in depth if ch.isdigit())
-    depth = int(depth) / 8
-    kb = width * height * depth * bands / 1000
-    return int(kb)
+    try:
+        if "children" in n:
+            band0 = n["children"][0]
+            width = int(band0["width"])
+            height = int(band0["height"])
+            depth = band0["pixelType"]
+            depth = "".join(ch for ch in depth if ch.isdigit())
+            depth = int(depth) / 8
+            kb = width * height * depth * bands * 0.000001
+            return f" aprx. {int(kb)} mb uncompressed size"
+    except:
+        return " cannot calculate size."
 
 
 def inventory(db_dict):
@@ -1346,7 +1375,7 @@ def inventory(db_dict):
             inv_list.append(f"{el}, {n_type}, {count} rows")
         elif n_type == "raster dataset":
             size = raster_size(db_dict, el)
-            inv_list.append(f"{el}, {n_type}, aprx. {size} kb uncompressed size")
+            inv_list.append(f"{el}, {n_type}, {size}")
         else:
             inv_list.append(f"{el}, {n_type}")
 
