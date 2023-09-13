@@ -336,6 +336,7 @@ def eval_topology(db, top, db_dict, gmap, level_2_errors, level_3_errors):
         for k in top_dict
         if k != "mup_dest" and db_dict[k]["gems_equivalent"] == "MapUnitPolys"
     ]
+
     if mup_list:
         mup = mup_list[0]
         found_mup = True

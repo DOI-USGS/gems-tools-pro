@@ -83,6 +83,10 @@ import topology as tp
 import requests
 from jinja2 import Environment, FileSystemLoader
 
+from importlib import reload
+
+reload(tp)
+
 # values dictionary gets sent to report_template.jinja errors_template.jinja
 val = {}
 
@@ -570,6 +574,7 @@ def glossary_check(db_dict, level, all_gloss_terms):
                 "Topology",
                 "RasterBand",
                 "RasterDataset",
+                "RelationshipClass",
             )
             and not k == "GeoMaterialDict"
             and v["gems_equivalent"] not in req
