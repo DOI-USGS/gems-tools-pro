@@ -32,7 +32,7 @@ from GeMS_Definition import (
 from GeMS_utilityFunctions import *
 import copy
 
-versionString = "GeMS_CreateDatabase.py, version of 8/21/23"
+versionString = "GeMS_CreateDatabase.py, version of 9/18/23"
 rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/master/Scripts/GeMS_CreateDatabase.py"
 checkVersion(versionString, rawurl, "gems-tools-pro")
 
@@ -378,10 +378,10 @@ def main(thisDB, coordSystem, nCrossSections):
     ### GeoMaterials
     addMsgAndPrint("  Setting up GeoMaterialsDict table and domains...")
     #  Copy GeoMaterials table
-    arcpy.Copy_management(
-        os.path.dirname(sys.argv[0]) + "/../Resources/GeMS_lib.gdb/GeoMaterialDict",
-        thisDB + "/GeoMaterialDict",
-    )
+    scripts_f = os.path.dirname(__file__)
+    geomat_csv = os.path.join(scripts_f, "GeoMaterialDict.csv")
+    arcpy.TableToTable_conversion(geomat_csv, thisDB, "GeoMaterialDict")
+
     #   make GeoMaterials domain
     arcpy.TableToDomain_management(
         thisDB + "/GeoMaterialDict",
