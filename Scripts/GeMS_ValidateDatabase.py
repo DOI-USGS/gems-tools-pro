@@ -317,7 +317,7 @@ def check_fields(db_dict, level, schema_extensions):
                 cur_field = [f for f in found_fields if f.name.endswith(field[0])]
                 if cur_field:
                     cur_field = cur_field[0]
-                    html = f'<span class="table">{table}</span>, field <span class="field">{cur_field.name}</span> should be'
+                    html = f'<span class="table">{table}</span>, <span class="field">{cur_field.name}</span> should be'
                     if req_type != cur_field.type:
                         errors.append(f"{html} type {req_type}")
 
@@ -413,6 +413,7 @@ def check_map_units(db_dict, level, all_map_units, fds_map_units):
     #     missing = message
     #     unused = message
     #     if level == 2:
+
     #         return missing, all_map_units, None
     #     else:
     #         return missing, unused, None, None
@@ -498,9 +499,10 @@ def check_map_units(db_dict, level, all_map_units, fds_map_units):
                             if val:
                                 if not val in dmu_units:
                                     html = f"""
+                                        <span class="table">{mu_table}</span>,
+                                        <span class="field">{mu_fields[i]}</span>,
                                         <span class="value">{val}</span>, 
-                                        field <span class="field">{mu_fields[i]}</span>, 
-                                        table <span class="table">{mu_table}</span>"""
+                                        """
                                     missing.append(html)
                                 all_map_units.append(val)
                                 fds_map_units[fd].extend(row)
@@ -525,9 +527,11 @@ def check_map_units(db_dict, level, all_map_units, fds_map_units):
                     for row in cursor:
                         for i, val in enumerate(row):
                             if not val in dmu_units and not val == None:
-                                html = f"""<span class="value">{val}</span>, 
-                                field <span class="field">{mu_fields[i]}</span>, 
-                                table <span class="table">{mu_table}</span>"""
+                                html = f"""
+                                <span class="table">{mu_table}</span>,
+                                <span class="field">{mu_fields[i]}</span>,
+                                <span class="value">{val}</span>
+                                """
                                 mu_warnings.append(html)
 
             fds_map_units[fd] = list(set(fds_map_units[fd]))
@@ -560,7 +564,7 @@ def glossary_check(db_dict, level, all_gloss_terms):
 
     if level == 2:
         tables = [t for t in db_dict if db_dict[t]["gems_equivalent"] in req]
-        missing_header = "2.6 Missing terms in Glossary. Only one reference to each missing term is cited"
+        missing_header = "2.6 Missing terms in Glossary with the table and field in which they are found"
     else:
         # or every other table in the database
         # at level 3, we have already checked level 2 elements
@@ -579,7 +583,7 @@ def glossary_check(db_dict, level, all_gloss_terms):
             and not k == "GeoMaterialDict"
             and v["gems_equivalent"] not in req
         ]
-        missing_header = "3.4 Missing terms in Glossary. Only one reference to each missing term is cited"
+        missing_header = "3.4 Missing terms in Glossary with the table and field in which they are found"
         term_warnings = [
             """Terms in GeMS-like fields that do not have definitions in the Glossary.<br>
             All fields ending in <span class="field">type</span>, <span class="field">method</span>, 
@@ -631,9 +635,11 @@ def glossary_check(db_dict, level, all_gloss_terms):
 
                     for el in sorted_vals:
                         if not el in glossary_terms:
-                            html = f"""table <span class="table">{table}</span>, 
-                                        field <span class="field">{field}</span>, 
-                                        <span class="value">{el}</span>"""
+                            html = f"""
+                                <span class="table">{table}</span>, 
+                                <span class="field">{field}</span>, 
+                                <span class="value">{el}</span>
+                                """
                             missing.append(html)
 
             if level == 3:
@@ -657,7 +663,7 @@ def glossary_check(db_dict, level, all_gloss_terms):
                         term_suffixes = ["type", "method", "confidence"]
                         # table filter should catch dictionary elements that have "fields" key,
                         # but we'll check again
-                        if "fields" in db_dict:
+                        if "fields" in db_dict[table]:
                             for suffix in term_suffixes:
                                 more_fields = [
                                     f.name
@@ -667,21 +673,25 @@ def glossary_check(db_dict, level, all_gloss_terms):
                                     and f.type == "String"
                                 ]
                                 gemsy_fields.extend(more_fields)
+                        # if table == "ContactsAndFaults":
+                        #     print(f"gemsy fields in cof = {gemsy_fields}")
                         if gemsy_fields:
                             # values in gems-like fields that are not found in the glossary are
                             # listed as warnings, not errors
                             for g_field in gemsy_fields:
                                 vals = values(db_dict, table, g_field, "list")
-
-                                vals = [el for el in vals if el]
+                                vals = list(set([el for el in vals if el]))
+                                all_gloss_terms.extend(vals)
                                 sorted_vals = [el for el in sorted(vals) if el]
 
                                 # look for missing values
                                 for el in sorted_vals:
                                     if not el in glossary_terms:
-                                        html = f"""table <span class="table">{table}</span>, 
-                                                    field <span class="field">{g_field}</span>, 
-                                                    value <span class="value">{el}</span>"""
+                                        html = f"""
+                                            <span class="table">{table}</span>, 
+                                            <span class="field">{g_field}</span>, 
+                                            <span class="value">{el}</span>
+                                            """
                                         # not sure why term_warnings gets duplicates...
                                         if not html in term_warnings:
                                             term_warnings.append(html)
@@ -711,7 +721,7 @@ def sources_check(db_dict, level, all_sources):
         # just required fc and tables
         req = [t for t in gdef.rule2_1_elements if not t == "GeologicMap"]
         tables = [t for t in db_dict if db_dict[t]["gems_equivalent"] in req]
-        missing_header = "2.8 Missing DataSources entries. Only one reference to each missing entry is cited"
+        missing_header = "2.8 Missing DataSources entries with the table and field in which they are found"
 
     if level == 3:
         # all other tables and fcs in the database
@@ -729,7 +739,7 @@ def sources_check(db_dict, level, all_sources):
             and not k in gdef.rule2_1_elements
         ]
         # tables = [t for t in tables if not t in gdef.rule2_1_elements]
-        missing_header = "3.6 Missing DataSources entries. Only one reference to each missing entry is cited"
+        missing_header = "3.6 Missing DataSources entries with the table and field in which they are found"
 
     missing_source_ids = [
         "entry(ies) missing in DataSources",
@@ -747,8 +757,6 @@ def sources_check(db_dict, level, all_sources):
         else:
             where = None
 
-        # id_fld = which_id(db_dict, table)
-
         ds_fields = [
             f.name
             for f in db_dict[table]["fields"]
@@ -764,15 +772,15 @@ def sources_check(db_dict, level, all_sources):
                         if not el.strip() in all_sources:
                             all_sources.append(el.strip())
                         if not el.strip() in gems_sources:
+                            if guf.is_bad_null(el):
+                                el = "NULL value or empty string (see Rule 3.13)"
                             missing.append(
-                                f'<span class="table">{table}</span>, field <span class="field">{ds_field}</span>, <span class="value">{el}</span>'
+                                f"""
+                                    <span class="table">{table}</span>, 
+                                    <span class="field">{ds_field}</span>, 
+                                    <span class="value">{el}</span>
+                                    """
                             )
-
-                # else:
-                #     if ds_field in gdef.req_source_ids:
-                #         missing.append(
-                #             f'<span class="table">{table}</span>, field <span class="field">{ds_field}</span> has null values. See Rule 3.3'
-                #         )
 
     missing_source_ids.extend(list(set(missing)))
 
@@ -814,7 +822,7 @@ def rule3_3(db_dict):
 
             for k, v in vals.items():
                 if guf.empty(v) or guf.is_bad_null(v):
-                    html = f'<span class="table">{table}</span>, field <span class="field">{field}</span>'
+                    html = f'<span class="table">{table}</span>, <span class="field">{field}</span>'
                     if field.lower() in ["fieldid"]:
                         warnings.append(html)
                     else:
@@ -1108,6 +1116,7 @@ def rule3_12(db_dict):
         to_html = [
             f'<span class="value">{d[0]}</span> in table <span class="table">{d[1]}</span>'
             for d in dup_ids
+            if not guf.is_bad_null(d[0])
         ]
         duplicate_ids.extend(to_html)
 
@@ -1139,14 +1148,22 @@ def rule3_13(db_dict):
             for k, v in val_dict.items():
                 if v:
                     if v.isspace() or v.lower() in ("&ltnull&gt", "<null>", ""):
-                        html = f'<span class="table">{table}</span>, field <span class="field"> {field}</span>, {id_fld} {str(k)}'
+                        html = f"""
+                            <span class="table">{table}</span>, 
+                            <span class="field"> {field}</span>, 
+                            {id_fld} {str(k)}
+                            """
                         zero_length_strings.append(html)
 
             # also collect leading_trailing_spaces for 'other stuff' report
             for n in [
                 k for k, v in val_dict.items() if v and (len(v.strip()) != len(v))
             ]:
-                html = f'<span class="table">{table}</span>, field <span class="field"> {field}</span>, {id_fld} {str(n)}'
+                html = f"""
+                    <span class="table">{table}</span>, 
+                    <span class="field"> {field}</span>, 
+                    {id_fld} {str(n)}
+                    """
                 leading_trailing_spaces.append(html)
 
     return zero_length_strings, leading_trailing_spaces
