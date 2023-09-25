@@ -1181,11 +1181,10 @@ def validate_online(metadata_file, workdir):
     try:
         with open(metadata_file, "rb") as f:
             r = requests.post(url, files={"input_file": f})
-    except:
-        message = "Could not connect to the metadata validation service. Check your internet connection and try again."
-        ap(message)
-
-        return False, message
+            r.raise_for_status()
+    except requests.exceptions.RequestException as err:
+        ap(err)
+        return err
 
     if r.ok:
         links = r.json()["output"]["link"]
@@ -1449,13 +1448,12 @@ def main(argv):
     val["parameters"].append(f"Output directory: {workdir}")
 
     # path to metadata file
-    metadata_file = None
-    if 3 < args_len:
-        if not Path(argv[3]).suffix == ".xml":
-            ap("Metadata not checked. File needs to be in XML format.")
-
-        if Path(argv[3]).suffix == ".xml" and Path(argv[3]).exists():
-            metadata_file = Path(argv[3])
+    # metadata_file = None
+    # if 3 < args_len:
+    #     if Path(argv[3]).suffix == ".xml" and Path(argv[3]).exists():
+    #         metadata_file = Path(argv[3])
+    #     else:
+    #         ap("Metadata not checked. File needs to be in XML format or could not be found.")
 
     arc_md = False
     if 4 < args_len:
