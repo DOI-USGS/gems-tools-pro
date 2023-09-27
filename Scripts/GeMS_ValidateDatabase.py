@@ -90,7 +90,7 @@ reload(tp)
 # values dictionary gets sent to report_template.jinja errors_template.jinja
 val = {}
 
-version_string = "GeMS_ValidateDatabase.py, version of 8/30/2023"
+version_string = "GeMS_ValidateDatabase.py, version of 9/27/2023"
 val["version_string"] = version_string
 val["datetime"] = time.asctime(time.localtime(time.time()))
 

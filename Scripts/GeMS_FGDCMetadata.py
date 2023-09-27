@@ -21,7 +21,7 @@ import spatial_utils as su
 import copy
 import requests
 
-versionString = "GeMS_FGDCMetadata.py, version of 8/21/23"
+versionString = "GeMS_FGDCMetadata.py, version of 9/27/23"
 rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/master/Scripts/GeMS_FGDCMetadata.py"
 guf.checkVersion(versionString, rawurl, "gems-tools-pro")
 
