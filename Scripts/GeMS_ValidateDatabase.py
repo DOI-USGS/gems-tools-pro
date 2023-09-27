@@ -1732,7 +1732,7 @@ def main(argv):
     # rule 3.2
     ap(
         """3.2 All MapUnitPolys and ContactsAndFaults based feature classes obey Level 3 topology rules: 
-        no ContactsAndFaults overlaps, self-overlaps, or self-intersections."""
+        no overlaps, self-overlaps, or self-intersections in ContactsAndFaults."""
     )
     val["rule3_2"] = level_3_errors
 

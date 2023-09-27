@@ -16,11 +16,7 @@ from lxml import etree
 import sys
 import GeMS_Definition as gDef
 import GeMS_utilityFunctions as guf
-
 from osgeo import ogr  # only used in def max_bounding
-
-# to import adjacent python files as modules
-sys.path.append("../")
 import spatial_utils as su
 import copy
 import requests
@@ -279,7 +275,7 @@ def add_entity(fc_name, elem_dict):
         # print('not found')
         # add logging here for report if a description cannot be found
         arcpy.AddWarning(f"No definition found for {fc_name}")
-        if missing:
+        if not missing:
             desc = ""
             desc_source = ""
         else:
@@ -539,10 +535,32 @@ def validate_online(md_record):
         err_name = f"{str(mr_xml.stem)}-errors.txt"
         err_path = db_dir / err_name
         req = requests.get(links["error_txt"])
+        report = [n.decode("utf-8") for n in req.iter_lines()]
+        n_warn = 0
         with open(err_path, "wt") as f:
-            for line in req.iter_lines():
-                if not b"appears in unexpected order within" in line:
-                    f.write(f"{line.decode('utf-8')}\n")
+            for line in report[0:-1]:
+                if not "appears in unexpected order within" in line:
+                    f.write(f"{line}\n")
+                else:
+                    n_warn += 1
+
+            # edit the number of warnings since we just removed n_warn number
+            last_line = report[-1]
+            if "warnings" in last_line:
+                parts = last_line.split(", ")
+                e = []
+                for c in parts[1]:
+                    if c.isdigit():
+                        e.append(c)
+                a = "".join(e)
+                b = int(a) - n_warn
+                if b == 0:
+                    new_line = parts[0]
+                else:
+                    new_line = f"{parts[0]}, {b} warnings"
+                f.write(new_line)
+            else:
+                f.write(last_line)
 
         # collect the text version of the metadata?
         if text_bool:
@@ -563,7 +581,7 @@ def validate_online(md_record):
         )
 
         # cleanup
-        temp_path.unlink()
+        # temp_path.unlink()
         return True
     else:
         arcpy.AddError("Could not write metadata to disk!")
