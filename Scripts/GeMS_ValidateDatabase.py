@@ -83,9 +83,11 @@ import topology as tp
 import requests
 from jinja2 import Environment, FileSystemLoader
 
-from importlib import reload
-
-reload(tp)
+# for debugging
+# from importlib import reload
+# reload(guf)
+# reload(tp)
+# reload(gdef)
 
 # values dictionary gets sent to report_template.jinja errors_template.jinja
 val = {}
@@ -1448,12 +1450,15 @@ def main(argv):
     val["parameters"].append(f"Output directory: {workdir}")
 
     # path to metadata file
-    # metadata_file = None
-    # if 3 < args_len:
-    #     if Path(argv[3]).suffix == ".xml" and Path(argv[3]).exists():
-    #         metadata_file = Path(argv[3])
-    #     else:
-    #         ap("Metadata not checked. File needs to be in XML format or could not be found.")
+    metadata_file = None
+    if 3 < args_len:
+        if not argv[3] in ("#", ""):
+            if Path(argv[3]).suffix == ".xml" and Path(argv[3]).exists():
+                metadata_file = Path(argv[3])
+            else:
+                ap(
+                    "Metadata not checked. File needs to be in XML format or could not be found."
+                )
 
     arc_md = False
     if 4 < args_len:
