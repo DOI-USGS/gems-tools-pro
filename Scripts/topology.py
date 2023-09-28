@@ -402,20 +402,24 @@ def eval_topology(db, top, db_dict, gmap, level_2_errors, level_3_errors):
                 level_3_errors.extend([f"&emsp;{r}" for r in results[1]])
 
     if not found_caf:
-        level_2_errors.append("Topology is missing a ContactsAndFaults feature class")
-        level_3_errors.append("Topology is missing a ContactsAndFaults feature class")
+        level_2_errors.append(
+            "&emsp;Topology is missing a ContactsAndFaults feature class"
+        )
+        level_3_errors.append(
+            "&emsp;Topology is missing a ContactsAndFaults feature class"
+        )
 
     if not found_mup:
-        level_2_errors.append("Topology is missing a MapUnitPolys feature class")
-        level_3_errors.append("Topology is missing a MapUnitPolys feature class")
+        level_2_errors.append("&emsp;Topology is missing a MapUnitPolys feature class")
+        level_3_errors.append("&emsp;Topology is missing a MapUnitPolys feature class")
 
     if "&emsp;Rule 'Must Not Have Gaps (Area)' has 1 error" in level_2_errors:
         level_2_errors.remove("&emsp;Rule 'Must Not Have Gaps (Area)' has 1 error")
 
     if len(level_2_errors) > 3:
-        level_2_errors.insert(3, f"&ensp;{gmap}")
+        level_2_errors.insert(3, f'<span class="table">{gmap}</span>')
 
     if len(level_3_errors) > 3:
-        level_3_errors.insert(3, f"&ensp;{gmap}")
+        level_3_errors.insert(3, f'<span class="table">{gmap}</span>')
 
     return level_2_errors, level_3_errors
