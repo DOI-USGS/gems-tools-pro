@@ -85,10 +85,11 @@ from jinja2 import Environment, FileSystemLoader
 from osgeo import ogr
 
 # for debugging
-# from importlib import reload
+from importlib import reload
+
 # reload(guf)
 # reload(tp)
-# reload(gdef)
+reload(gdef)
 
 # values dictionary gets sent to report_template.jinja errors_template.jinja
 val = {}
