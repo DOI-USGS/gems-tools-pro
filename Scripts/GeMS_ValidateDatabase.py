@@ -215,6 +215,8 @@ def rule2_1(db_dict, is_gpkg):
         k
         for k, v in db_dict.items()
         if v["gems_equivalent"] in gdef.required_geologic_map_feature_classes
+        and not "crosssection" in v["feature_dataset"].lower()
+        and not "cmu" in v["feature_dataset"].lower()
     ]
     # find_topology_pairs returns [GeologicMap feature dataset(if gdb), fd_tag_name, mapunitpolys, contactsandfaults]
     possible_pairs = tp.find_topology_pairs(fcs, is_gpkg, db_dict)
