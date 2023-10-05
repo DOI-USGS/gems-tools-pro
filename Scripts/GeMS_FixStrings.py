@@ -12,34 +12,35 @@ rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/master/Scrip
 checkVersion(versionString, rawurl, "gems-tools-pro")
 
 
-def fixTableStrings(fc):
+def fixTableStrings(fc, ws):
     fields1 = arcpy.ListFields(fc, "", "String")
     fields = ["OBJECTID"]
     for f in fields1:
         fields.append(f.name)
-    with arcpy.da.UpdateCursor(fc, fields) as cursor:
-        for row in cursor:
-            trash = ""
-            updateRowFlag = False
-            row1 = [row[0]]
-            for f in row[1:]:
-                updateFieldFlag = False
-                f0 = f
-                if f != None:
-                    if f != f.strip():
-                        f = f.strip()
-                        updateFieldFlag = True
-                    if f.lower() == "<null>" or f == "":
-                        f = None
-                        updateFieldFlag = True
-                    if updateFieldFlag:
-                        updateRowFlag = True
-                row1.append(f)
-            if updateRowFlag:
-                try:
-                    cursor.updateRow(row1)
-                except Exception as error:
-                    addMsgAndPrint(f"\u200B  Row {str(row[0])}. {error}")
+    with arcpy.da.Editor(ws) as edit:
+        with arcpy.da.UpdateCursor(fc, fields) as cursor:
+            for row in cursor:
+                trash = ""
+                updateRowFlag = False
+                row1 = [row[0]]
+                for f in row[1:]:
+                    updateFieldFlag = False
+                    f0 = f
+                    if f != None:
+                        if f != f.strip():
+                            f = f.strip()
+                            updateFieldFlag = True
+                        if f.lower() == "<null>" or f == "":
+                            f = None
+                            updateFieldFlag = True
+                        if updateFieldFlag:
+                            updateRowFlag = True
+                    row1.append(f)
+                if updateRowFlag:
+                    try:
+                        cursor.updateRow(row1)
+                    except Exception as error:
+                        addMsgAndPrint(f"\u200B  Row {str(row[0])}. {error}")
 
 
 #########################
@@ -53,7 +54,7 @@ tables = arcpy.ListTables()
 for tb in tables:
     addMsgAndPrint(".........")
     addMsgAndPrint(os.path.basename(tb))
-    fixTableStrings(tb)
+    fixTableStrings(tb, db)
 
 datasets = arcpy.ListDatasets(feature_type="feature")
 datasets = [""] + datasets if datasets is not None else []
@@ -62,7 +63,7 @@ for ds in datasets:
     for fc in arcpy.ListFeatureClasses(feature_dataset=ds):
         path = os.path.join(arcpy.env.workspace, ds, fc)
         try:
-            fixTableStrings(path)
+            fixTableStrings(path, db)
         except Exception as error:
             addMsgAndPrint(error)
 
