@@ -32,7 +32,7 @@ from GeMS_Definition import (
 from GeMS_utilityFunctions import *
 import copy
 
-versionString = "GeMS_CreateDatabase.py, version of 9/18/23"
+versionString = "GeMS_CreateDatabase.py, version of 10/5/23"
 rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/master/Scripts/GeMS_CreateDatabase.py"
 checkVersion(versionString, rawurl, "gems-tools-pro")
 
@@ -396,7 +396,7 @@ def main(thisDB, coordSystem, nCrossSections):
     )
     #  Make GeoMaterialConfs domain, attach it to DMU field GeoMaterialConf
     arcpy.CreateDomain_management(
-        thisDB, "GeoMaterialConfidenceValues", "", "TEXT", "CODED"
+        thisDB, "GeoMaterialConfidenceValues", "", "TEXT", "CODED", "DUPLICATE"
     )
     for val in GeoMaterialConfidenceValues:
         arcpy.AddCodedValueToDomain_management(
@@ -416,7 +416,7 @@ def main(thisDB, coordSystem, nCrossSections):
         #  create domain, add domain values, and link domain to appropriate fields
         addMsgAndPrint("    Creating domain, linking domain to appropriate fields")
         arcpy.CreateDomain_management(
-            thisDB, "ExIDConfidenceValues", "", "TEXT", "CODED"
+            thisDB, "ExIDConfidenceValues", "", "TEXT", "CODED", "DUPLICATE"
         )
         for item in DefaultExIDConfidenceValues:  # items are [term, definition, source]
             code = item[0]

@@ -1,4 +1,4 @@
-﻿"""Add GeMS objects a la carte to a geodatabased
+﻿"""Add GeMS objects a la carte to a geodatabase
 
     Create or augment a GeMS or GeMS-like file geodatabase by adding one or more
     objects as needed
@@ -36,7 +36,7 @@ import GeMS_utilityFunctions as guf
 from pathlib import Path
 import sys
 
-versionString = "GeMS_ALaCarte.py, version of 27 June 2023"
+versionString = "GeMS_ALaCarte.py, version of 10/5/23"
 rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/master/Scripts/GeMS_ALaCarte.py"
 guf.checkVersion(versionString, rawurl, "gems-tools-pro")
 
@@ -121,7 +121,9 @@ def conf_domain(gdb):
     if not "ExIDConfidenceValues" in l_domains:
         conf_vals = gdef.DefaultExIDConfidenceValues
         arcpy.AddMessage("adding domain ExIDConfidenceValues")
-        arcpy.CreateDomain_management(gdb, "ExIDConfidenceValues", "", "TEXT", "CODED")
+        arcpy.CreateDomain_management(
+            gdb, "ExIDConfidenceValues", "", "TEXT", "CODED", "DUPLICATE"
+        )
         for val in conf_vals:
             arcpy.AddMessage(f"adding value {val[0]}")
             arcpy.AddCodedValueToDomain_management(
@@ -173,7 +175,7 @@ def add_geomaterial(db, out_path, padding):
             conf_vals = gdef.GeoMaterialConfidenceValues
             arcpy.AddMessage(f"{padding}adding domain GeoMaterialConfidenceValues")
             arcpy.CreateDomain_management(
-                db, "GeoMaterialConfidenceValues", "", "TEXT", "CODED"
+                db, "GeoMaterialConfidenceValues", "", "TEXT", "CODED", "DUPLICATE"
             )
             for val in conf_vals:
                 arcpy.AddMessage(f"{padding}  adding value {val}")
