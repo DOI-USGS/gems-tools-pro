@@ -7,7 +7,7 @@
 import arcpy, os, os.path, sys
 from GeMS_utilityFunctions import *
 
-versionString = "GeMS_FixStrings.py, version of 8/21/23"
+versionString = "GeMS_FixStrings.py, version of 10/5/23"
 rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/master/Scripts/GeMS_FixStrings.py"
 checkVersion(versionString, rawurl, "gems-tools-pro")
 
