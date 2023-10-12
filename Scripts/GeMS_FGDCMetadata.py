@@ -505,7 +505,7 @@ def add_attributes(fc_name, detailed_node):
         detailed_node.append(attr)
 
 
-def validate_online(md_record):
+def validate_online(md_record, db_dir):
     """validate the xml metadata against the USGS metadata validation service API"""
     # first write out the xml dom that is in memory to a file on disk
     temp_path = db_dir / "temp.xml"
@@ -588,425 +588,479 @@ def validate_online(md_record):
         arcpy.AddWarning(r.reason)
 
 
-# #### ARGUMENTS
-# Ways to run this tool
-# 1. the path to the dataset
-# 2. optional template xml with producer content, that is, elements filled out by the producer that cannot be automated
-# 3. if not selected, boolean whether to export the metadata from ArcGIS format file or start a brand new xml file that is filled out as much as possible with automated content, but will still need to have producer content added.
-# 4. optional entity attribute data dictionary
-# 5. flag for whether to have process steps erased, left as exported from arcpy, or replaced with steps from the optional template. 'remove', 'remain', 'replace', default='remain'
-#
-# About my_definitions.py
-#
-# myEntityDict and myAttribDict take a slightly different form from their similar dictionaries in GeMS_Definition.py. We want to be able to save a definition source for each entry there rather than hardcode it in the tool script, eg., 'This publication' or 'GeMS'. Each entry in those dictionaries takes the form
-#
-# 'object name': ['definition', 'definition source']
-#
-# But unrepresentable and range domains do not have definition sources so just update the GeMS Definitions dictionaries with the custom ones.
-#
-# Enumerated domain values DO have value sources but those come from the Glossary
-
-# the database
-db_path = Path(sys.argv[1])
-arcpy.AddMessage("Building dictionary of database contents")
-obj_dict = gdb_object_dict(str(db_path))
-
-# export embedded metadata? concert string to boolean
-if sys.argv[2].lower() in ["true", "yes"]:
-    arc_md = True
-else:
-    arc_md = False
-
-# my_definitions.py
-my_defs_path = Path(sys.argv[3])
-if my_defs_path.is_file():
-    mod_name = my_defs_path.stem
-    import importlib.util
-
-    spec = importlib.util.spec_from_file_location(mod_name, my_defs_path)
-    module = importlib.util.module_from_spec(spec)
-    sys.modules["my_definitions"] = module
-    spec.loader.exec_module(module)
-    import my_definitions as myDef
-
-    if "myEntityDict" in dir(myDef):
-        myEntityDict = myDef.myEntityDict
-
-    # try updating the GeMS dictionaries, but if the custom ones do not exist don't throw an
-    # error, just pass
-    try:
-        gDef.unrepresentableDomainDict.update(myDef.myUnrepresentableDomainDict)
-    except:
-        pass
-
-    try:
-        gDef.rangeDomainDict.update(myDef.myRangeDomainDict)
-    except:
-        pass
-else:
-    myEntityDict = {}
-
-# path to template file
-template_path = sys.argv[4]
-
-# what to do with data sources.
-# True - remove any existing first
-sources_choice = {
-    "save only DataSources": 1,
-    "save only embedded sources": 2,
-    "save only template sources": 3,
-    "save DataSources and embedded sources": 4,
-    "save DataSources and template sources": 5,
-    "save embedded and template sources": 6,
-    "save all sources": 7,
-    "save no sources": 8,
-}
-
-sources_param = sources_choice[sys.argv[5]]
-
-# what to do with process steps, dataqual/lineage/procstep
-history_choices = {
-    "clear all history": 1,
-    "save only template history": 2,
-    "save only embedded history": 3,
-    "save all history": 4,
-}
-
-history_param = history_choices[sys.argv[6]]
-
-# convert the 'missing definitions' argument to boolean
-if "MISSING" in sys.argv[7]:
-    missing = True
-else:
-    missing = False
-
-# convert text file choice to boolean
-# export embedded metadata? concert string to boolean
-if sys.argv[8].lower() in ["true", "yes"]:
-    text_bool = True
-else:
-    text_bool = False
-
-# dictionaries of some tables
-# term_dict returns [term]:[definition, sourceid]
-sources_dict = term_dict(obj_dict, "DataSources", ["DataSources_ID", "Source"])
-units_dict = term_dict(
-    obj_dict,
-    "DescriptionOfMapUnits",
-    ["MapUnit", "Name", "Fullname", "DescriptionSourceID"],
-)
-geomat_dict = term_dict(obj_dict, "GeoMaterialDict", ["GeoMaterial", "Definition"])
-gloss_dict = term_dict(
-    obj_dict, "Glossary", ["Term", "Definition", "DefinitionSourceID"]
-)
-
-# name of gdb
-db_name = db_path.stem
-
-# path to the parent folder
-db_dir = db_path.parent
-
-# a dictionary of all xml nodes we will be working with in this script
-deez_nodes = {
-    "gems_nodes": {
-        "suppl": {
-            "xpath": "idinfo/descript/supplinf",
-            "text": f"{db_name} is a composite geodataset that conforms to {gems_full_ref}. Metadata records associated with each element within the geodataset contain more detailed descriptions of their purposes, constituent entities, and attributes.). An OPEN shapefile versions of the dataset is also available. It consists of shapefiles, DBF files, and delimited text files and retains all information in the native geodatabase, but some programming will likely be necessary to assemble these components into usable formats. These metadata were prepared with the aid of script {versionString}.",
-        },
-        "attraccr": {
-            "xpath": "dataqual/attracc/attraccr",
-            "text": "Confidence that a feature exists and confidence that a feature is correctly identified are described in per-feature attributes ExistenceConfidence and IdentityConfidence.",
-        },
-        "horizpar": {
-            "xpath": "dataqual/posacc/horizpa/horizpar",
-            "text": "Estimated accuracy of horizontal location is given on a per-feature basis by attribute LocationConfidenceMeters. Values are expected to be correct within a factor of 2. A LocationConfidenceMeters value of -9 or -9999 indicates that no value has been assigned.",
-        },
-    },
-    "source_nodes": {
-        "lineage": {"xpath": "dataqual/lineage"},
-        "title": {"xpath": "srccite/citeinfo/title"},
-        "onlink": {"xpath": "srccite/citeinfo/onlink"},
-    },
-    "spatial_nodes": {
-        "spdom": {"xpath": "idinfo/spdom"},
-        "spdoinfo": {"xpath": "spdoinfo"},
-        "spref": {"xpath": "spref"},
-    },
-    "entity_nodes": {"eainfo": {"xpath": "eainfo"}},
-}
-
-# export master record
-mr_xml = db_dir / f"{db_name}-metadata.xml"
-
-# remove the output file if it already exists
-if mr_xml.exists():
-    mr_xml.unlink()
-
-if arc_md:
-    arcpy.AddMessage("Exporting embedded ArcGIS metadata to FGDC")
-    # export the metadata from Arc
-    # for now, assuming that metadata have been added to GDB itself.
-    # This is different from Ralph's ArcMap FGDC tools which presume metadata
-    # were added to GeologicMap - I don't think that's a good idea.
-    src_md = arcpy.metadata.Metadata(str(db_path))
-    src_md.exportMetadata(str(mr_xml), "FGDC_CSDGM")
-    # make an lxml etree
-    base_md = etree.parse(str(mr_xml)).getroot()
-
-    # sources_param 1, 3, 5, 8 call for no embedded data sources
-    if sources_param in [1, 3, 5, 8]:
-        extend_branch(base_md, "dataqual/lineage")
-        base_lineage = base_md.find(".//lineage")
-        arcpy.AddMessage("removing sources - arc_md")
-        clear_children(base_lineage, "srcinfo")
-
-    if history_param < 3:
-        extend_branch(base_md, "dataqual/lineage")
-        base_lineage = base_md.find(".//lineage")
-        clear_children(base_lineage, "procstep")
-
-else:
-    # we have to make a metadata document from scratch
-    # make the root
-    arcpy.AddMessage("Building database metadata from scratch")
-    base_md = etree.Element("metadata")
-
-# make the required elements
-# spdom and spref (indices 2 and 3, respectively) will be added in another function)
-child_nodes = [
-    ["idinfo", 0],
-    ["dataqual", 1],
-    ["eainfo", 4],
-    ["distinfo", 5],
-    ["metainfo", 6],
-]
-arcpy.AddMessage("Creating the following elements:")
-for child in child_nodes:
-    if base_md.find(child[0]) is None:
-        arcpy.AddMessage(f"  {child[0]}")
-        elem = etree.Element(child[0])
-        i = child[1]
-        base_md.insert(i, elem)
-
-# use spatial_utils from Metadata Wizard tools to add spatial stuff
-# An option here is to include `spdom` and `spref` in the routine above, to check that all 1st level children exist, and then ask if they should be updated in a user-supplied template xml. They might already exist in that case and the user may know they want to use their own, rather than have them calculated here.
-
-# find the bounding box that covers the extent of all features
-try:
-    if base_md.find("idinfo/spdom/bounding") is None:
-        arcpy.AddMessage("  spdom")
-        spdom = etree.Element("spdom")
-        bounding = max_bounding(str(db_path))
-        spdom.append(bounding)
-        base_md.find("idinfo").append(spdom)
-except Exception as error:
-    e = """Could not calculate a bounding box.
-    Set environment variable PROJ_LIB to location of proj.db and try again.
-    See the ArcGIS Pro wiki for more information - https://github.com/usgs/gems-tools-pro/wiki/GeMS-Tools-Documentation#BuildMetadata"""
-    arcpy.AddError(e)
-    arcpy.AddError(error)
-    sys.exit()
-
-# collect the feature classes and inspect the sdtsterm
-if base_md.find("spdoinfo") is None:
-    fcs = [k for k in obj_dict if "FeatureClass" in obj_dict[k]["concat_type"]]
-    arcpy.AddMessage("  spdoinfo")
-    spdoinfo = su.get_spdoinfo(str(db_path), fcs[0])
-    ptvctinf = spdoinfo.find("ptvctinf")
-    for fc in fcs[1:]:
-        arcpy.AddMessage(f"\rspdoinfo/sdtsterm for {fc}")
-        lyr_spdo = su.get_spdoinfo(str(db_path), fc)
-        sdtsterm = lyr_spdo.find("ptvctinf/sdtsterm")
-        ptvctinf.append(sdtsterm)
-    spdoinfo.append(ptvctinf)
-    base_md.insert(2, spdoinfo)
-
-if base_md.find("spref") is None:
-    arcpy.AddMessage("spref")
-    try:
-        spref_node = su.get_spref(str(db_path), "MapUnitPolys")
-    except Exception as e:
-        arcpy.AddError(
-            """Could not determine the coordinate system of MapUnitPolys.
-        Check in ArcCatalog that it is valid"""
-        )
-        arcpy.AddError(e)
-        sys.exit()
-    base_md.insert(3, spref_node)
-
-# add the rest of the gems_nodes
-g_nodes = deez_nodes["gems_nodes"]
-arcpy.AddMessage("Adding GeMS language in the following elements...")
-for n in g_nodes:
-    arcpy.AddMessage(f"  {g_nodes[n]['xpath']}")
-    if base_md.find(g_nodes[n]["xpath"]) is not None:
-        e = base_md.find(g_nodes[n]["xpath"])
-        if len(e.text) > 1:
-            e.text = e.text + f"\n{g_nodes[n]['text']}"
-        else:
-            e.text = f"{g_nodes[n]['text']}"
+def get_gdb_item(ds, sql):
+    """helper function to query ogr dataset
+    only one value returned. For looking up one field from one row"""
+    l = ds.ExecuteSQL(sql)
+    if not l is None:
+        return l.GetNextFeature().GetField(0)
     else:
-        extend_branch(base_md, g_nodes[n]["xpath"])
-        e = base_md.find(g_nodes[n]["xpath"])
-        e.text = g_nodes[n]["text"]
+        return None
 
-## add data sources; srcinfo nodes
-## for each row in dataSources, create
-##   srcinfo
-##      srccite
-##         citeinfo
-##            title  Source
-##            onlink URL
-##      srccitea DataSourceID
-extend_branch(base_md, deez_nodes["source_nodes"]["lineage"]["xpath"])
-if sources_param in [1, 4, 5, 7]:
-    if "DataSources" in obj_dict:
-        arcpy.AddMessage("Adding DataSources")
-        source_nodes = deez_nodes["source_nodes"]
-        lineage = base_md.find(source_nodes["lineage"]["xpath"])
 
-        ds_path = obj_dict["DataSources"]["catalogPath"]
-        fields = ["Source", "URL", "DataSources_ID"]
-        cursor = arcpy.da.SearchCursor(ds_path, fields)
-        for row in cursor:
-            # make a srcinfo node
-            srcinfo = etree.Element("srcinfo")
+def get_detailed(ds, table):
+    # gets the <detailed> node from the embedded metadata and cleans up some
+    # ESRI-introduced attributes and nodes
+    sql = f"SELECT Documentation FROM GDB_Items WHERE name = '{table}'"
+    docu = get_gdb_item(ds, sql)
+    return_node = None
+    if docu:
+        dom = etree.fromstring(docu)
+        detailed = dom.find("eainfo/detailed")
+        if detailed is not None:
+            detailed.attrib.pop("Name", None)
 
-            # add three child nodes to the srcinfo
-            # title node
-            extend_branch(srcinfo, source_nodes["title"]["xpath"])
-            title = srcinfo.find(source_nodes["title"]["xpath"])
-            title.text = row[0]
-            # title.text = row.GetField(get_real_name('DataSources', 'Source'))
+            enttyp = detailed.find("enttyp")
+            for n in ("enttypt", "enttypc"):
+                node = enttyp.find(n)
+                enttyp.remove(node)
 
-            # onlink node
-            if row[1]:
-                extend_branch(srcinfo, source_nodes["onlink"]["xpath"])
-                onlink = srcinfo.find(source_nodes["onlink"]["xpath"])
-                onlink.text = row[1]
+            enttypl = enttyp.find("enttypl")
+            enttypl.attrib.pop("Sync", None)
 
-            # source citation abbreviation
-            srccitea = etree.Element("srccitea")
-            srccitea.text = row[2]
-            srcinfo.append(srccitea)
+            attrs = detailed.findall("attr")
+            for attr in attrs:
+                for child in attr:
+                    if child.tag in (
+                        "attalias",
+                        "attrtype",
+                        "attwidth",
+                        "atprecis",
+                        "attscale",
+                    ):
+                        attr.remove(child)
 
-            # add this srcinfo to the lineage node
-            lineage.append(srcinfo)
+            return_node = detailed
+
+    return return_node
+
+
+def main(argv):
+    # #### ARGUMENTS
+    # Ways to run this tool
+    # 1. the path to the dataset
+    # 2. optional template xml with producer content, that is, elements filled out by the producer that cannot be automated
+    # 3. if not selected, boolean whether to export the metadata from ArcGIS format file or start a brand new xml file that is filled out as much as possible with automated content, but will still need to have producer content added.
+    # 4. optional entity attribute data dictionary
+    # 5. flag for whether to have process steps erased, left as exported from arcpy, or replaced with steps from the optional template. 'remove', 'remain', 'replace', default='remain'
+    #
+    # About my_definitions.py
+    #
+    # myEntityDict and myAttribDict take a slightly different form from their similar dictionaries in GeMS_Definition.py. We want to be able to save a definition source for each entry there rather than hardcode it in the tool script, eg., 'This publication' or 'GeMS'. Each entry in those dictionaries takes the form
+    #
+    # 'object name': ['definition', 'definition source']
+    #
+    # But unrepresentable and range domains do not have definition sources so just update the GeMS Definitions dictionaries with the custom ones.
+    #
+    # Enumerated domain values DO have value sources but those come from the Glossary
+
+    # the database
+    db_path = Path(argv[1])
+    arcpy.AddMessage("Building dictionary of database contents")
+    obj_dict = gdb_object_dict(str(db_path))
+
+    # export embedded metadata? concert string to boolean
+    if argv[2].lower() in ["true", "yes"]:
+        arc_md = True
     else:
-        arcpy.AddError("There are no data sources to add!")
+        arc_md = False
 
-# add Entity Attributes
-arcpy.AddMessage("Adding metadata for the following feature classes:")
-for k, v in obj_dict.items():
-    detailed = add_entity(k, v)
-    if "fields" in obj_dict[k]:
-        add_attributes(k, detailed)
+    # my_definitions.py
+    my_defs_path = Path(argv[3])
+    if my_defs_path.is_file():
+        mod_name = my_defs_path.stem
+        import importlib.util
 
-# merge with template
-# If no template specified, just write out the metadata as generated here which could include embedded metadata.
-#
-# If template specified:
-# From the `deez_nodes` dictionary:
-# * `gems_nodes` text will be appended to any existing node text
-# * `source_nodes` will be appended or replace existing, depending on choice
-# * `spatial_nodes` will always replace any existing
-# * `entity_nodes` will always replace any existing. Add definitions later in an editor or prepare a `my_definitions.py` type file for runtime additions.
-#
-# In any case:
-# `dataqual/lineage/procstep` process steps removed if user says so. Replace with one process step; 'this script'?
+        spec = importlib.util.spec_from_file_location(mod_name, my_defs_path)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules["my_definitions"] = module
+        spec.loader.exec_module(module)
+        import my_definitions as myDef
 
-if Path(template_path).is_file():
-    arcpy.AddMessage(f"Migrating database metadata to {template_path}")
-    template_root = etree.parse(template_path).getroot()
+        if "myEntityDict" in dir(myDef):
+            myEntityDict = myDef.myEntityDict
 
-    # adding text for GeMS nodes
-    # if the xpaths already exist in the template metadata,
-    # append the GeMS text to the end. Otherwise,
-    # add the node and the text
-    for elem in deez_nodes["gems_nodes"]:
-        check_path = deez_nodes["gems_nodes"][elem]["xpath"]
+        # try updating the GeMS dictionaries, but if the custom ones do not exist don't throw an
+        # error, just pass
+        try:
+            gDef.unrepresentableDomainDict.update(myDef.myUnrepresentableDomainDict)
+        except:
+            pass
 
-        # find the node in the automated metadata
-        add_node = base_md.find(check_path)
+        try:
+            gDef.rangeDomainDict.update(myDef.myRangeDomainDict)
+        except:
+            pass
+    else:
+        myEntityDict = {}
 
-        # look for the node in the template metadata
-        check_node = template_root.find(check_path)
+    # path to template file
+    template_path = argv[4]
 
-        if check_node is not None:
-            if check_node.text is not None:
-                check_node.text = check_node.text + f"\n {add_node.text}"
-        else:
-            extend_branch(template_root, check_path)
-            new_node = template_root.find(check_path)
-            new_node.text = add_node.text
+    # what to do with data sources.
+    # True - remove any existing first
+    sources_choice = {
+        "save only DataSources": 1,
+        "save only embedded sources": 2,
+        "save only template sources": 3,
+        "save DataSources and embedded sources": 4,
+        "save DataSources and template sources": 5,
+        "save embedded and template sources": 6,
+        "save all sources": 7,
+        "save no sources": 8,
+    }
 
-    # adding the spatial node information gathered through this tool
-    for elem in deez_nodes["spatial_nodes"]:
-        check_path = deez_nodes["spatial_nodes"][elem]["xpath"]
-        # find the node in the automated metadata
-        add_node = copy.deepcopy(base_md.find(check_path))
+    sources_param = sources_choice[argv[5]]
 
-        # if we run extend_branch on template_root we, can be certain the node exists,
-        # then replace it
-        extend_branch(template_root, check_path)
+    # what to do with process steps, dataqual/lineage/procstep
+    history_choices = {
+        "clear all history": 1,
+        "save only template history": 2,
+        "save only embedded history": 3,
+        "save all history": 4,
+    }
 
-        # look for the node in the template metadata
-        check_node = template_root.find(check_path)
+    history_param = history_choices[argv[6]]
 
-        parent_node = check_node.getparent()
-        parent_node.remove(check_node)
-        parent_node.append(add_node)
+    # convert the 'missing definitions' argument to boolean
+    if "MISSING" in argv[7]:
+        missing = True
+    else:
+        missing = False
 
-    # building sources depending on sources_param
-    extend_branch(template_root, deez_nodes["source_nodes"]["lineage"]["xpath"])
-    template_lineage = template_root.find(
-        deez_nodes["source_nodes"]["lineage"]["xpath"]
+    # convert text file choice to boolean
+    # export embedded metadata? concert string to boolean
+    if argv[8].lower() in ["true", "yes"]:
+        text_bool = True
+    else:
+        text_bool = False
+
+    # dictionaries of some tables
+    # term_dict returns [term]:[definition, sourceid]
+    sources_dict = term_dict(obj_dict, "DataSources", ["DataSources_ID", "Source"])
+    units_dict = term_dict(
+        obj_dict,
+        "DescriptionOfMapUnits",
+        ["MapUnit", "Name", "Fullname", "DescriptionSourceID"],
+    )
+    geomat_dict = term_dict(obj_dict, "GeoMaterialDict", ["GeoMaterial", "Definition"])
+    gloss_dict = term_dict(
+        obj_dict, "Glossary", ["Term", "Definition", "DefinitionSourceID"]
     )
 
-    # choices 1 and 2 are equal to removing all template sources
-    if sources_param in [1, 2, 4, 8]:
-        template_sources = template_lineage.findall("srcinfo")
-        for elem in template_sources:
-            template_lineage.remove(elem)
+    # name of gdb
+    db_name = db_path.stem
 
-    # most source choices are equal to adding all base_md sources
-    # whether these are from DataSources only, embedded only, or a combination
-    # is determined above
-    if sources_param in [1, 2, 4, 5, 6, 7]:
-        basemd_lineage = base_md.find(deez_nodes["source_nodes"]["lineage"]["xpath"])
-        base_sources = basemd_lineage.findall("srcinfo")
-        if len(base_sources) > 1:
-            for child in base_sources:
+    # path to the parent folder
+    db_dir = db_path.parent
+
+    # a dictionary of all xml nodes we will be working with in this script
+    deez_nodes = {
+        "gems_nodes": {
+            "suppl": {
+                "xpath": "idinfo/descript/supplinf",
+                "text": f"{db_name} is a composite geodataset that conforms to {gems_full_ref}. Metadata records associated with each element within the geodataset contain more detailed descriptions of their purposes, constituent entities, and attributes.). An OPEN shapefile versions of the dataset is also available. It consists of shapefiles, DBF files, and delimited text files and retains all information in the native geodatabase, but some programming will likely be necessary to assemble these components into usable formats. These metadata were prepared with the aid of script {versionString}.",
+            },
+            "attraccr": {
+                "xpath": "dataqual/attracc/attraccr",
+                "text": "Confidence that a feature exists and confidence that a feature is correctly identified are described in per-feature attributes ExistenceConfidence and IdentityConfidence.",
+            },
+            "horizpar": {
+                "xpath": "dataqual/posacc/horizpa/horizpar",
+                "text": "Estimated accuracy of horizontal location is given on a per-feature basis by attribute LocationConfidenceMeters. Values are expected to be correct within a factor of 2. A LocationConfidenceMeters value of -9 or -9999 indicates that no value has been assigned.",
+            },
+        },
+        "source_nodes": {
+            "lineage": {"xpath": "dataqual/lineage"},
+            "title": {"xpath": "srccite/citeinfo/title"},
+            "onlink": {"xpath": "srccite/citeinfo/onlink"},
+        },
+        "spatial_nodes": {
+            "spdom": {"xpath": "idinfo/spdom"},
+            "spdoinfo": {"xpath": "spdoinfo"},
+            "spref": {"xpath": "spref"},
+        },
+        "entity_nodes": {"eainfo": {"xpath": "eainfo"}},
+    }
+
+    # export master record
+    mr_xml = db_dir / f"{db_name}-metadata.xml"
+
+    # remove the output file if it already exists
+    if mr_xml.exists():
+        mr_xml.unlink()
+
+    if arc_md:
+        arcpy.AddMessage("Exporting embedded ArcGIS metadata to FGDC")
+        # export the metadata from Arc
+        # for now, assuming that metadata have been added to GDB itself.
+        # This is different from Ralph's ArcMap FGDC tools which presume metadata
+        # were added to GeologicMap - I don't think that's a good idea.
+        src_md = arcpy.metadata.Metadata(str(db_path))
+        src_md.exportMetadata(str(mr_xml), "FGDC_CSDGM")
+        # make an lxml etree
+        base_md = etree.parse(str(mr_xml)).getroot()
+
+        # sources_param 1, 3, 5, 8 call for no embedded data sources
+        if sources_param in [1, 3, 5, 8]:
+            extend_branch(base_md, "dataqual/lineage")
+            base_lineage = base_md.find(".//lineage")
+            arcpy.AddMessage("removing sources - arc_md")
+            clear_children(base_lineage, "srcinfo")
+
+        if history_param < 3:
+            extend_branch(base_md, "dataqual/lineage")
+            base_lineage = base_md.find(".//lineage")
+            clear_children(base_lineage, "procstep")
+
+    else:
+        # we have to make a metadata document from scratch
+        # make the root
+        arcpy.AddMessage("Building database metadata from scratch")
+        base_md = etree.Element("metadata")
+
+    # make the required elements
+    # spdom and spref (indices 2 and 3, respectively) will be added in another function)
+    child_nodes = [
+        ["idinfo", 0],
+        ["dataqual", 1],
+        ["eainfo", 4],
+        ["distinfo", 5],
+        ["metainfo", 6],
+    ]
+    arcpy.AddMessage("Creating the following elements:")
+    for child in child_nodes:
+        if base_md.find(child[0]) is None:
+            arcpy.AddMessage(f"  {child[0]}")
+            elem = etree.Element(child[0])
+            i = child[1]
+            base_md.insert(i, elem)
+
+    # use spatial_utils from Metadata Wizard tools to add spatial stuff
+    # An option here is to include `spdom` and `spref` in the routine above, to check that all 1st level children exist, and then ask if they should be updated in a user-supplied template xml. They might already exist in that case and the user may know they want to use their own, rather than have them calculated here.
+
+    # find the bounding box that covers the extent of all features
+    try:
+        if base_md.find("idinfo/spdom/bounding") is None:
+            arcpy.AddMessage("  spdom")
+            spdom = etree.Element("spdom")
+            bounding = max_bounding(str(db_path))
+            spdom.append(bounding)
+            base_md.find("idinfo").append(spdom)
+    except Exception as error:
+        e = """Could not calculate a bounding box.
+        Set environment variable PROJ_LIB to location of proj.db and try again.
+        See the ArcGIS Pro wiki for more information - https://github.com/usgs/gems-tools-pro/wiki/GeMS-Tools-Documentation#BuildMetadata"""
+        arcpy.AddError(e)
+        arcpy.AddError(error)
+        sys.exit()
+
+    # collect the feature classes and inspect the sdtsterm
+    if base_md.find("spdoinfo") is None:
+        fcs = [k for k in obj_dict if "FeatureClass" in obj_dict[k]["concat_type"]]
+        arcpy.AddMessage("  spdoinfo")
+        spdoinfo = su.get_spdoinfo(str(db_path), fcs[0])
+        ptvctinf = spdoinfo.find("ptvctinf")
+        for fc in fcs[1:]:
+            arcpy.AddMessage(f"\rspdoinfo/sdtsterm for {fc}")
+            lyr_spdo = su.get_spdoinfo(str(db_path), fc)
+            sdtsterm = lyr_spdo.find("ptvctinf/sdtsterm")
+            ptvctinf.append(sdtsterm)
+        spdoinfo.append(ptvctinf)
+        base_md.insert(2, spdoinfo)
+
+    if base_md.find("spref") is None:
+        arcpy.AddMessage("spref")
+        try:
+            spref_node = su.get_spref(str(db_path), "MapUnitPolys")
+        except Exception as e:
+            arcpy.AddError(
+                """Could not determine the coordinate system of MapUnitPolys.
+            Check in ArcCatalog that it is valid"""
+            )
+            arcpy.AddError(e)
+            sys.exit()
+        base_md.insert(3, spref_node)
+
+    # add the rest of the gems_nodes
+    g_nodes = deez_nodes["gems_nodes"]
+    arcpy.AddMessage("Adding GeMS language in the following elements...")
+    for n in g_nodes:
+        arcpy.AddMessage(f"  {g_nodes[n]['xpath']}")
+        if base_md.find(g_nodes[n]["xpath"]) is not None:
+            e = base_md.find(g_nodes[n]["xpath"])
+            if len(e.text) > 1:
+                e.text = e.text + f"\n{g_nodes[n]['text']}"
+            else:
+                e.text = f"{g_nodes[n]['text']}"
+        else:
+            extend_branch(base_md, g_nodes[n]["xpath"])
+            e = base_md.find(g_nodes[n]["xpath"])
+            e.text = g_nodes[n]["text"]
+
+    ## add data sources; srcinfo nodes
+    ## for each row in dataSources, create
+    ##   srcinfo
+    ##      srccite
+    ##         citeinfo
+    ##            title  Source
+    ##            onlink URL
+    ##      srccitea DataSourceID
+    extend_branch(base_md, deez_nodes["source_nodes"]["lineage"]["xpath"])
+    if sources_param in [1, 4, 5, 7]:
+        if "DataSources" in obj_dict:
+            arcpy.AddMessage("Adding DataSources")
+            source_nodes = deez_nodes["source_nodes"]
+            lineage = base_md.find(source_nodes["lineage"]["xpath"])
+
+            ds_path = obj_dict["DataSources"]["catalogPath"]
+            fields = ["Source", "URL", "DataSources_ID"]
+            cursor = arcpy.da.SearchCursor(ds_path, fields)
+            for row in cursor:
+                # make a srcinfo node
+                srcinfo = etree.Element("srcinfo")
+
+                # add three child nodes to the srcinfo
+                # title node
+                extend_branch(srcinfo, source_nodes["title"]["xpath"])
+                title = srcinfo.find(source_nodes["title"]["xpath"])
+                title.text = row[0]
+                # title.text = row.GetField(get_real_name('DataSources', 'Source'))
+
+                # onlink node
+                if row[1]:
+                    extend_branch(srcinfo, source_nodes["onlink"]["xpath"])
+                    onlink = srcinfo.find(source_nodes["onlink"]["xpath"])
+                    onlink.text = row[1]
+
+                # source citation abbreviation
+                srccitea = etree.Element("srccitea")
+                srccitea.text = row[2]
+                srcinfo.append(srccitea)
+
+                # add this srcinfo to the lineage node
+                lineage.append(srcinfo)
+        else:
+            arcpy.AddError("There are no data sources to add!")
+
+    # add Entity Attributes
+    arcpy.AddMessage("Adding metadata for the following feature classes:")
+    for k, v in obj_dict.items():
+        detailed = add_entity(k, v)
+        if "fields" in obj_dict[k]:
+            add_attributes(k, detailed)
+
+    # merge with template
+    # If no template specified, just write out the metadata as generated here which could include embedded metadata.
+    #
+    # If template specified:
+    # From the `deez_nodes` dictionary:
+    # * `gems_nodes` text will be appended to any existing node text
+    # * `source_nodes` will be appended or replace existing, depending on choice
+    # * `spatial_nodes` will always replace any existing
+    # * `entity_nodes` will always replace any existing. Add definitions later in an editor or prepare a `my_definitions.py` type file for runtime additions.
+    #
+    # In any case:
+    # `dataqual/lineage/procstep` process steps removed if user says so. Replace with one process step; 'this script'?
+
+    if Path(template_path).is_file():
+        arcpy.AddMessage(f"Migrating database metadata to {template_path}")
+        template_root = etree.parse(template_path).getroot()
+
+        # adding text for GeMS nodes
+        # if the xpaths already exist in the template metadata,
+        # append the GeMS text to the end. Otherwise,
+        # add the node and the text
+        for elem in deez_nodes["gems_nodes"]:
+            check_path = deez_nodes["gems_nodes"][elem]["xpath"]
+
+            # find the node in the automated metadata
+            add_node = base_md.find(check_path)
+
+            # look for the node in the template metadata
+            check_node = template_root.find(check_path)
+
+            if check_node is not None:
+                if check_node.text is not None:
+                    check_node.text = check_node.text + f"\n {add_node.text}"
+            else:
+                extend_branch(template_root, check_path)
+                new_node = template_root.find(check_path)
+                new_node.text = add_node.text
+
+        # adding the spatial node information gathered through this tool
+        for elem in deez_nodes["spatial_nodes"]:
+            check_path = deez_nodes["spatial_nodes"][elem]["xpath"]
+            # find the node in the automated metadata
+            add_node = copy.deepcopy(base_md.find(check_path))
+
+            # if we run extend_branch on template_root we, can be certain the node exists,
+            # then replace it
+            extend_branch(template_root, check_path)
+
+            # look for the node in the template metadata
+            check_node = template_root.find(check_path)
+
+            parent_node = check_node.getparent()
+            parent_node.remove(check_node)
+            parent_node.append(add_node)
+
+        # building sources depending on sources_param
+        extend_branch(template_root, deez_nodes["source_nodes"]["lineage"]["xpath"])
+        template_lineage = template_root.find(
+            deez_nodes["source_nodes"]["lineage"]["xpath"]
+        )
+
+        # choices 1 and 2 are equal to removing all template sources
+        if sources_param in [1, 2, 4, 8]:
+            template_sources = template_lineage.findall("srcinfo")
+            for elem in template_sources:
+                template_lineage.remove(elem)
+
+        # most source choices are equal to adding all base_md sources
+        # whether these are from DataSources only, embedded only, or a combination
+        # is determined above
+        if sources_param in [1, 2, 4, 5, 6, 7]:
+            basemd_lineage = base_md.find(
+                deez_nodes["source_nodes"]["lineage"]["xpath"]
+            )
+            base_sources = basemd_lineage.findall("srcinfo")
+            if len(base_sources) > 1:
+                for child in base_sources:
+                    child_copy = copy.deepcopy(child)
+                    template_lineage.append(child_copy)
+
+        # add all entity attribute nodes
+        ea_nodes = base_md.find("eainfo").findall("detailed")
+
+        # default for now will be to remove all detailed nodes and replace with those
+        # generated from the attribute dictionaries
+        extend_branch(template_root, "eainfo")
+        temp_eainfo = template_root.find("eainfo")
+        temp_detailed = temp_eainfo.findall("detailed")
+        for elem in temp_detailed:
+            temp_eainfo.remove(elem)
+
+        for elem in ea_nodes:
+            temp_eainfo.append(copy.deepcopy(elem))
+
+        # history
+        if history_param == 1:
+            proc_steps = template_lineage.findall("procstep")
+            for step in proc_steps:
+                template_lineage.remove(step)
+
+        if history_param in [3, 4]:
+            base_md_proc = base_md.findall("dataqual/lineage/procstep")
+            for child in base_md_proc:
                 child_copy = copy.deepcopy(child)
                 template_lineage.append(child_copy)
 
-    # add all entity attribute nodes
-    ea_nodes = base_md.find("eainfo").findall("detailed")
+        base_md = template_root
 
-    # default for now will be to remove all detailed nodes and replace with those
-    # generated from the attribute dictionaries
-    extend_branch(template_root, "eainfo")
-    temp_eainfo = template_root.find("eainfo")
-    temp_detailed = temp_eainfo.findall("detailed")
-    for elem in temp_detailed:
-        temp_eainfo.remove(elem)
+    arcpy.AddMessage("Validating")
+    validate_online(base_md, db_dir)
 
-    for elem in ea_nodes:
-        temp_eainfo.append(copy.deepcopy(elem))
 
-    # history
-    if history_param == 1:
-        proc_steps = template_lineage.findall("procstep")
-        for step in proc_steps:
-            template_lineage.remove(step)
-
-    if history_param in [3, 4]:
-        base_md_proc = base_md.findall("dataqual/lineage/procstep")
-        for child in base_md_proc:
-            child_copy = copy.deepcopy(child)
-            template_lineage.append(child_copy)
-
-    base_md = template_root
-
-arcpy.AddMessage("Validating")
-validate_online(base_md)
+if __name__ == "__main__":
+    main(sys.argv)

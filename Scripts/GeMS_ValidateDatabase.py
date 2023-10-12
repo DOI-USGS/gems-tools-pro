@@ -79,10 +79,12 @@ import copy
 from pathlib import Path
 import GeMS_utilityFunctions as guf
 import GeMS_Definition as gdef
+import GeMS_FGDCMetadata as gemsmd
 import topology as tp
 import requests
 from jinja2 import Environment, FileSystemLoader
 from osgeo import ogr
+from lxml import etree as ET
 
 # for debugging
 from importlib import reload
@@ -1459,6 +1461,56 @@ def del_extra(db_dict, table, field, all_terms):
                 cursor.deleteRow()
 
 
+def export_embedded(gdb_path, gdb_name, workdir, db_dict):
+    """Export embedded gdb-level metadata and add Detailed_Description
+        nodes for each table
+
+    Args:
+        gdb_path (Path object): path to GDB
+        gdb_name (string): name of GDB w/o extension
+        workdir (Path object): folder location of GDB
+        db_dict (dictionary): dictionary contents of the GDB
+    """
+    metadata_file = workdir / f"{gdb_name}_metadata.xml"
+    temp_xml = workdir / "temp_metadata.xml"
+    for n in (metadata_file, temp_xml):
+        if Path(n).exists():
+            Path(n).unlink()
+
+    src_md = arcpy.metadata.Metadata(str(gdb_path))
+    src_md.exportMetadata(str(temp_xml), "FGDC_CSDGM")
+
+    root = ET.parse(temp_xml).getroot()
+    eainfo = root.find("eainfo")
+    if eainfo is None:
+        node = ET.Element("eainfo")
+        root.append(node)
+        eainfo = root.find("eainfo")
+
+    # collect the names of the tables we are going to collect detailed nodes for
+    tables = [
+        k
+        for k, v in db_dict.items()
+        if not v["dataType"] in ("FeatureDataset", "Topology")
+    ]
+    tables.sort()
+
+    # for embedded metadata, we'll look inside the Documentation field of GDB_Items
+    # open with OGR and retrieve the text with SQL
+    ds = ogr.Open(str(gdb_path))
+    for table in tables:
+        arcpy.AddMessage(f"  {table}")
+        detailed = gemsmd.get_detailed(ds, table)
+        if detailed is not None:
+            eainfo.append(detailed)
+        else:
+            arcpy.AddMessage(f"Found no embedded metadata for {table}")
+
+    # et = ET.ElementTree(root)
+    with open(metadata_file, "wb") as f:
+        root.write(f, encoding="utf-8", xml_declaration=True, pretty_print=True)
+
+
 ##############start here##################
 # get inputs
 def main(argv):
@@ -1908,9 +1960,7 @@ def main(argv):
         ap("Exporting embedded ArcGIS metadata to FGDC")
         # export the metadata from Arc
         # this method only exports good metadata if it has been written in ArcCatalog at the
-        # gdb level or imported from an xml such as that produced at the end of Build Metadata.
-        src_md = arcpy.metadata.Metadata(str(gdb_path))
-        src_md.exportMetadata(str(metadata_file), "FGDC_CSDGM")
+        metadata_file = export_embedded(gdb_path, gdb_name, workdir, db_dict)
 
     if metadata_file:
         if Path(metadata_file).exists:
