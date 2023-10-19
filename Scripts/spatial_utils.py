@@ -274,7 +274,6 @@ def get_latlong_res(extent):
 
 
 def get_abs_resolution(src, params):
-
     # The minimum difference between X (abscissa) and Y (ordinate) values in
     #  the planar data set
     # The values usually indicate the ?fuzzy tolerance? or ?clustering? setting
@@ -299,7 +298,7 @@ def get_abs_resolution(src, params):
             dig_precision = 0.001
 
             # Industry-standard digitizer precision of 0.001"
-            if params["plandu"].lower() == "feet":
+            if params["plandu"].lower() in ("feet", "foot_us"):
                 params["absres"] = str(float(data_scale) * float(dig_precision) / 12.0)
                 params["ordres"] = str(float(data_scale) * float(dig_precision) / 12.0)
             elif params["plandu"].lower() == "meter":
@@ -323,7 +322,6 @@ def get_abs_resolution(src, params):
 
 
 def get_params(layer):
-
     # get the spatial reference and extent
     ref = get_ref(layer)
     projected_extent = get_extent(layer)
@@ -558,6 +556,23 @@ def mapproj(params):
     return mapproj_node
 
 
+def csproj(params):
+    """State plane coordinate systems are grid coordinate systems not map projections
+    (see https://www.fgdc.gov/csdgmgraphical/spref/horiz/planar.htm)
+    so mapproj and gridsys are not meant to be sibling as def mapproj makes them
+    Here, lambertc, transmer, obqmerc, or polycon are appended to spcs, not mapproj
+    ET - 10/19/23"""
+    fgdc_name, function = lookup_fdgc_projname(
+        params["projection_name"], params["mapprojn"]
+    )
+    if fgdc_name is None:
+        fgdc_name = params["projection_name"]
+        prj_node = unknown_projection(params)
+    else:
+        prj_node = function(params)
+    return prj_node
+
+
 def planar(params):
     planar = xml_node("planar")
     if params["utmzone"] != "Unknown":
@@ -602,7 +617,6 @@ def geodetic(params):
 
 
 def albers_conic_equal_area(params):
-
     """
     returns lxml nodes that contain projection parameters for fgdc
     Albers Conic Equal Area projection
@@ -1203,7 +1217,6 @@ def utm(params):
 
 
 def spcs(params):
-
     gridsys = xml_node("gridsys")
     if "1983" in params["geogcs"]:
         gridsysn = xml_node(
@@ -1214,17 +1227,20 @@ def spcs(params):
             "gridsysn", text="State Plane Coordinate System 1927", parent_node=gridsys
         )
 
-    spcs_node = xml_node("spcs", parent_node=gridsys)
+    # spcs_node = xml_node("spcs", parent_node=gridsys)
+    spcs_node = xml_node("spcs")
     utmzone = xml_node("spcszone", text=params["spcszone"], parent_node=spcs_node)
 
+    proj_node = csproj(params)
+
     # mapproj_node = mapproj(params)
-    # spcs_node.append(mapproj_node)
+    spcs_node.append(proj_node)
+    gridsys.append(spcs_node)
 
     return gridsys
 
 
 def arc(params):
-
     gridsys = xml_node("gridsys")
     gridsysn = xml_node("gridsysn", text="ARC Coordinate System", parent_node=gridsys)
 
@@ -1238,7 +1254,6 @@ def arc(params):
 
 
 def lookup_fdgc_projname(gdal_name, mapprojn=""):
-
     if gdal_name == "Stereographic" and "polar" in mapprojn.lower():
         gdal_name = "Polar_Stereographic"
 
@@ -1390,10 +1405,16 @@ PROJECTION_LOOKUP["Stereographic"] = {
     "function": stereographic,
     "elements": ["longpc", "latprjc", "feast", "fnorth"],
 }
-
+# added Transverse_Mercator to gdal_name after getting mp errors
+# with a state coordinate system; map projection node was not getting added to
+# the spcs node as required
+# https://www.fgdc.gov/csdgmgraphical/spref/horiz/planar/gridsys/spcs.htm
+# GetAttrValue("projection") was returning Transverse_Mercator but since gdal_name
+# was blank, the function was not be returned and the node was built
+# ET - 10/19/23
 PROJECTION_LOOKUP["Transverse Mercator"] = {
     "shortname": "transmer",
-    "gdal_name": " ",
+    "gdal_name": "Transverse_Mercator",
     "function": transverse_mercator,
     "elements": ["sfctrmer", "longcm", "latprjo", "feast", "fnorth"],
 }

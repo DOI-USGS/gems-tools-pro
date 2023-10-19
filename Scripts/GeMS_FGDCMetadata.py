@@ -16,7 +16,6 @@ from lxml import etree
 import sys
 import GeMS_Definition as gDef
 import GeMS_utilityFunctions as guf
-import SpatialRefTools
 from osgeo import ogr  # only used in def max_bounding
 import spatial_utils as su
 import copy
@@ -25,9 +24,8 @@ import requests
 from importlib import reload
 
 reload(su)
-reload(SpatialRefTools)
 
-versionString = "GeMS_FGDCMetadata.py, version of 9/27/23"
+versionString = "GeMS_FGDCMetadata.py, version of 10/19/23"
 rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/master/Scripts/GeMS_FGDCMetadata.py"
 guf.checkVersion(versionString, rawurl, "gems-tools-pro")
 
@@ -43,67 +41,6 @@ esri_attribs = {
     "ruleid": "Integer field that stores a reference to the representation rule for each feature.",
     "override": "BLOB field that stores feature-specific overrides to the cartographic representation rules.",
 }
-
-
-###### FUNCTIONS
-# def gdb_object_dict(gdb_path):
-#     """Returns a dictionary of table_name: da.Describe_table_properties
-#     when used on a geodatabase. GDB's will have tables, feature classes,
-#     and feature datasets listed under GDB['children']. But feature
-#     datasets will also have a 'children' key with their own children.
-#     gdb_object_dict() finds ALL children, regardless of how they are nested,
-#     and puts the information into a dictionary value retrieved by the name
-#     of the table.
-#     Works on geodatabases and geopackages!
-#     da.Describe is pretty fast (faster for gpkg, why?) and verbose
-#     """
-#     desc = arcpy.da.Describe(gdb_path)
-#     if desc["children"]:
-#         children = {child["name"]: child for child in desc["children"]}
-#         for child, v in children.items():
-#             # adding an entry for the feature dataset the item is in, if there is one
-#             v["feature_dataset"] = ""
-#             if children[child]["children"]:
-#                 fd = children[child]["name"]
-#                 more_children = {n["name"]: n for n in children[child]["children"]}
-#                 for k, v in more_children.items():
-#                     v["feature_dataset"] = fd
-#                 children = {**children, **more_children}
-
-#     # delete entries for feature datasets if any were found
-#     children = {
-#         k: v
-#         for (k, v) in children.items()
-#         if not children[k]["dataType"] == "FeatureDataset"
-#     }
-
-#     # and sanitize names that come from geopackages that start with "main."
-#     # trying to modify the children dictionary in-place wasn't producing expected results
-#     # we'll build a new dictionary with modified names
-#     if gdb_path.endswith(".gpkg"):
-#         new_dict = {}
-#         for child in children:
-#             if "." in child:
-#                 new_name = child.split(".")[-1]
-#                 new_dict[new_name] = children[child]
-#     else:
-#         new_dict = children
-
-#     # adding an entry for 'concatenated type' that will concatenate
-#     # featureType, shapeType, and dataType. eg
-#     # Simple Polygon FeatureClass
-#     # Simple Polyline FeatureClass
-#     # Annotation Polygon FeatureClass
-#     # this will go into Entity_Type_Definition
-#     for k, v in new_dict.items():
-#         if v["dataType"] == "Table":
-#             v["concat_type"] = "Nonspatial Table"
-#         elif v["dataType"] == "FeatureClass":
-#             v["concat_type"] = f"{v['featureType']} {v['shapeType']} {v['dataType']}"
-#         else:
-#             v["concat_type"] = v["dataType"]
-
-#     return new_dict
 
 
 def max_bounding(db_path):
@@ -621,7 +558,7 @@ def get_detailed(ds, table):
             if enttyp:
                 for n in ("enttypt", "enttypc"):
                     node = enttyp.find(n)
-                    if node:
+                    if node is not None:
                         enttyp.remove(node)
 
             enttypl = enttyp.find("enttypl")
@@ -644,37 +581,6 @@ def get_detailed(ds, table):
             return_node = detailed
 
     return return_node
-
-
-def main(argv):
-    # #### ARGUMENTS
-    # Ways to run this tool
-    # 1. the path to the dataset
-    # 2. optional template xml with producer content, that is, elements filled out by the producer that cannot be automated
-    # 3. if not selected, boolean whether to export the metadata from ArcGIS format file or start a brand new xml file that is filled out as much as possible with automated content, but will still need to have producer content added.
-    # 4. optional entity attribute data dictionary
-    # 5. flag for whether to have process steps erased, left as exported from arcpy, or replaced with steps from the optional template. 'remove', 'remain', 'replace', default='remain'
-    #
-    # About my_definitions.py
-    #
-    # myEntityDict and myAttribDict take a slightly different form from their similar dictionaries in GeMS_Definition.py. We want to be able to save a definition source for each entry there rather than hardcode it in the tool script, eg., 'This publication' or 'GeMS'. Each entry in those dictionaries takes the form
-    #
-    # 'object name': ['definition', 'definition source']
-    #
-    # But unrepresentable and range domains do not have definition sources so just update the GeMS Definitions dictionaries with the custom ones.
-    #
-    # Enumerated domain values DO have value sources but those come from the Glossary
-def extent_list(bounding):
-    """list of extent bounding coordinates
-
-    Args:
-        bounding (etree xml element): bounding node as calculated by max_bounding
-    """
-    ext_list = []
-    for n in ("eastbc", "southbc", "westbc", "northbc"):
-        ext_list.append(float(bounding.find(n).text))
-
-    return ext_list
 
 
 def main(arg):
@@ -920,26 +826,16 @@ def main(arg):
     # below will always be None if working from exported embedded metadata because of bug in Pro
     if base_md.find("spref") is None:
         arcpy.AddMessage("spref")
-        # try:
-        InputData = obj_dict["MapUnitPolys"]["catalogPath"]
-        desc = arcpy.Describe(InputData)
-        SR_InDS = desc.spatialReference
-        WorkingDir = db_dir
-        bounding = max_bounding(str(db_path))
-        GCS_ExtentList = extent_list(bounding)
 
-        SpatialReferenceInfo = SpatialRefTools.SpatialRefInfo(
-            SR_InDS, WorkingDir, GCS_ExtentList
-        )
-        spref_node = etree.fromstring(SpatialReferenceInfo)
-        # spref_node = su.get_spref(str(db_path), "MapUnitPolys")
-        # except Exception as e:
-        #     arcpy.AddError(
-        #         """Could not determine the coordinate system of MapUnitPolys.
-        #     Check in ArcCatalog that it is valid"""
-        #     )
-        #     arcpy.AddError(e)
-        #     sys.exit()
+        try:
+            spref_node = su.get_spref(str(db_path), "MapUnitPolys")
+        except Exception as e:
+            arcpy.AddError(
+                """Could not determine the coordinate system of MapUnitPolys.
+            Check in ArcCatalog that it is valid"""
+            )
+            arcpy.AddError(e)
+            sys.exit()
         base_md.insert(3, spref_node)
 
     # add the rest of the gems_nodes
