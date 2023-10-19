@@ -566,8 +566,8 @@ def planar(params):
         top_node = spcs(params)
     elif params["arczone"] != "Unknown":
         top_node = arc(params)
-    elif params["mapprojn"] != "Unknown":
-        top_node = mapproj(params)
+    # elif params["mapprojn"] != "Unknown":
+    #     top_node = mapproj(params)
 
     planar.append(top_node)
 
@@ -1217,8 +1217,8 @@ def spcs(params):
     spcs_node = xml_node("spcs", parent_node=gridsys)
     utmzone = xml_node("spcszone", text=params["spcszone"], parent_node=spcs_node)
 
-    mapproj_node = mapproj(params)
-    spcs_node.append(mapproj_node)
+    # mapproj_node = mapproj(params)
+    # spcs_node.append(mapproj_node)
 
     return gridsys
 
@@ -1629,9 +1629,10 @@ def vector_spdoinfo(layer):
     # ET - many more geometry types listed here
     # https://gdal.org/doxygen/ogr__core_8h.html#a800236a0d460ef66e687b7b65610f12a
     # added -2147483647 for 2.5d points
+    # -2147483643 for 2.5 lines
     if geo_type in [3, 6, 2003, 3003, 2006, 3006]:
         sdtstype = xml_node("sdtstype", text="G-polygon", parent_node=sdtsterm)
-    elif geo_type in [2, 5, 2005, 3005]:
+    elif geo_type in [2, 5, 2005, 3005, -2147483643]:
         sdtstype = xml_node("sdtstype", text="String", parent_node=sdtsterm)
     elif geo_type in [1, 4, 2001, 3001, 2004, 3004, -2147483647]:
         sdtstype = xml_node("sdtstype", text="Entity point", parent_node=sdtsterm)

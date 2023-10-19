@@ -16,10 +16,16 @@ from lxml import etree
 import sys
 import GeMS_Definition as gDef
 import GeMS_utilityFunctions as guf
+import SpatialRefTools
 from osgeo import ogr  # only used in def max_bounding
 import spatial_utils as su
 import copy
 import requests
+
+from importlib import reload
+
+reload(su)
+reload(SpatialRefTools)
 
 versionString = "GeMS_FGDCMetadata.py, version of 9/27/23"
 rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/master/Scripts/GeMS_FGDCMetadata.py"
@@ -40,64 +46,64 @@ esri_attribs = {
 
 
 ###### FUNCTIONS
-def gdb_object_dict(gdb_path):
-    """Returns a dictionary of table_name: da.Describe_table_properties
-    when used on a geodatabase. GDB's will have tables, feature classes,
-    and feature datasets listed under GDB['children']. But feature
-    datasets will also have a 'children' key with their own children.
-    gdb_object_dict() finds ALL children, regardless of how they are nested,
-    and puts the information into a dictionary value retrieved by the name
-    of the table.
-    Works on geodatabases and geopackages!
-    da.Describe is pretty fast (faster for gpkg, why?) and verbose
-    """
-    desc = arcpy.da.Describe(gdb_path)
-    if desc["children"]:
-        children = {child["name"]: child for child in desc["children"]}
-        for child, v in children.items():
-            # adding an entry for the feature dataset the item is in, if there is one
-            v["feature_dataset"] = ""
-            if children[child]["children"]:
-                fd = children[child]["name"]
-                more_children = {n["name"]: n for n in children[child]["children"]}
-                for k, v in more_children.items():
-                    v["feature_dataset"] = fd
-                children = {**children, **more_children}
+# def gdb_object_dict(gdb_path):
+#     """Returns a dictionary of table_name: da.Describe_table_properties
+#     when used on a geodatabase. GDB's will have tables, feature classes,
+#     and feature datasets listed under GDB['children']. But feature
+#     datasets will also have a 'children' key with their own children.
+#     gdb_object_dict() finds ALL children, regardless of how they are nested,
+#     and puts the information into a dictionary value retrieved by the name
+#     of the table.
+#     Works on geodatabases and geopackages!
+#     da.Describe is pretty fast (faster for gpkg, why?) and verbose
+#     """
+#     desc = arcpy.da.Describe(gdb_path)
+#     if desc["children"]:
+#         children = {child["name"]: child for child in desc["children"]}
+#         for child, v in children.items():
+#             # adding an entry for the feature dataset the item is in, if there is one
+#             v["feature_dataset"] = ""
+#             if children[child]["children"]:
+#                 fd = children[child]["name"]
+#                 more_children = {n["name"]: n for n in children[child]["children"]}
+#                 for k, v in more_children.items():
+#                     v["feature_dataset"] = fd
+#                 children = {**children, **more_children}
 
-    # delete entries for feature datasets if any were found
-    children = {
-        k: v
-        for (k, v) in children.items()
-        if not children[k]["dataType"] == "FeatureDataset"
-    }
+#     # delete entries for feature datasets if any were found
+#     children = {
+#         k: v
+#         for (k, v) in children.items()
+#         if not children[k]["dataType"] == "FeatureDataset"
+#     }
 
-    # and sanitize names that come from geopackages that start with "main."
-    # trying to modify the children dictionary in-place wasn't producing expected results
-    # we'll build a new dictionary with modified names
-    if gdb_path.endswith(".gpkg"):
-        new_dict = {}
-        for child in children:
-            if "." in child:
-                new_name = child.split(".")[-1]
-                new_dict[new_name] = children[child]
-    else:
-        new_dict = children
+#     # and sanitize names that come from geopackages that start with "main."
+#     # trying to modify the children dictionary in-place wasn't producing expected results
+#     # we'll build a new dictionary with modified names
+#     if gdb_path.endswith(".gpkg"):
+#         new_dict = {}
+#         for child in children:
+#             if "." in child:
+#                 new_name = child.split(".")[-1]
+#                 new_dict[new_name] = children[child]
+#     else:
+#         new_dict = children
 
-    # adding an entry for 'concatenated type' that will concatenate
-    # featureType, shapeType, and dataType. eg
-    # Simple Polygon FeatureClass
-    # Simple Polyline FeatureClass
-    # Annotation Polygon FeatureClass
-    # this will go into Entity_Type_Definition
-    for k, v in new_dict.items():
-        if v["dataType"] == "Table":
-            v["concat_type"] = "Nonspatial Table"
-        elif v["dataType"] == "FeatureClass":
-            v["concat_type"] = f"{v['featureType']} {v['shapeType']} {v['dataType']}"
-        else:
-            v["concat_type"] = v["dataType"]
+#     # adding an entry for 'concatenated type' that will concatenate
+#     # featureType, shapeType, and dataType. eg
+#     # Simple Polygon FeatureClass
+#     # Simple Polyline FeatureClass
+#     # Annotation Polygon FeatureClass
+#     # this will go into Entity_Type_Definition
+#     for k, v in new_dict.items():
+#         if v["dataType"] == "Table":
+#             v["concat_type"] = "Nonspatial Table"
+#         elif v["dataType"] == "FeatureClass":
+#             v["concat_type"] = f"{v['featureType']} {v['shapeType']} {v['dataType']}"
+#         else:
+#             v["concat_type"] = v["dataType"]
 
-    return new_dict
+#     return new_dict
 
 
 def max_bounding(db_path):
@@ -106,8 +112,8 @@ def max_bounding(db_path):
     west = []
     east = []
     for layer in ogr.Open(db_path):
-        # if layer.GetGeomType() != 100:
-        if "MapUnitPolys" in layer.GetName() or "ContactsAndFaults" in layer.GetName():
+        if layer.GetGeomType() != 100:
+            # if "MapUnitPolys" in layer.GetName() or "ContactsAndFaults" in layer.GetName():
             bounding = su.get_bounding(str(db_path), layer.GetName())
             north.append(bounding.find("northbc").text)
             south.append(bounding.find("southbc").text)
@@ -150,20 +156,20 @@ def catch_m2m(dictionary, field_value):
         return
 
 
-def which_dict(tbl, fld):
+def which_dict(dds, tbl, fld):
     if fld == "MapUnit":
-        return units_dict
+        return dds["units_dict"]
     elif fld == "GeoMaterialConfidence" and tbl == "DescriptionOfMapUnits":
         return gDef.GeoMatConfDict
     elif fld == "GeoMaterial":
-        return geomat_dict
+        return dds["geomat_dict"]
     elif fld.find("SourceID") > -1:
-        return sources_dict
+        return dds["sources_dict"]
     else:
-        return gloss_dict
+        return dds["gloss_dict"]
 
 
-def term_dict(obj_dict, table, fields):
+def term_dict(obj_dict, table, fields, sources_dict=None):
     """sources_dict needs to be built first"""
     # always supply field to be the dictionary key as fields[0]
     # and the 'ID' field as fields[-1]
@@ -221,7 +227,7 @@ def remove_node(node, xpath):
     parent.remove(child)
 
 
-def add_entity(fc_name, elem_dict):
+def add_entity(fc_name, elem_dict, missing, myEntityDict, base_md):
     ##metadata
     ##  entity
     ##    detailed
@@ -302,7 +308,7 @@ def add_entity(fc_name, elem_dict):
     return detailed
 
 
-def add_attributes(fc_name, detailed_node):
+def add_attributes(fc_name, detailed_node, obj_dict, missing, myDef, dds):
     arcpy.AddMessage(f"Adding attribute and value definitions for {fc_name}")
     ##metadata
     ##  eainfo
@@ -453,13 +459,13 @@ def add_attributes(fc_name, detailed_node):
                 # if enumerated values, have to build an attrdomv node for each value
                 attrdomv = etree.Element("attrdomv")
                 if field.endswith("SourceID"):
-                    val_text = catch_m2m(sources_dict, val)
+                    val_text = catch_m2m(dds["sources_dict"], val)
                     val_source = "This report"
 
                 # otherwise, find the appropriate dictionary and put the definition
                 # and definition source into def_text and def_source
                 else:
-                    val_dict = which_dict(fc_name, field)
+                    val_dict = which_dict(dds, fc_name, field)
                     if val in val_dict:
                         val_text = val_dict[val][0]
                         val_source = val_dict[val][1]
@@ -505,7 +511,7 @@ def add_attributes(fc_name, detailed_node):
         detailed_node.append(attr)
 
 
-def validate_online(md_record, db_dir):
+def validate_online(md_record, mr_xml, db_dir, text_bool):
     """validate the xml metadata against the USGS metadata validation service API"""
     # first write out the xml dom that is in memory to a file on disk
     temp_path = db_dir / "temp.xml"
@@ -592,9 +598,9 @@ def get_gdb_item(ds, sql):
     """helper function to query ogr dataset
     only one value returned. For looking up one field from one row"""
     l = ds.ExecuteSQL(sql)
-    if not l is None:
+    try:
         return l.GetNextFeature().GetField(0)
-    else:
+    except:
         return None
 
 
@@ -609,26 +615,31 @@ def get_detailed(ds, table):
         detailed = dom.find("eainfo/detailed")
         if detailed is not None:
             detailed.attrib.pop("Name", None)
+            detailed.attrib.pop("xmlns", None)
 
             enttyp = detailed.find("enttyp")
-            for n in ("enttypt", "enttypc"):
-                node = enttyp.find(n)
-                enttyp.remove(node)
+            if enttyp:
+                for n in ("enttypt", "enttypc"):
+                    node = enttyp.find(n)
+                    if node:
+                        enttyp.remove(node)
 
             enttypl = enttyp.find("enttypl")
-            enttypl.attrib.pop("Sync", None)
+            if enttypl:
+                enttypl.attrib.pop("Sync", None)
 
             attrs = detailed.findall("attr")
-            for attr in attrs:
-                for child in attr:
-                    if child.tag in (
-                        "attalias",
-                        "attrtype",
-                        "attwidth",
-                        "atprecis",
-                        "attscale",
-                    ):
-                        attr.remove(child)
+            if attrs:
+                for attr in attrs:
+                    for child in attr:
+                        if child.tag in (
+                            "attalias",
+                            "attrtype",
+                            "attwidth",
+                            "atprecis",
+                            "attscale",
+                        ):
+                            attr.remove(child)
 
             return_node = detailed
 
@@ -653,20 +664,48 @@ def main(argv):
     # But unrepresentable and range domains do not have definition sources so just update the GeMS Definitions dictionaries with the custom ones.
     #
     # Enumerated domain values DO have value sources but those come from the Glossary
+def extent_list(bounding):
+    """list of extent bounding coordinates
+
+    Args:
+        bounding (etree xml element): bounding node as calculated by max_bounding
+    """
+    ext_list = []
+    for n in ("eastbc", "southbc", "westbc", "northbc"):
+        ext_list.append(float(bounding.find(n).text))
+
+    return ext_list
+
+
+def main(arg):
+    # #### ARGUMENTS
+    # Ways to run this tool
+    # 1. the path to the dataset
+    # 2. optional template xml with producer content, that is, elements filled out by the producer that cannot be automated
+    # 3. if not selected, boolean whether to export the metadata from ArcGIS format file or start a brand new xml file that is filled out as much as possible with automated content, but will still need to have producer content added.
+    # 4. optional entity attribute data dictionary
+    # 5. flag for whether to have process steps erased, left as exported from arcpy, or replaced with steps from the optional template. 'remove', 'remain', 'replace', default='remain'
+    #
+    # About my_definitions.py
+    #
+    # myEntityDict and myAttribDict take a slightly different form from their similar dictionaries in GeMS_Definition.py. We want to be able to save a definition source for each entry there rather than hardcode it in the tool script, eg., 'This publication' or 'GeMS'. Each entry in those dictionaries takes the form
+    #
+    # 'object name': ['definition', 'definition source']
+    #
+    # But unrepresentable and range domains do not have definition sources so just update the GeMS Definitions dictionaries with the custom ones.
+    #
+    # Enumerated domain values DO have value sources but those come from the Glossary
 
     # the database
-    db_path = Path(argv[1])
+    db_path = Path(arg[1])
     arcpy.AddMessage("Building dictionary of database contents")
-    obj_dict = gdb_object_dict(str(db_path))
+    obj_dict = guf.gdb_object_dict(str(db_path))
 
-    # export embedded metadata? concert string to boolean
-    if argv[2].lower() in ["true", "yes"]:
-        arc_md = True
-    else:
-        arc_md = False
+    # export embedded metadata? convert string to boolean
+    arc_md = guf.eval_bool(arg[2])
 
     # my_definitions.py
-    my_defs_path = Path(argv[3])
+    my_defs_path = Path(arg[3])
     if my_defs_path.is_file():
         mod_name = my_defs_path.stem
         import importlib.util
@@ -695,7 +734,7 @@ def main(argv):
         myEntityDict = {}
 
     # path to template file
-    template_path = argv[4]
+    template_path = arg[4]
 
     # what to do with data sources.
     # True - remove any existing first
@@ -710,7 +749,7 @@ def main(argv):
         "save no sources": 8,
     }
 
-    sources_param = sources_choice[argv[5]]
+    sources_param = sources_choice[arg[5]]
 
     # what to do with process steps, dataqual/lineage/procstep
     history_choices = {
@@ -719,34 +758,38 @@ def main(argv):
         "save only embedded history": 3,
         "save all history": 4,
     }
-
-    history_param = history_choices[argv[6]]
+    arcpy.AddMessage(f"history = {arg[6]}")
+    history_param = history_choices[arg[6]]
 
     # convert the 'missing definitions' argument to boolean
-    if "MISSING" in argv[7]:
-        missing = True
-    else:
-        missing = False
+    missing = guf.eval_bool(arg[7])
 
     # convert text file choice to boolean
     # export embedded metadata? concert string to boolean
-    if argv[8].lower() in ["true", "yes"]:
-        text_bool = True
-    else:
-        text_bool = False
+    text_bool = guf.eval_bool(arg[8])
 
     # dictionaries of some tables
     # term_dict returns [term]:[definition, sourceid]
     sources_dict = term_dict(obj_dict, "DataSources", ["DataSources_ID", "Source"])
-    units_dict = term_dict(
-        obj_dict,
-        "DescriptionOfMapUnits",
-        ["MapUnit", "Name", "Fullname", "DescriptionSourceID"],
-    )
-    geomat_dict = term_dict(obj_dict, "GeoMaterialDict", ["GeoMaterial", "Definition"])
-    gloss_dict = term_dict(
-        obj_dict, "Glossary", ["Term", "Definition", "DefinitionSourceID"]
-    )
+    # dds = data dictionaries, a dictionary of term dictionaries
+    dds = {
+        "sources_dict": sources_dict,
+        "units_dict": term_dict(
+            obj_dict,
+            "DescriptionOfMapUnits",
+            ["MapUnit", "Name", "Fullname", "DescriptionSourceID"],
+            sources_dict,
+        ),
+        "geomat_dict": term_dict(
+            obj_dict, "GeoMaterialDict", ["GeoMaterial", "Definition"], sources_dict
+        ),
+        "gloss_dict": term_dict(
+            obj_dict,
+            "Glossary",
+            ["Term", "Definition", "DefinitionSourceID"],
+            sources_dict,
+        ),
+    }
 
     # name of gdb
     db_name = db_path.stem
@@ -792,10 +835,8 @@ def main(argv):
 
     if arc_md:
         arcpy.AddMessage("Exporting embedded ArcGIS metadata to FGDC")
-        # export the metadata from Arc
-        # for now, assuming that metadata have been added to GDB itself.
-        # This is different from Ralph's ArcMap FGDC tools which presume metadata
-        # were added to GeologicMap - I don't think that's a good idea.
+        # export the GDB-level metadata from Arc
+        # tables will be added later
         src_md = arcpy.metadata.Metadata(str(db_path))
         src_md.exportMetadata(str(mr_xml), "FGDC_CSDGM")
         # make an lxml etree
@@ -805,7 +846,8 @@ def main(argv):
         if sources_param in [1, 3, 5, 8]:
             extend_branch(base_md, "dataqual/lineage")
             base_lineage = base_md.find(".//lineage")
-            arcpy.AddMessage("removing sources - arc_md")
+            if arc_md:
+                arcpy.AddMessage(f"Removing Sources")
             clear_children(base_lineage, "srcinfo")
 
         if history_param < 3:
@@ -833,13 +875,14 @@ def main(argv):
         if base_md.find(child[0]) is None:
             arcpy.AddMessage(f"  {child[0]}")
             elem = etree.Element(child[0])
-            i = child[1]
-            base_md.insert(i, elem)
+            base_md.append(elem)
 
     # use spatial_utils from Metadata Wizard tools to add spatial stuff
-    # An option here is to include `spdom` and `spref` in the routine above, to check that all 1st level children exist, and then ask if they should be updated in a user-supplied template xml. They might already exist in that case and the user may know they want to use their own, rather than have them calculated here.
+    # An option here is to include `spdom` and `spref` in the routine above, to check that all 1st level children exist,
+    # and then ask if they should be updated in a user-supplied template xml. They might already exist in that case and
+    # the user may know they want to use their own, rather than have them calculated here.
 
-    # find the bounding box that covers the extent of all features
+    # find the bounding box that covers the extent of all featuresunits_dict
     try:
         if base_md.find("idinfo/spdom/bounding") is None:
             arcpy.AddMessage("  spdom")
@@ -855,31 +898,48 @@ def main(argv):
         arcpy.AddError(error)
         sys.exit()
 
-    # collect the feature classes and inspect the sdtsterm
-    if base_md.find("spdoinfo") is None:
-        fcs = [k for k in obj_dict if "FeatureClass" in obj_dict[k]["concat_type"]]
-        arcpy.AddMessage("  spdoinfo")
-        spdoinfo = su.get_spdoinfo(str(db_path), fcs[0])
-        ptvctinf = spdoinfo.find("ptvctinf")
-        for fc in fcs[1:]:
-            arcpy.AddMessage(f"\rspdoinfo/sdtsterm for {fc}")
-            lyr_spdo = su.get_spdoinfo(str(db_path), fc)
-            sdtsterm = lyr_spdo.find("ptvctinf/sdtsterm")
-            ptvctinf.append(sdtsterm)
-        spdoinfo.append(ptvctinf)
-        base_md.insert(2, spdoinfo)
+    # collect lists of feature classes and build the sdtsterm elements
+    if base_md.find("spdoinfo"):
+        base_md.remove(base_md.find("spdoinfo"))
 
+    fcs = [k for k, v in obj_dict.items() if "Feature Class" in v["concat_type"]]
+    if base_md.find("spdoinfo") is None:
+        arcpy.AddMessage("  spdoinfo")
+        if fcs:
+            arcpy.AddMessage(f"  spdoinfo/ptvctinf/sdtsterm for {fcs[0]}")
+            spdoinfo = su.get_spdoinfo(str(db_path), fcs[0])
+            ptvctinf = spdoinfo.find("ptvctinf")
+            for fc in fcs[1:]:
+                arcpy.AddMessage(f"  spdoinfo/ptvctinf/sdtsterm for {fc}")
+                lyr_spdo = su.get_spdoinfo(str(db_path), fc)
+                sdtsterm = lyr_spdo.find("ptvctinf/sdtsterm")
+                ptvctinf.append(sdtsterm)
+            spdoinfo.append(ptvctinf)
+            base_md.insert(2, spdoinfo)
+
+    # below will always be None if working from exported embedded metadata because of bug in Pro
     if base_md.find("spref") is None:
         arcpy.AddMessage("spref")
-        try:
-            spref_node = su.get_spref(str(db_path), "MapUnitPolys")
-        except Exception as e:
-            arcpy.AddError(
-                """Could not determine the coordinate system of MapUnitPolys.
-            Check in ArcCatalog that it is valid"""
-            )
-            arcpy.AddError(e)
-            sys.exit()
+        # try:
+        InputData = obj_dict["MapUnitPolys"]["catalogPath"]
+        desc = arcpy.Describe(InputData)
+        SR_InDS = desc.spatialReference
+        WorkingDir = db_dir
+        bounding = max_bounding(str(db_path))
+        GCS_ExtentList = extent_list(bounding)
+
+        SpatialReferenceInfo = SpatialRefTools.SpatialRefInfo(
+            SR_InDS, WorkingDir, GCS_ExtentList
+        )
+        spref_node = etree.fromstring(SpatialReferenceInfo)
+        # spref_node = su.get_spref(str(db_path), "MapUnitPolys")
+        # except Exception as e:
+        #     arcpy.AddError(
+        #         """Could not determine the coordinate system of MapUnitPolys.
+        #     Check in ArcCatalog that it is valid"""
+        #     )
+        #     arcpy.AddError(e)
+        #     sys.exit()
         base_md.insert(3, spref_node)
 
     # add the rest of the gems_nodes
@@ -943,12 +1003,39 @@ def main(argv):
         else:
             arcpy.AddError("There are no data sources to add!")
 
+    # collect the names of the objects we are going to collect or build detailed nodes for
+    # feature classes or rasters but no other objects
+    lyrs = [
+        k
+        for k, v in obj_dict.items()
+        if v["dataType"] in ("FeatureClass", "RasterDataset")
+    ]
+    lyrs.sort()
+
     # add Entity Attributes
-    arcpy.AddMessage("Adding metadata for the following feature classes:")
-    for k, v in obj_dict.items():
-        detailed = add_entity(k, v)
-        if "fields" in obj_dict[k]:
-            add_attributes(k, detailed)
+    if arc_md:
+        arcpy.AddMessage(
+            "Finding embedded metadata for the following feature classes or rasters:"
+        )
+        # make sure we have an eainfo node
+        eainfo = base_md.find("eainfo")
+
+        if not eainfo is None:
+            # for embedded metadata, we'll look inside the Documentation field of GDB_Items
+            # open with OGR and retrieve the text with SQL
+            ds = ogr.Open(str(db_path))
+            for lyr in lyrs:
+                arcpy.AddMessage(f"  {lyr}")
+                detailed = get_detailed(ds, lyr)
+                if detailed:
+                    eainfo.append(detailed)
+    else:
+        arcpy.AddMessage("Adding metadata for the following feature classes:")
+        for k, v in obj_dict.items():
+            detailed = add_entity(k, v, missing, myEntityDict, base_md)
+
+            if "fields" in obj_dict[k]:
+                add_attributes(k, detailed, obj_dict, missing, myDef, dds)
 
     # merge with template
     # If no template specified, just write out the metadata as generated here which could include embedded metadata.
@@ -1034,7 +1121,7 @@ def main(argv):
         ea_nodes = base_md.find("eainfo").findall("detailed")
 
         # default for now will be to remove all detailed nodes and replace with those
-        # generated from the attribute dictionaries
+        # generated here
         extend_branch(template_root, "eainfo")
         temp_eainfo = template_root.find("eainfo")
         temp_detailed = temp_eainfo.findall("detailed")
@@ -1059,7 +1146,7 @@ def main(argv):
         base_md = template_root
 
     arcpy.AddMessage("Validating")
-    validate_online(base_md, db_dir)
+    validate_online(base_md, mr_xml, db_dir, text_bool)
 
 
 if __name__ == "__main__":
