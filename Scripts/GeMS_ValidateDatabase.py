@@ -76,6 +76,7 @@ import os
 import sys
 import time
 import copy
+import shutil
 from pathlib import Path
 import GeMS_utilityFunctions as guf
 import GeMS_Definition as gdef
@@ -91,12 +92,13 @@ from importlib import reload
 
 # reload(guf)
 # reload(tp)
-reload(gdef)
+# reload(gdef)
+reload(gemsmd)
 
 # values dictionary gets sent to report_template.jinja errors_template.jinja
 val = {}
 
-version_string = "GeMS_ValidateDatabase.py, version of 9/28/2023"
+version_string = "GeMS_ValidateDatabase.py, version of 10/23/2023"
 val["version_string"] = version_string
 val["datetime"] = time.asctime(time.localtime(time.time()))
 
@@ -1222,7 +1224,6 @@ def validate_online(metadata_file, workdir):
     """validate the xml metadata against the USGS metadata validation service API"""
 
     metadata_name = metadata_file.stem
-    # metadata_dir = metadata_file.parent
     metadata_errors = workdir / f"{metadata_name}_errors.txt"
 
     # send the temp file to the API
@@ -1461,54 +1462,54 @@ def del_extra(db_dict, table, field, all_terms):
                 cursor.deleteRow()
 
 
-def export_embedded(gdb_path, gdb_name, workdir, db_dict):
-    """Export embedded gdb-level metadata and add Detailed_Description
-        nodes for each table
+# def export_embedded(gdb_path, gdb_name, workdir, db_dict):
+#     """Export embedded gdb-level metadata and add Detailed_Description
+#         nodes for each table
 
-    Args:
-        gdb_path (Path object): path to GDB
-        gdb_name (string): name of GDB w/o extension
-        workdir (Path object): folder location of GDB
-        db_dict (dictionary): dictionary contents of the GDB
-    """
-    metadata_file = workdir / f"{gdb_name}_metadata.xml"
-    temp_xml = workdir / "temp_metadata.xml"
-    for n in (metadata_file, temp_xml):
-        if Path(n).exists():
-            Path(n).unlink()
+#     Args:
+#         gdb_path (Path object): path to GDB
+#         gdb_name (string): name of GDB w/o extension
+#         workdir (Path object): folder location of GDB
+#         db_dict (dictionary): dictionary contents of the GDB
+#     """
+#     metadata_file = workdir / f"{gdb_name}_metadata.xml"
+#     temp_xml = workdir / "temp_metadata.xml"
+#     for n in (metadata_file, temp_xml):
+#         if Path(n).exists():
+#             Path(n).unlink()
 
-    src_md = arcpy.metadata.Metadata(str(gdb_path))
-    src_md.exportMetadata(str(temp_xml), "FGDC_CSDGM")
+#     src_md = arcpy.metadata.Metadata(str(gdb_path))
+#     src_md.exportMetadata(str(temp_xml), "FGDC_CSDGM")
 
-    root = ET.parse(temp_xml).getroot()
-    eainfo = root.find("eainfo")
-    if eainfo is None:
-        node = ET.Element("eainfo")
-        root.append(node)
-        eainfo = root.find("eainfo")
+#     root = ET.parse(temp_xml).getroot()
+#     eainfo = root.find("eainfo")
+#     if eainfo is None:
+#         node = ET.Element("eainfo")
+#         root.append(node)
+#         eainfo = root.find("eainfo")
 
-    # collect the names of the tables we are going to collect detailed nodes for
-    tables = [
-        k
-        for k, v in db_dict.items()
-        if not v["dataType"] in ("FeatureDataset", "Topology")
-    ]
-    tables.sort()
+#     # collect the names of the tables we are going to collect detailed nodes for
+#     tables = [
+#         k
+#         for k, v in db_dict.items()
+#         if not v["dataType"] in ("FeatureDataset", "Topology")
+#     ]
+#     tables.sort()
 
-    # for embedded metadata, we'll look inside the Documentation field of GDB_Items
-    # open with OGR and retrieve the text with SQL
-    ds = ogr.Open(str(gdb_path))
-    for table in tables:
-        arcpy.AddMessage(f"  {table}")
-        detailed = gemsmd.get_detailed(ds, table)
-        if detailed is not None:
-            eainfo.append(detailed)
-        else:
-            arcpy.AddMessage(f"Found no embedded metadata for {table}")
+#     # for embedded metadata, we'll look inside the Documentation field of GDB_Items
+#     # open with OGR and retrieve the text with SQL
+#     ds = ogr.Open(str(gdb_path))
+#     for table in tables:
+#         arcpy.AddMessage(f"  {table}")
+#         detailed = gemsmd.get_detailed(ds, table)
+#         if detailed is not None:
+#             eainfo.append(detailed)
+#         else:
+#             arcpy.AddMessage(f"Found no embedded metadata for {table}")
 
-    # et = ET.ElementTree(root)
-    with open(metadata_file, "wb") as f:
-        root.write(f, encoding="utf-8", xml_declaration=True, pretty_print=True)
+#     # et = ET.ElementTree(root)
+#     with open(metadata_file, "wb") as f:
+#         root.write(f, encoding="utf-8", xml_declaration=True, pretty_print=True)
 
 
 ##############start here##################
@@ -1960,7 +1961,24 @@ def main(argv):
         ap("Exporting embedded ArcGIS metadata to FGDC")
         # export the metadata from Arc
         # this method only exports good metadata if it has been written in ArcCatalog at the
-        metadata_file = export_embedded(gdb_path, gdb_name, workdir, db_dict)
+        temp_xml = gdb_path.parent / f"{gdb_path.stem}-metadata.xml"
+
+        gemsmd.process(
+            [
+                gdb_path,
+                True,
+                "",
+                "",
+                "save only embedded sources",
+                "save only template history",
+                "leave blank",
+                False,
+                True,
+            ]
+        )
+
+        if Path(temp_xml).exists:
+            shutil.copy(temp_xml, metadata_file)
 
     if metadata_file:
         if Path(metadata_file).exists:

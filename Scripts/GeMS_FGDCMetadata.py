@@ -27,7 +27,6 @@ reload(su)
 
 versionString = "GeMS_FGDCMetadata.py, version of 10/19/23"
 rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/master/Scripts/GeMS_FGDCMetadata.py"
-guf.checkVersion(versionString, rawurl, "gems-tools-pro")
 
 gems_full_ref = """GeMS (Geologic Map Schema)--a standard format for the digital publication of geologic maps", available at http://ngmdb.usgs.gov/Info/standards/GeMS/"""
 
@@ -41,6 +40,16 @@ esri_attribs = {
     "ruleid": "Integer field that stores a reference to the representation rule for each feature.",
     "override": "BLOB field that stores feature-specific overrides to the cartographic representation rules.",
 }
+
+
+def proprint(msg):
+    """decide if msg should be printed to the geoprocessing pane or not
+    used when this script is called from Validate Database because we
+    don't want the full report"""
+
+    if not suppress:
+        arcpy.AddMessage(msg)
+        print(msg)
 
 
 def max_bounding(db_path):
@@ -111,7 +120,7 @@ def term_dict(obj_dict, table, fields, sources_dict=None):
     # always supply field to be the dictionary key as fields[0]
     # and the 'ID' field as fields[-1]
     if table in obj_dict:
-        arcpy.AddMessage(f"Building dictionary for {table}")
+        proprint(f"Building dictionary for {table}")
         table_path = obj_dict[table]["catalogPath"]
         data_dict = {}
         cursor = arcpy.da.SearchCursor(table_path, fields)
@@ -246,7 +255,7 @@ def add_entity(fc_name, elem_dict, missing, myEntityDict, base_md):
 
 
 def add_attributes(fc_name, detailed_node, obj_dict, missing, myDef, dds):
-    arcpy.AddMessage(f"Adding attribute and value definitions for {fc_name}")
+    proprint(f"Adding attribute and value definitions for {fc_name}")
     ##metadata
     ##  eainfo
     ##    detailed
@@ -360,7 +369,7 @@ def add_attributes(fc_name, detailed_node, obj_dict, missing, myDef, dds):
 
         # # value might be found in myUnrepresentableDomainDict
         # if key in myunrepresentableDomainDict:
-        # arcpy.AddMessage("        Author-defined unrepresentable value domain")
+        # proprint("        Author-defined unrepresentable value domain")
         # attrdomv = etree.Element('attrdomv')
         # udom = etree.Element('udom')
         # udom.text = myUnrepresentableDomainDict[key]
@@ -369,7 +378,7 @@ def add_attributes(fc_name, detailed_node, obj_dict, missing, myDef, dds):
 
         # look for fields that have range domains
         elif key in gDef.rangeDomainDict:
-            arcpy.AddMessage("        Range value domain definition found")
+            proprint("        Range value domain definition found")
             attrdomv = etree.Element("attrdomv")
             rdom = etree.Element("rdom")
             for n, i in [["rdommin", 0], ["rdommax", 1], ["attrunit", 2]]:
@@ -515,13 +524,11 @@ def validate_online(md_record, mr_xml, db_dir, text_bool):
 
         # print the error file contents to the geoprocessing window
         with open(err_path, "r") as f:
-            arcpy.AddMessage(f.read())
+            proprint(f.read())
 
         # final report
-        arcpy.AddMessage(f"Output files have been saved to {db_dir}")
-        arcpy.AddMessage(
-            f"Open {mr_xml} in a xml or metadata editor to complete the record"
-        )
+        proprint(f"Output files have been saved to {db_dir}")
+        proprint(f"Open {mr_xml} in a xml or metadata editor to complete the record")
 
         # cleanup
         # temp_path.unlink()
@@ -555,14 +562,14 @@ def get_detailed(ds, table):
             detailed.attrib.pop("xmlns", None)
 
             enttyp = detailed.find("enttyp")
-            if enttyp:
+            if enttyp is not None:
                 for n in ("enttypt", "enttypc"):
                     node = enttyp.find(n)
                     if node is not None:
                         enttyp.remove(node)
 
             enttypl = enttyp.find("enttypl")
-            if enttypl:
+            if enttypl is not None:
                 enttypl.attrib.pop("Sync", None)
 
             attrs = detailed.findall("attr")
@@ -583,7 +590,7 @@ def get_detailed(ds, table):
     return return_node
 
 
-def main(arg):
+def process(arg):
     # #### ARGUMENTS
     # Ways to run this tool
     # 1. the path to the dataset
@@ -603,15 +610,21 @@ def main(arg):
     # Enumerated domain values DO have value sources but those come from the Glossary
 
     # the database
-    db_path = Path(arg[1])
-    arcpy.AddMessage("Building dictionary of database contents")
+
+    guf.checkVersion(versionString, rawurl, "gems-tools-pro")
+
+    global suppress
+    suppress = guf.eval_bool(arg[8])
+
+    db_path = Path(arg[0])
+    proprint("Building dictionary of database contents")
     obj_dict = guf.gdb_object_dict(str(db_path))
 
     # export embedded metadata? convert string to boolean
-    arc_md = guf.eval_bool(arg[2])
+    arc_md = guf.eval_bool(arg[1])
 
     # my_definitions.py
-    my_defs_path = Path(arg[3])
+    my_defs_path = Path(arg[2])
     if my_defs_path.is_file():
         mod_name = my_defs_path.stem
         import importlib.util
@@ -640,7 +653,7 @@ def main(arg):
         myEntityDict = {}
 
     # path to template file
-    template_path = arg[4]
+    template_path = arg[3]
 
     # what to do with data sources.
     # True - remove any existing first
@@ -655,7 +668,7 @@ def main(arg):
         "save no sources": 8,
     }
 
-    sources_param = sources_choice[arg[5]]
+    sources_param = sources_choice[arg[4]]
 
     # what to do with process steps, dataqual/lineage/procstep
     history_choices = {
@@ -664,15 +677,18 @@ def main(arg):
         "save only embedded history": 3,
         "save all history": 4,
     }
-    arcpy.AddMessage(f"history = {arg[6]}")
-    history_param = history_choices[arg[6]]
+    proprint(f"history = {arg[5]}")
+    history_param = history_choices[arg[5]]
 
     # convert the 'missing definitions' argument to boolean
-    missing = guf.eval_bool(arg[7])
+    if arg[6] == "leave blank":
+        missing = False
+    else:
+        missing = True
 
     # convert text file choice to boolean
-    # export embedded metadata? concert string to boolean
-    text_bool = guf.eval_bool(arg[8])
+    # export embedded metadata? convert string to boolean
+    text_bool = guf.eval_bool(arg[7])
 
     # dictionaries of some tables
     # term_dict returns [term]:[definition, sourceid]
@@ -740,7 +756,7 @@ def main(arg):
         mr_xml.unlink()
 
     if arc_md:
-        arcpy.AddMessage("Exporting embedded ArcGIS metadata to FGDC")
+        proprint("Exporting embedded ArcGIS metadata to FGDC")
         # export the GDB-level metadata from Arc
         # tables will be added later
         src_md = arcpy.metadata.Metadata(str(db_path))
@@ -753,7 +769,7 @@ def main(arg):
             extend_branch(base_md, "dataqual/lineage")
             base_lineage = base_md.find(".//lineage")
             if arc_md:
-                arcpy.AddMessage(f"Removing Sources")
+                proprint(f"Removing Sources")
             clear_children(base_lineage, "srcinfo")
 
         if history_param < 3:
@@ -764,7 +780,7 @@ def main(arg):
     else:
         # we have to make a metadata document from scratch
         # make the root
-        arcpy.AddMessage("Building database metadata from scratch")
+        proprint("Building database metadata from scratch")
         base_md = etree.Element("metadata")
 
     # make the required elements
@@ -776,10 +792,10 @@ def main(arg):
         ["distinfo", 5],
         ["metainfo", 6],
     ]
-    arcpy.AddMessage("Creating the following elements:")
+    proprint("Creating the following elements:")
     for child in child_nodes:
         if base_md.find(child[0]) is None:
-            arcpy.AddMessage(f"  {child[0]}")
+            proprint(f"  {child[0]}")
             elem = etree.Element(child[0])
             base_md.append(elem)
 
@@ -791,7 +807,7 @@ def main(arg):
     # find the bounding box that covers the extent of all featuresunits_dict
     try:
         if base_md.find("idinfo/spdom/bounding") is None:
-            arcpy.AddMessage("  spdom")
+            proprint("  spdom")
             spdom = etree.Element("spdom")
             bounding = max_bounding(str(db_path))
             spdom.append(bounding)
@@ -805,18 +821,18 @@ def main(arg):
         sys.exit()
 
     # collect lists of feature classes and build the sdtsterm elements
-    if base_md.find("spdoinfo"):
+    if base_md.find("spdoinfo") is not None:
         base_md.remove(base_md.find("spdoinfo"))
 
     fcs = [k for k, v in obj_dict.items() if "Feature Class" in v["concat_type"]]
     if base_md.find("spdoinfo") is None:
-        arcpy.AddMessage("  spdoinfo")
+        proprint("  spdoinfo")
         if fcs:
-            arcpy.AddMessage(f"  spdoinfo/ptvctinf/sdtsterm for {fcs[0]}")
+            proprint(f"  spdoinfo/ptvctinf/sdtsterm for {fcs[0]}")
             spdoinfo = su.get_spdoinfo(str(db_path), fcs[0])
             ptvctinf = spdoinfo.find("ptvctinf")
             for fc in fcs[1:]:
-                arcpy.AddMessage(f"  spdoinfo/ptvctinf/sdtsterm for {fc}")
+                proprint(f"  spdoinfo/ptvctinf/sdtsterm for {fc}")
                 lyr_spdo = su.get_spdoinfo(str(db_path), fc)
                 sdtsterm = lyr_spdo.find("ptvctinf/sdtsterm")
                 ptvctinf.append(sdtsterm)
@@ -825,7 +841,7 @@ def main(arg):
 
     # below will always be None if working from exported embedded metadata because of bug in Pro
     if base_md.find("spref") is None:
-        arcpy.AddMessage("spref")
+        proprint("spref")
 
         try:
             spref_node = su.get_spref(str(db_path), "MapUnitPolys")
@@ -840,9 +856,9 @@ def main(arg):
 
     # add the rest of the gems_nodes
     g_nodes = deez_nodes["gems_nodes"]
-    arcpy.AddMessage("Adding GeMS language in the following elements...")
+    proprint("Adding GeMS language in the following elements...")
     for n in g_nodes:
-        arcpy.AddMessage(f"  {g_nodes[n]['xpath']}")
+        proprint(f"  {g_nodes[n]['xpath']}")
         if base_md.find(g_nodes[n]["xpath"]) is not None:
             e = base_md.find(g_nodes[n]["xpath"])
             if len(e.text) > 1:
@@ -865,7 +881,7 @@ def main(arg):
     extend_branch(base_md, deez_nodes["source_nodes"]["lineage"]["xpath"])
     if sources_param in [1, 4, 5, 7]:
         if "DataSources" in obj_dict:
-            arcpy.AddMessage("Adding DataSources")
+            proprint("Adding DataSources")
             source_nodes = deez_nodes["source_nodes"]
             lineage = base_md.find(source_nodes["lineage"]["xpath"])
 
@@ -910,7 +926,7 @@ def main(arg):
 
     # add Entity Attributes
     if arc_md:
-        arcpy.AddMessage(
+        proprint(
             "Finding embedded metadata for the following feature classes or rasters:"
         )
         # make sure we have an eainfo node
@@ -921,12 +937,12 @@ def main(arg):
             # open with OGR and retrieve the text with SQL
             ds = ogr.Open(str(db_path))
             for lyr in lyrs:
-                arcpy.AddMessage(f"  {lyr}")
+                proprint(f"  {lyr}")
                 detailed = get_detailed(ds, lyr)
-                if detailed:
+                if detailed is not None:
                     eainfo.append(detailed)
     else:
-        arcpy.AddMessage("Adding metadata for the following feature classes:")
+        proprint("Adding metadata for the following feature classes:")
         for k, v in obj_dict.items():
             detailed = add_entity(k, v, missing, myEntityDict, base_md)
 
@@ -947,7 +963,7 @@ def main(arg):
     # `dataqual/lineage/procstep` process steps removed if user says so. Replace with one process step; 'this script'?
 
     if Path(template_path).is_file():
-        arcpy.AddMessage(f"Migrating database metadata to {template_path}")
+        proprint(f"Migrating database metadata to {template_path}")
         template_root = etree.parse(template_path).getroot()
 
         # adding text for GeMS nodes
@@ -1041,9 +1057,20 @@ def main(arg):
 
         base_md = template_root
 
-    arcpy.AddMessage("Validating")
-    validate_online(base_md, mr_xml, db_dir, text_bool)
+    # print(etree.tostring(base_md, pretty_print=True).decode())
+
+    if suppress:
+        # if suppress is true, in addition to not printing any messages,
+        # there will be no validation. Just write the base_md to a file
+        # remove the original exported embedded file
+        mr_xml.unlink()
+        et = etree.ElementTree(base_md)
+        with open(mr_xml, "wb") as f:
+            et.write(f, encoding="utf-8", xml_declaration=True, pretty_print=True)
+    else:
+        proprint("Validating")
+        validate_online(base_md, mr_xml, db_dir, text_bool)
 
 
 if __name__ == "__main__":
-    main(sys.argv)
+    process(sys.argv[1:])
