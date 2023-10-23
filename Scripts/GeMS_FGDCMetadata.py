@@ -132,15 +132,16 @@ def term_dict(obj_dict, table, fields, sources_dict=None):
                 data_dict[row[0]] = [row[1]]
                 data_dict[row[0]].append(gems)
             elif table == "DescriptionOfMapUnits":
-                if not row[2] is None:
-                    data_dict[row[0]] = [row[2]]
+                if row[0]:
+                    if not row[2] is None:
+                        data_dict[row[0]] = [row[2]]
+                    else:
+                        if not row[1] is None:
+                            data_dict[row[0]] = [row[1]]
+                    data_dict[row[0]].append(catch_m2m(sources_dict, row[-1]))
                 else:
-                    if not row[1] is None:
-                        data_dict[row[0]] = [row[1]]
-                data_dict[row[0]].append(catch_m2m(sources_dict, row[-1]))
-            else:
-                data_dict[row[0]] = list(row[1:-1])
-                data_dict[row[0]].append(catch_m2m(sources_dict, row[-1]))
+                    data_dict[row[0]] = list(row[1:-1])
+                    data_dict[row[0]].append(catch_m2m(sources_dict, row[-1]))
         return data_dict
     else:
         return None
