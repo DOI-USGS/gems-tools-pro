@@ -559,33 +559,26 @@ def get_detailed(ds, table):
         dom = etree.fromstring(docu)
         detailed = dom.find("eainfo/detailed")
         if detailed is not None:
-            detailed.attrib.pop("Name", None)
-            detailed.attrib.pop("xmlns", None)
+            # remove all ESRI elements
+            for n in (
+                "enttypt",
+                "enttypc",
+                "attalias",
+                "attrtype",
+                "attwidth",
+                "atprecis",
+                "attscale",
+            ):
+                nodes = detailed.findall(f".//{n}")
+                for node in nodes:
+                    parent = node.getparent()
+                    parent.remove(node)
 
-            enttyp = detailed.find("enttyp")
-            if enttyp is not None:
-                for n in ("enttypt", "enttypc"):
-                    node = enttyp.find(n)
-                    if node is not None:
-                        enttyp.remove(node)
-
-            enttypl = enttyp.find("enttypl")
-            if enttypl is not None:
-                enttypl.attrib.pop("Sync", None)
-
-            attrs = detailed.findall("attr")
-            if attrs:
-                for attr in attrs:
-                    for child in attr:
-                        if child.tag in (
-                            "attalias",
-                            "attrtype",
-                            "attwidth",
-                            "atprecis",
-                            "attscale",
-                        ):
-                            attr.remove(child)
-
+            # remove all ESRI attributes
+            for a in ("Name", "xmlns", "Sync"):
+                atts = detailed.findall(f".//*[@{a}]")
+                for att in atts:
+                    att.attrib.pop(a, None)
             return_node = detailed
 
     return return_node
