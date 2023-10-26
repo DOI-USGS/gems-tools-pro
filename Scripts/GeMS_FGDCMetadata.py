@@ -584,7 +584,7 @@ def get_detailed(ds, table):
     return return_node
 
 
-def process(arg):
+def process(args):
     # #### ARGUMENTS
     # Ways to run this tool
     # 1. the path to the dataset
@@ -608,17 +608,23 @@ def process(arg):
     guf.checkVersion(versionString, rawurl, "gems-tools-pro")
 
     global suppress
-    suppress = guf.eval_bool(arg[8])
+    suppress = guf.eval_bool(args[9])
 
-    db_path = Path(arg[0])
+    db_path = Path(args[0])
     proprint("Building dictionary of database contents")
     obj_dict = guf.gdb_object_dict(str(db_path))
 
-    # export embedded metadata? convert string to boolean
-    arc_md = guf.eval_bool(arg[1])
+    # export embedded metadata only
+    embedded_only = guf.eval_bool(args[1])
+
+    # start with embedded metadata but add to it
+    arc_md = guf.eval_bool(args[2])
+
+    # path to template file
+    template_path = args[3]
 
     # my_definitions.py
-    my_defs_path = Path(arg[2])
+    my_defs_path = Path(args[4])
     if my_defs_path.is_file():
         mod_name = my_defs_path.stem
         import importlib.util
@@ -646,9 +652,6 @@ def process(arg):
     else:
         myEntityDict = {}
 
-    # path to template file
-    template_path = arg[3]
-
     # what to do with data sources.
     # True - remove any existing first
     sources_choice = {
@@ -662,7 +665,7 @@ def process(arg):
         "save no sources": 8,
     }
 
-    sources_param = sources_choice[arg[4]]
+    sources_param = sources_choice[args[5]]
 
     # what to do with process steps, dataqual/lineage/procstep
     history_choices = {
@@ -671,18 +674,18 @@ def process(arg):
         "save only embedded history": 3,
         "save all history": 4,
     }
-    proprint(f"history = {arg[5]}")
-    history_param = history_choices[arg[5]]
+    proprint(f"history = {args[6]}")
+    history_param = history_choices[args[6]]
 
     # convert the 'missing definitions' argument to boolean
-    if arg[6] == "leave blank":
+    if args[7] == "leave blank":
         missing = False
     else:
         missing = True
 
     # convert text file choice to boolean
     # export embedded metadata? convert string to boolean
-    text_bool = guf.eval_bool(arg[7])
+    text_bool = guf.eval_bool(args[8])
 
     # dictionaries of some tables
     # term_dict returns [term]:[definition, sourceid]
