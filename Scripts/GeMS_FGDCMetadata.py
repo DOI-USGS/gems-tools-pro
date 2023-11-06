@@ -20,6 +20,7 @@ from osgeo import ogr  # only used in def max_bounding
 import spatial_utils as su
 import copy
 import requests
+import tempfile
 
 from importlib import reload
 
@@ -607,6 +608,9 @@ def process(args):
 
     guf.checkVersion(versionString, rawurl, "gems-tools-pro")
 
+    # when called by another script using suppress = True will stop messages from
+    # this script being printed. Made global so that proprint() doesn't
+    # require two parameters
     global suppress
     suppress = guf.eval_bool(args[9])
 
@@ -614,11 +618,99 @@ def process(args):
     proprint("Building dictionary of database contents")
     obj_dict = guf.gdb_object_dict(str(db_path))
 
+    # name of gdb
+    db_name = db_path.stem
+
+    # path to the parent folder
+    db_dir = db_path.parent
+
+    # name of master record
+    mr_xml = db_dir / f"{db_name}-metadata.xml"
+
+    # remove the output file if it already exists
+    if mr_xml.exists():
+        mr_xml.unlink()
+
     # export embedded metadata only
     embedded_only = guf.eval_bool(args[1])
 
     # start with embedded metadata but add to it
     arc_md = guf.eval_bool(args[2])
+
+    # a dictionary of all xml nodes we will be working with in this script
+    deez_nodes = {
+        "gems_nodes": {
+            "suppl": {
+                "xpath": "idinfo/descript/supplinf",
+                "text": f"{db_name} is a composite geodataset that conforms to {gems_full_ref}. Metadata records associated with each element within the geodataset contain more detailed descriptions of their purposes, constituent entities, and attributes.). An OPEN shapefile versions of the dataset is also available. It consists of shapefiles, DBF files, and delimited text files and retains all information in the native geodatabase, but some programming will likely be necessary to assemble these components into usable formats. These metadata were prepared with the aid of script {versionString}.",
+            },
+            "attraccr": {
+                "xpath": "dataqual/attracc/attraccr",
+                "text": "Confidence that a feature exists and confidence that a feature is correctly identified are described in per-feature attributes ExistenceConfidence and IdentityConfidence.",
+            },
+            "horizpar": {
+                "xpath": "dataqual/posacc/horizpa/horizpar",
+                "text": "Estimated accuracy of horizontal location is given on a per-feature basis by attribute LocationConfidenceMeters. Values are expected to be correct within a factor of 2. A LocationConfidenceMeters value of -9 or -9999 indicates that no value has been assigned.",
+            },
+        },
+        "source_nodes": {
+            "lineage": {"xpath": "dataqual/lineage"},
+            "title": {"xpath": "srccite/citeinfo/title"},
+            "onlink": {"xpath": "srccite/citeinfo/onlink"},
+        },
+        "spatial_nodes": {
+            "spdom": {"xpath": "idinfo/spdom"},
+            "spdoinfo": {"xpath": "spdoinfo"},
+            "spref": {"xpath": "spref"},
+        },
+        "entity_nodes": {"eainfo": {"xpath": "eainfo"}},
+    }
+
+    if embedded_only or arc_md:
+        # export the embedded metadata to a temporary file
+        temp_dir = tempfile.TemporaryDirectory()
+        temp_xml = Path(temp_dir.name) / "temp.xml"
+        proprint("Exporting embedded ArcGIS metadata to FGDC")
+        src_md = arcpy.metadata.Metadata(str(db_path))
+        src_md.exportMetadata(str(temp_xml), "FGDC_CSDGM")
+        # make an lxml etree
+        base_md = etree.parse(str(temp_xml)).getroot()
+
+        # collate the disparate pieces of embedded metadata into the base_md
+        # collect the names of the objects we are going to collect or build detailed nodes for
+        # feature classes or rasters but no other objects
+        lyrs = [
+            k
+            for k, v in obj_dict.items()
+            if v["dataType"] in ("FeatureClass", "RasterDataset")
+        ]
+        lyrs.sort()
+
+        proprint(
+            "Finding embedded metadata for the following feature classes or rasters:"
+        )
+        # make sure we have an eainfo node
+        eainfo = base_md.find("eainfo")
+        if eainfo is None:
+            extend_branch(base_md, "eainfo")
+            eainfo = base_md.find("eainfo")
+
+        # for embedded metadata, we'll look inside the Documentation field of GDB_Items
+        # open with OGR and retrieve the text with SQL
+        ds = ogr.Open(str(db_path))
+        for lyr in lyrs:
+            proprint(f"  {lyr}")
+            detailed = get_detailed(ds, lyr)
+            if detailed is not None:
+                eainfo.append(detailed)
+
+        else:
+            # we have to make a metadata document from scratch
+            # make the root
+            proprint("Building database metadata from scratch")
+            base_md = etree.Element("metadata")
+
+        # add spatial nodes
 
     # path to template file
     template_path = args[3]
@@ -684,7 +776,6 @@ def process(args):
         missing = True
 
     # convert text file choice to boolean
-    # export embedded metadata? convert string to boolean
     text_bool = guf.eval_bool(args[8])
 
     # dictionaries of some tables
@@ -710,57 +801,7 @@ def process(args):
         ),
     }
 
-    # name of gdb
-    db_name = db_path.stem
-
-    # path to the parent folder
-    db_dir = db_path.parent
-
-    # a dictionary of all xml nodes we will be working with in this script
-    deez_nodes = {
-        "gems_nodes": {
-            "suppl": {
-                "xpath": "idinfo/descript/supplinf",
-                "text": f"{db_name} is a composite geodataset that conforms to {gems_full_ref}. Metadata records associated with each element within the geodataset contain more detailed descriptions of their purposes, constituent entities, and attributes.). An OPEN shapefile versions of the dataset is also available. It consists of shapefiles, DBF files, and delimited text files and retains all information in the native geodatabase, but some programming will likely be necessary to assemble these components into usable formats. These metadata were prepared with the aid of script {versionString}.",
-            },
-            "attraccr": {
-                "xpath": "dataqual/attracc/attraccr",
-                "text": "Confidence that a feature exists and confidence that a feature is correctly identified are described in per-feature attributes ExistenceConfidence and IdentityConfidence.",
-            },
-            "horizpar": {
-                "xpath": "dataqual/posacc/horizpa/horizpar",
-                "text": "Estimated accuracy of horizontal location is given on a per-feature basis by attribute LocationConfidenceMeters. Values are expected to be correct within a factor of 2. A LocationConfidenceMeters value of -9 or -9999 indicates that no value has been assigned.",
-            },
-        },
-        "source_nodes": {
-            "lineage": {"xpath": "dataqual/lineage"},
-            "title": {"xpath": "srccite/citeinfo/title"},
-            "onlink": {"xpath": "srccite/citeinfo/onlink"},
-        },
-        "spatial_nodes": {
-            "spdom": {"xpath": "idinfo/spdom"},
-            "spdoinfo": {"xpath": "spdoinfo"},
-            "spref": {"xpath": "spref"},
-        },
-        "entity_nodes": {"eainfo": {"xpath": "eainfo"}},
-    }
-
-    # export master record
-    mr_xml = db_dir / f"{db_name}-metadata.xml"
-
-    # remove the output file if it already exists
-    if mr_xml.exists():
-        mr_xml.unlink()
-
     if arc_md:
-        proprint("Exporting embedded ArcGIS metadata to FGDC")
-        # export the GDB-level metadata from Arc
-        # tables will be added later
-        src_md = arcpy.metadata.Metadata(str(db_path))
-        src_md.exportMetadata(str(mr_xml), "FGDC_CSDGM")
-        # make an lxml etree
-        base_md = etree.parse(str(mr_xml)).getroot()
-
         # sources_param 1, 3, 5, 8 call for no embedded data sources
         if sources_param in [1, 3, 5, 8]:
             extend_branch(base_md, "dataqual/lineage")
@@ -773,12 +814,6 @@ def process(args):
             extend_branch(base_md, "dataqual/lineage")
             base_lineage = base_md.find(".//lineage")
             clear_children(base_lineage, "procstep")
-
-    else:
-        # we have to make a metadata document from scratch
-        # make the root
-        proprint("Building database metadata from scratch")
-        base_md = etree.Element("metadata")
 
     # make the required elements
     # spdom and spref (indices 2 and 3, respectively) will be added in another function)
@@ -912,32 +947,6 @@ def process(args):
         else:
             arcpy.AddError("There are no data sources to add!")
 
-    # collect the names of the objects we are going to collect or build detailed nodes for
-    # feature classes or rasters but no other objects
-    lyrs = [
-        k
-        for k, v in obj_dict.items()
-        if v["dataType"] in ("FeatureClass", "RasterDataset")
-    ]
-    lyrs.sort()
-
-    # add Entity Attributes
-    if arc_md:
-        proprint(
-            "Finding embedded metadata for the following feature classes or rasters:"
-        )
-        # make sure we have an eainfo node
-        eainfo = base_md.find("eainfo")
-
-        if not eainfo is None:
-            # for embedded metadata, we'll look inside the Documentation field of GDB_Items
-            # open with OGR and retrieve the text with SQL
-            ds = ogr.Open(str(db_path))
-            for lyr in lyrs:
-                proprint(f"  {lyr}")
-                detailed = get_detailed(ds, lyr)
-                if detailed is not None:
-                    eainfo.append(detailed)
     else:
         proprint("Adding metadata for the following feature classes:")
         for k, v in obj_dict.items():
