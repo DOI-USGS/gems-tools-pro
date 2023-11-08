@@ -620,6 +620,9 @@ for fc_path in point_fcs:
     guf.addMsgAndPrint("clipping with selection polygon")
     clip_points = os.path.join(scratch_fd, f"{fc_name}_{str(int(buffer_distance))}")
     guf.testAndDelete(clip_points)
+    arcpy.AddMessage(f"fc_path = {fc_path}")
+    arcpy.AddMessage(f"temp_buffer = {temp_buffer}")
+    arcpy.AddMessage(f"clip_points = {clip_points}")
     arcpy.analysis.Clip(fc_path, temp_buffer, clip_points)
 
     # check to see if nonZero number of rows and not in excluded feature classes
