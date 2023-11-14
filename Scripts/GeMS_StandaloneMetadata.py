@@ -1,16 +1,16 @@
 #!/usr/bin/env python
 # coding: utf-8
 """
-GeMS_FGDCMetadata_AGP2.py
-Automates the creation of many FGDC CSDGM required metadata elements from information in the 
-database. Some GeMS-related text is inserted in a few free-text elements to describe
-the schema, boilerplate information can be added from an optional template xml file, 
+GeMS_StandalonMetadata.py
+Automates the creation of a standalone XML metadata file from multiple sources. 
+Some GeMS-related text is inserted in a few free-text elements to describe
+the schema, other boilerplate information can be added from an optional template xml file, 
 spatial information nodes are built and inserted as a workaround for the bug in 
 ArcGIS Pro where spatial reference information is not exported into FGDC metadata, Entity-Attribute
 sections are filled-in based on dictionaries in GeMS_Definition.py and my_definitions.py, and extraneous
 process steps (created by ArcGIS every time a geoprocessing step is performed) can be removed.
 """
-import arcpy  # arcpy needed for da.Describe(gdb) and exporting metadata')
+import arcpy  # arcpy needed for da.Describe(gdb) and exporting metadata'
 from pathlib import Path
 from lxml import etree
 import sys
@@ -26,12 +26,50 @@ from importlib import reload
 
 reload(su)
 
-versionString = "GeMS_FGDCMetadata.py, version of 10/19/23"
+versionString = "GeMS_StandaloneMetadata.py, version of 10/19/23"
 rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/master/Scripts/GeMS_FGDCMetadata.py"
 
 gems_full_ref = """GeMS (Geologic Map Schema)--a standard format for the digital publication of geologic maps", available at http://ngmdb.usgs.gov/Info/standards/GeMS/"""
 
 gems = "GeMS"
+
+# global dictionaries
+# a dictionary of all xml nodes we will be working with in this script deez_nodes["gems_nodes"]["suppl"]["text"]
+deez_nodes = {
+    "gems_nodes": {
+        "suppl": {
+            "xpath": "idinfo/descript/supplinf",
+            "text": f"db_name is a composite geodataset that conforms to {gems_full_ref}. Metadata records associated with each element within the geodataset contain more detailed descriptions of their purposes, constituent entities, and attributes.). An OPEN shapefile versions of the dataset is also available. It consists of shapefiles, DBF files, and delimited text files and retains all information in the native geodatabase, but some programming will likely be necessary to assemble these components into usable formats. These metadata were prepared with the aid of script {versionString}.",
+        },
+        "attraccr": {
+            "xpath": "dataqual/attracc/attraccr",
+            "text": "Confidence that a feature exists and confidence that a feature is correctly identified are described in per-feature attributes ExistenceConfidence and IdentityConfidence.",
+        },
+        "horizpar": {
+            "xpath": "dataqual/posacc/horizpa/horizpar",
+            "text": "Estimated accuracy of horizontal location is given on a per-feature basis by attribute LocationConfidenceMeters. Values are expected to be correct within a factor of 2. A LocationConfidenceMeters value of -9 or -9999 indicates that no value has been assigned.",
+        },
+    },
+    "source_nodes": {
+        "lineage": {"xpath": "dataqual/lineage"},
+        "title": {"xpath": "srccite/citeinfo/title"},
+        "onlink": {"xpath": "srccite/citeinfo/onlink"},
+    },
+    "spatial_nodes": {
+        "spdom": {"xpath": "idinfo/spdom"},
+        "spdoinfo": {"xpath": "spdoinfo"},
+        "spref": {"xpath": "spref"},
+    },
+    "entity_nodes": {"eainfo": {"xpath": "eainfo"}},
+}
+
+child_nodes = [
+    ["idinfo", 0],
+    ["dataqual", 1],
+    ["eainfo", 4],
+    ["distinfo", 5],
+    ["metainfo", 6],
+]
 
 esri_attribs = {
     "objectid": "Internal feature number",
@@ -40,6 +78,24 @@ esri_attribs = {
     "shape_area": "Internal feature area, double",
     "ruleid": "Integer field that stores a reference to the representation rule for each feature.",
     "override": "BLOB field that stores feature-specific overrides to the cartographic representation rules.",
+}
+
+sources_choice = {
+    "save only DataSources": 1,
+    "save only embedded sources": 2,
+    "save only template sources": 3,
+    "save DataSources and embedded sources": 4,
+    "save DataSources and template sources": 5,
+    "save embedded and template sources": 6,
+    "save all sources": 7,
+    "save no sources": 8,
+}
+
+history_choices = {
+    "clear all history": 1,
+    "save only template history": 2,
+    "save only embedded history": 3,
+    "save all history": 4,
 }
 
 
@@ -612,7 +668,9 @@ def process(args):
     # this script being printed. Made global so that proprint() doesn't
     # require two parameters
     global suppress
-    suppress = guf.eval_bool(args[9])
+    suppress = False
+    if len(args) > 10:
+        suppress = guf.eval_bool(args[10])
 
     db_path = Path(args[0])
     proprint("Building dictionary of database contents")
@@ -620,6 +678,8 @@ def process(args):
 
     # name of gdb
     db_name = db_path.stem
+
+    deez_nodes["gems_nodes"]["suppl"]["text"].replace("db_name", db_name)
 
     # path to the parent folder
     db_dir = db_path.parent
@@ -636,35 +696,6 @@ def process(args):
 
     # start with embedded metadata but add to it
     arc_md = guf.eval_bool(args[2])
-
-    # a dictionary of all xml nodes we will be working with in this script
-    deez_nodes = {
-        "gems_nodes": {
-            "suppl": {
-                "xpath": "idinfo/descript/supplinf",
-                "text": f"{db_name} is a composite geodataset that conforms to {gems_full_ref}. Metadata records associated with each element within the geodataset contain more detailed descriptions of their purposes, constituent entities, and attributes.). An OPEN shapefile versions of the dataset is also available. It consists of shapefiles, DBF files, and delimited text files and retains all information in the native geodatabase, but some programming will likely be necessary to assemble these components into usable formats. These metadata were prepared with the aid of script {versionString}.",
-            },
-            "attraccr": {
-                "xpath": "dataqual/attracc/attraccr",
-                "text": "Confidence that a feature exists and confidence that a feature is correctly identified are described in per-feature attributes ExistenceConfidence and IdentityConfidence.",
-            },
-            "horizpar": {
-                "xpath": "dataqual/posacc/horizpa/horizpar",
-                "text": "Estimated accuracy of horizontal location is given on a per-feature basis by attribute LocationConfidenceMeters. Values are expected to be correct within a factor of 2. A LocationConfidenceMeters value of -9 or -9999 indicates that no value has been assigned.",
-            },
-        },
-        "source_nodes": {
-            "lineage": {"xpath": "dataqual/lineage"},
-            "title": {"xpath": "srccite/citeinfo/title"},
-            "onlink": {"xpath": "srccite/citeinfo/onlink"},
-        },
-        "spatial_nodes": {
-            "spdom": {"xpath": "idinfo/spdom"},
-            "spdoinfo": {"xpath": "spdoinfo"},
-            "spref": {"xpath": "spref"},
-        },
-        "entity_nodes": {"eainfo": {"xpath": "eainfo"}},
-    }
 
     if embedded_only or arc_md:
         # export the embedded metadata to a temporary file
@@ -715,8 +746,18 @@ def process(args):
     # path to template file
     template_path = args[3]
 
+    # what to do with data sources.
+    # True - remove any existing first
+    sources_param = sources_choice[args[4]]
+
+    # what to do with process steps, dataqual/lineage/procstep
+    proprint(f"history = {args[5]}")
+    history_param = history_choices[args[5]]
+
+    top_only = guf.eval_bool(args[6])
+
     # my_definitions.py
-    my_defs_path = Path(args[4])
+    my_defs_path = Path(args[7])
     if my_defs_path.is_file():
         mod_name = my_defs_path.stem
         import importlib.util
@@ -744,39 +785,14 @@ def process(args):
     else:
         myEntityDict = {}
 
-    # what to do with data sources.
-    # True - remove any existing first
-    sources_choice = {
-        "save only DataSources": 1,
-        "save only embedded sources": 2,
-        "save only template sources": 3,
-        "save DataSources and embedded sources": 4,
-        "save DataSources and template sources": 5,
-        "save embedded and template sources": 6,
-        "save all sources": 7,
-        "save no sources": 8,
-    }
-
-    sources_param = sources_choice[args[5]]
-
-    # what to do with process steps, dataqual/lineage/procstep
-    history_choices = {
-        "clear all history": 1,
-        "save only template history": 2,
-        "save only embedded history": 3,
-        "save all history": 4,
-    }
-    proprint(f"history = {args[6]}")
-    history_param = history_choices[args[6]]
-
     # convert the 'missing definitions' argument to boolean
-    if args[7] == "leave blank":
+    if args[8] == "leave blank":
         missing = False
     else:
         missing = True
 
     # convert text file choice to boolean
-    text_bool = guf.eval_bool(args[8])
+    text_bool = guf.eval_bool(args[9])
 
     # dictionaries of some tables
     # term_dict returns [term]:[definition, sourceid]
@@ -817,13 +833,7 @@ def process(args):
 
     # make the required elements
     # spdom and spref (indices 2 and 3, respectively) will be added in another function)
-    child_nodes = [
-        ["idinfo", 0],
-        ["dataqual", 1],
-        ["eainfo", 4],
-        ["distinfo", 5],
-        ["metainfo", 6],
-    ]
+
     proprint("Creating the following elements:")
     for child in child_nodes:
         if base_md.find(child[0]) is None:

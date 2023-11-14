@@ -80,7 +80,7 @@ import shutil
 from pathlib import Path
 import GeMS_utilityFunctions as guf
 import GeMS_Definition as gdef
-import GeMS_FGDCMetadata as gemsmd
+import GeMS_StandaloneMetadata as gemsmd
 import topology as tp
 import requests
 from jinja2 import Environment, FileSystemLoader
