@@ -889,7 +889,7 @@ def rule3_10(db_dict):
     hk_dict = values(db_dict, "DescriptionOfMapUnits", "HierarchyKey", "dictionary")
 
     # return early if HKs is empty
-    if not hk_dict:
+    if not hk_dict or all(v is None for v in hk_dict.values()):
         hkey_errors.append("No HierarchyKey values")
         return hkey_errors, hkey_warnings
 
