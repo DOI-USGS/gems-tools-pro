@@ -726,8 +726,8 @@ def process(args):
             extend_branch(base_md, "eainfo")
             eainfo = base_md.find("eainfo")
 
-        # for embedded metadata, we'll look inside the Documentation field of GDB_Items
-        # open with OGR and retrieve the text with SQL
+            # for embedded metadata, we'll look inside the Documentation field of GDB_Items
+            # open with OGR and retrieve the text with SQL
         ds = ogr.Open(str(db_path))
         for lyr in lyrs:
             proprint(f"  {lyr}")
@@ -735,11 +735,11 @@ def process(args):
             if detailed is not None:
                 eainfo.append(detailed)
 
-        else:
-            # we have to make a metadata document from scratch
-            # make the root
-            proprint("Building database metadata from scratch")
-            base_md = etree.Element("metadata")
+    else:
+        # we have to make a metadata document from scratch
+        # make the root
+        proprint("Building database metadata from scratch")
+        base_md = etree.Element("metadata")
 
         # add spatial nodes
 
