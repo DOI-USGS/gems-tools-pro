@@ -4,6 +4,10 @@ from lxml import etree
 import tempfile
 from pathlib import Path
 
+toolbox_folder = Path(__file__).parent.parent
+metadata_folder = toolbox_folder / "Resources" / "metadata"
+templates_folder = metadata_folder / "metadata"
+
 
 class CollateFGDCMetadata:
     gems_full_ref = """GeMS (Geologic Map Schema)--a standard format for the digital publication of geologic maps", available at http://ngmdb.usgs.gov/Info/standards/GeMS/"""
@@ -11,21 +15,15 @@ class CollateFGDCMetadata:
         "gems_nodes": {
             "suppl": {
                 "xpath": "idinfo/descript/supplinf",
-                "text": f"""db_name is a composite geodataset that conforms to {gems_full_ref}. Metadata records associated with each 
-                element within the geodataset contain more detailed descriptions of their purposes, constituent entities, and attributes.). 
-                An OPEN shapefile versions of the dataset is also available. It consists of shapefiles, DBF files, and delimited text files 
-                and retains all information in the native geodatabase, but some programming will likely be necessary to assemble these 
-                components into usable formats.""",
+                "text": f"""db_name is a composite geodataset that conforms to {gems_full_ref}. Metadata records associated with each element within the geodataset contain more detailed descriptions of their purposes, constituent entities, and attributes.). An OPEN shapefile versions of the dataset is also available. It consists of shapefiles, DBF files, and delimited text files and retains all information in the native geodatabase, but some programming will likely be necessary to assemble these components into usable formats.""",
             },
             "attraccr": {
                 "xpath": "dataqual/attracc/attraccr",
-                "text": """Confidence that a feature exists and confidence that a feature is correctly identified are described in 
-                per-feature attributes ExistenceConfidence and IdentityConfidence.""",
+                "text": """Confidence that a feature exists and confidence that a feature is correctly identified are described in per-feature attributes ExistenceConfidence and IdentityConfidence.""",
             },
             "horizpar": {
                 "xpath": "dataqual/posacc/horizpa/horizpar",
-                "text": """Estimated accuracy of horizontal location is given on a per-feature basis by attribute LocationConfidenceMeters. 
-                Values are expected to be correct within a factor of 2. A LocationConfidenceMeters value of -9 or -9999 indicates that no value has been assigned.""",
+                "text": """Estimated accuracy of horizontal location is given on a per-feature basis by attribute LocationConfidenceMeters. Values are expected to be correct within a factor of 2. A LocationConfidenceMeters value of -9 or -9999 indicates that no value has been assigned.""",
             },
         },
         "source_nodes": {
@@ -72,7 +70,6 @@ class CollateFGDCMetadata:
             # self.dom = et.ElementTree(metadata).getroot()
             self._md_from_scratch()
 
-        # self._add_gems_nodes()
         return self.dom
         # self._add_template_metadata()
         # self._add_csv_metadata()
@@ -98,6 +95,7 @@ class CollateFGDCMetadata:
         temp_dir = tempfile.TemporaryDirectory()
         temp_xml = Path(temp_dir.name) / "temp.xml"
         src_md = arcpy.metadata.Metadata(self.table)
+        src_md.synchronize("ALWAYS")
         src_md.exportMetadata(str(temp_xml), "FGDC_CSDGM")
         # make an lxml etree
         self.dom = etree.parse(str(temp_xml)).getroot()
@@ -112,23 +110,8 @@ class CollateFGDCMetadata:
         ]
         metadata = etree.Element("metadata")
         for child in child_nodes:
-            etree.SubElement(metadata, child[0])
+            etree.SubElement(metadata, child)
         self.dom = etree.ElementTree(metadata).getroot()
-
-    def _add_gems_nodes(self):
-        g_nodes = CollateFGDCMetadata.nodes["gems_nodes"]
-        for n in g_nodes:
-            # proprint(f"  {g_nodes[n]['xpath']}")
-            if self.dom.find(g_nodes[n]["xpath"]) is not None:
-                e = self.dom.find(g_nodes[n]["xpath"])
-                if len(e.text) > 1:
-                    e.text = e.text + f"\n{g_nodes[n]['text']}"
-                else:
-                    e.text = f"{g_nodes[n]['text']}"
-            else:
-                self._extend_branch(self.dom, g_nodes[n]["xpath"])
-                e = self.dom.find(g_nodes[n]["xpath"])
-                e.text = g_nodes[n]["text"]
 
     def _add_template_metadata(self):
         if self.template:

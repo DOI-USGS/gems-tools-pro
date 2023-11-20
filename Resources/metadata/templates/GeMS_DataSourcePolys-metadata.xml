@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata>
+<idinfo>
+<citation>
+<citeinfo>
+<title>Feature class DataSourcePolys, part of Metadata Template</title>
+</citeinfo>
+</citation>
+<descript>
+<supplinf>Feature class DataSourcePolys is part of GeMS.gdb, a composite dataset that conforms to "GeMS (Geologic Map Schema)--a standard format for the digital publication of geologic maps", available at http://ngmdb.usgs.gov/Info/standards/GeMS/.</supplinf>
+</descript>
+<accconst>None</accconst>
+<useconst>None</useconst>
+</idinfo>
+<dataqual>
+<attracc>
+<attraccr>Confidence that a feature exists and confidence that a feature is correctly identified are described in per-feature attributes ExistenceConfidence and IdentityConfidence.</attraccr>
+</attracc>
+<posacc>
+<horizpa>
+<horizpar>Estimated accuracy of horizontal location is given on a per-feature basis by attribute LocationConfidenceMeters. Values are expected to be correct within a factor of 2.  A LocationConfidenceMeters value of -9 or -9999 indicates that no value has been assigned.</horizpar>
+</horizpa>
+</posacc>
+<lineage></lineage>
+</dataqual>
+<spdoinfo>
+<direct>Vector</direct>
+<ptvctinf>
+<sdtsterm>
+<sdtstype>GT-polygon composed of chains</sdtstype>
+<ptvctcnt>0</ptvctcnt>
+</sdtsterm>
+</ptvctinf>
+</spdoinfo>
+<spref>
+<horizsys>
+<planar>
+<mapproj>
+<mapprojn>NAD 1983 UTM Zone 6N</mapprojn>
+<transmer>
+<sfctrmer>0.9996</sfctrmer>
+<longcm>-147.0</longcm>
+<latprjo>0.0</latprjo>
+<feast>500000.0</feast>
+<fnorth>0.0</fnorth>
+</transmer>
+</mapproj>
+<planci>
+<plance>coordinate pair</plance>
+<coordrep>
+<absres>0.0001</absres>
+<ordres>0.0001</ordres>
+</coordrep>
+<plandu>meter</plandu>
+</planci>
+</planar>
+<geodetic>
+<horizdn>D North American 1983</horizdn>
+<ellips>GRS 1980</ellips>
+<semiaxis>6378137.0</semiaxis>
+<denflat>298.257222101</denflat>
+</geodetic>
+</horizsys>
+</spref>
+<eainfo>
+<detailed>
+<enttyp>
+<enttypl>DataSourcePolys</enttypl>
+<enttypd>Polygons that delineate data sources for all parts of the map.</enttypd>
+<enttypds>GeMS</enttypds>
+</enttyp>
+<attr>
+<attrlabl>OBJECTID</attrlabl>
+<attrdef>Internal feature number</attrdef>
+<attrdefs>Esri</attrdefs>
+<attrdomv>
+<udom>Unrepresentable domain.</udom>
+</attrdomv>
+</attr>
+<attr>
+<attrlabl>Shape</attrlabl>
+<attrdef>Internal geometry object</attrdef>
+<attrdefs>Esri</attrdefs>
+<attrdomv>
+<udom>Unrepresentable domain.</udom>
+</attrdomv>
+</attr>
+<attr>
+<attrlabl>Shape_Length</attrlabl>
+<attrdef>Internal feature length, double</attrdef>
+<attrdefs>Esri</attrdefs>
+<attrdomv>
+<udom>Unrepresentable domain.</udom>
+</attrdomv>
+</attr>
+<attr>
+<attrlabl>Shape_Area</attrlabl>
+<attrdef>Internal feature area, double</attrdef>
+<attrdefs>Esri</attrdefs>
+<attrdomv>
+<udom>Unrepresentable domain.</udom>
+</attrdomv>
+</attr>
+<attr>
+<attrlabl>DataSourceID</attrlabl>
+<attrdef>Source of data; foreign key to table DataSources.</attrdef>
+<attrdefs>GeMS</attrdefs>
+</attr>
+<attr>
+<attrlabl>Notes</attrlabl>
+<attrdef>Additional information specific to a particular feature or table entry.</attrdef>
+<attrdefs>GeMS</attrdefs>
+<attrdomv>
+<udom>Unrepresentable domain. Free text. Values of &lt;null&gt; or #null indicate no entry.</udom>
+</attrdomv>
+</attr>
+<attr>
+<attrlabl>DataSourcePolys_ID</attrlabl>
+<attrdef>Primary key.</attrdef>
+<attrdefs>GeMS</attrdefs>
+<attrdomv>
+<udom>Arbitrary string. Values should be unique within this database.</udom>
+</attrdomv>
+</attr>
+<attr>
+<attrlabl>created_user</attrlabl>
+<attrdomv>
+<udom>Unrepresentable domain.</udom>
+</attrdomv>
+</attr>
+<attr>
+<attrlabl>created_date</attrlabl>
+<attrdomv>
+<udom>Unrepresentable domain.</udom>
+</attrdomv>
+</attr>
+<attr>
+<attrlabl>last_edited_user</attrlabl>
+<attrdomv>
+<udom>Unrepresentable domain.</udom>
+</attrdomv>
+</attr>
+<attr>
+<attrlabl>last_edited_date</attrlabl>
+<attrdomv>
+<udom>Unrepresentable domain.</udom>
+</attrdomv>
+</attr>
+</detailed>
+</eainfo>
+<metainfo>
+<metstdn>FGDC Content Standard for Digital Geospatial Metadata</metstdn>
+<metstdv>FGDC-STD-001-1998</metstdv>
+<mettc>local time</mettc>
+</metainfo>
+</metadata>

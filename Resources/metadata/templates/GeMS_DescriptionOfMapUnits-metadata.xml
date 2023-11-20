@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata>
+<idinfo>
+<citation>
+<citeinfo>
+<title>Non-spatial table DescriptionOfMapUnits, part of Metadata Template</title>
+</citeinfo>
+</citation>
+<descript>
+<supplinf>Non-spatial table DescriptionOfMapUnits is part of GeMS.gdb, a composite dataset that conforms to "GeMS (Geologic Map Schema)--a standard format for the digital publication of geologic maps", available at http://ngmdb.usgs.gov/Info/standards/GeMS/.</supplinf>
+</descript>
+<accconst>None</accconst>
+<useconst>None</useconst>
+</idinfo>
+<dataqual>
+<attracc>
+<attraccr>Confidence that a feature exists and confidence that a feature is correctly identified are described in per-feature attributes ExistenceConfidence and IdentityConfidence.</attraccr>
+</attracc>
+<posacc>
+<horizpa>
+<horizpar>Estimated accuracy of horizontal location is given on a per-feature basis by attribute LocationConfidenceMeters. Values are expected to be correct within a factor of 2.  A LocationConfidenceMeters value of -9 or -9999 indicates that no value has been assigned.</horizpar>
+</horizpa>
+</posacc>
+<lineage></lineage>
+</dataqual>
+<eainfo>
+<detailed>
+<enttyp>
+<enttypl>DescriptionOfMapUnits</enttypl>
+<enttypd>Non-spatial table that captures content of the Description of Map Units (or equivalent List of Map Units and associated pamphlet text) included in a traditional paper geologic map. Has an internal hierarchy expressed by attribute HierarchyKey</enttypd>
+<enttypds>GeMS</enttypds>
+</enttyp>
+<attr>
+<attrlabl>OBJECTID</attrlabl>
+<attrdef>Internal feature number</attrdef>
+<attrdefs>Esri</attrdefs>
+<attrdomv>
+<udom>Unrepresentable domain.</udom>
+</attrdomv>
+</attr>
+<attr>
+<attrlabl>MapUnit</attrlabl>
+<attrdef>Short plain-text identifier of the map unit. Foreign key to DescriptionOfMapUnits table.</attrdef>
+<attrdefs>GeMS</attrdefs>
+</attr>
+<attr>
+<attrlabl>Name</attrlabl>
+<attrdef>Name of map unit, as shown in boldface in traditional DMU, e.g., "Shnabkaib Member". Identifies unit within its hierarchical context.</attrdef>
+<attrdefs>GeMS</attrdefs>
+<attrdomv>
+<udom>Unrepresentable domain.</udom>
+</attrdomv>
+</attr>
+<attr>
+<attrlabl>FullName</attrlabl>
+<attrdef>Name of map unit including identification of containing higher rank unit(s), e.g., "Shnabkaib Member of Moenkopi Formation".</attrdef>
+<attrdefs>GeMS</attrdefs>
+<attrdomv>
+<udom>Unrepresentable domain.</udom>
+</attrdomv>
+</attr>
+<attr>
+<attrlabl>Age</attrlabl>
+<attrdef>Age of map unit as shown in Description of Map Units. Examples of values are "late Holocene", "Pliocene and Miocene", "Lower Cretaceous".</attrdef>
+<attrdefs>GeMS</attrdefs>
+<attrdomv>
+<udom>Unrepresentable domain.</udom>
+</attrdomv>
+</attr>
+<attr>
+<attrlabl>Description</attrlabl>
+<attrdef>Free-format text description of map unit. Commonly structured according to one or more accepted traditions (e.g., lithology, thickness, color, weathering and outcrop characteristics, distinguishing features, genesis, age constraints) and terse.</attrdef>
+<attrdefs>GeMS</attrdefs>
+<attrdomv>
+<udom>Unrepresentable domain.</udom>
+</attrdomv>
+</attr>
+<attr>
+<attrlabl>HierarchyKey</attrlabl>
+<attrdef>String that records hierarchical structure. Has form nn-nn-nn, nnn-nnn, or similar. Numeric, left-padded with zeros, dash-delimited. Each HierarchyKey fragment of each row MUST be the same length to allow text-based sorting of table entries.</attrdef>
+<attrdefs>GeMS</attrdefs>
+<attrdomv>
+<udom>Unrepresentable domain.</udom>
+</attrdomv>
+</attr>
+<attr>
+<attrlabl>ParagraphStyle</attrlabl>
+<attrdef>Token that identifies formatting of paragraph(s) within traditional Description of Map Units that correspond to this table entry.</attrdef>
+<attrdefs>GeMS</attrdefs>
+</attr>
+<attr>
+<attrlabl>Label</attrlabl>
+<attrdef>Plain-text equivalent of the desired annotation for a feature: for example "14 Ma", or "^c" which (when used with the FGDC GeoAge font) results in the geologic map-unit label TRc (with TR run together to make the Triassic symbol).</attrdef>
+<attrdefs>GeMS</attrdefs>
+<attrdomv>
+<udom>Unrepresentable domain.</udom>
+</attrdomv>
+</attr>
+<attr>
+<attrlabl>Symbol</attrlabl>
+<attrdef>Reference to a point marker, line symbol, or area-fill symbol that is used on the map graphic to denote the feature: perhaps a star for a K-Ar age locality, or a heavy black line for a fault.</attrdef>
+<attrdefs>GeMS</attrdefs>
+<attrdomv>
+<udom>Unrepresentable domain.</udom>
+</attrdomv>
+</attr>
+<attr>
+<attrlabl>AreaFillRGB</attrlabl>
+<attrdef>{Red, Green, Blue} tuples that specify the suggested color (e.g., "255,255,255", "124,005,255") of area fill for symbolizing MapUnit. Each color value is an integer between 0 and 255, values are zero-padded to a length of 3 digits, and values are separated by commas with no space: NNN,NNN,NNN.</attrdef>
+<attrdefs>GeMS</attrdefs>
+<attrdomv>
+<udom>Unrepresentable domain.</udom>
+</attrdomv>
+</attr>
+<attr>
+<attrlabl>AreaFillPatternDescription</attrlabl>
+<attrdef>Text description (e.g., "random small red dashes") provided as a convenience for users who must recreate symbolization.</attrdef>
+<attrdefs>GeMS</attrdefs>
+<attrdomv>
+<udom>Unrepresentable domain.</udom>
+</attrdomv>
+</attr>
+<attr>
+<attrlabl>DescriptionSourceID</attrlabl>
+<attrdef>Source of map-unit description; foreign key to table Datasources.</attrdef>
+<attrdefs>GeMS</attrdefs>
+</attr>
+<attr>
+<attrlabl>GeoMaterial</attrlabl>
+<attrdef>Categorization of map unit based on lithologic and genetic character, term selected from NGMDB standard term list defined in Appendix A of GeMS documentation, available at http://ngmdb.usgs.gov/Info/standards/GeMS..</attrdef>
+<attrdefs>GeMS</attrdefs>
+<attrdomv>
+<codesetd>
+<codesetn>GeoMaterial Dictionary</codesetn>
+<codesets>GeMS</codesets>
+</codesetd>
+</attrdomv>
+</attr>
+<attr>
+<attrlabl>GeoMaterialConfidence</attrlabl>
+<attrdef>Describes appropriateness of GeoMaterial term for describing the map unit.</attrdef>
+<attrdefs>GeMS</attrdefs>
+</attr>
+<attr>
+<attrlabl>DescriptionOfMapUnits_ID</attrlabl>
+<attrdef>Primary key.</attrdef>
+<attrdefs>GeMS</attrdefs>
+<attrdomv>
+<udom>Arbitrary string. Values should be unique within this database.</udom>
+</attrdomv>
+</attr>
+<attr>
+<attrlabl>created_user</attrlabl>
+<attrdomv>
+<udom>Unrepresentable domain.</udom>
+</attrdomv>
+</attr>
+<attr>
+<attrlabl>created_date</attrlabl>
+<attrdomv>
+<udom>Unrepresentable domain.</udom>
+</attrdomv>
+</attr>
+<attr>
+<attrlabl>last_edited_user</attrlabl>
+<attrdomv>
+<udom>Unrepresentable domain.</udom>
+</attrdomv>
+</attr>
+<attr>
+<attrlabl>last_edited_date</attrlabl>
+<attrdomv>
+<udom>Unrepresentable domain.</udom>
+</attrdomv>
+</attr>
+</detailed>
+</eainfo>
+<metainfo>
+<metstdn>FGDC Content Standard for Digital Geospatial Metadata</metstdn>
+<metstdv>FGDC-STD-001-1998</metstdv>
+<mettc>local time</mettc>
+</metainfo>
+</metadata>

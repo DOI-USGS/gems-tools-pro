@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata>
+<idinfo>
+<citation>
+<citeinfo>
+<title>Feature class MapUnitPolys, part of Metadata Template</title>
+</citeinfo>
+</citation>
+<descript>
+<supplinf>Feature class MapUnitPolys is part of GeMS.gdb, a composite dataset that conforms to "GeMS (Geologic Map Schema)--a standard format for the digital publication of geologic maps", available at http://ngmdb.usgs.gov/Info/standards/GeMS/.</supplinf>
+</descript>
+<accconst>None</accconst>
+<useconst>None</useconst>
+</idinfo>
+<dataqual>
+<attracc>
+<attraccr>Confidence that a feature exists and confidence that a feature is correctly identified are described in per-feature attributes ExistenceConfidence and IdentityConfidence.</attraccr>
+</attracc>
+<posacc>
+<horizpa>
+<horizpar>Estimated accuracy of horizontal location is given on a per-feature basis by attribute LocationConfidenceMeters. Values are expected to be correct within a factor of 2.  A LocationConfidenceMeters value of -9 or -9999 indicates that no value has been assigned.</horizpar>
+</horizpa>
+</posacc>
+<lineage></lineage>
+</dataqual>
+<spdoinfo>
+<direct>Vector</direct>
+<ptvctinf>
+<sdtsterm>
+<sdtstype>GT-polygon composed of chains</sdtstype>
+<ptvctcnt>0</ptvctcnt>
+</sdtsterm>
+</ptvctinf>
+</spdoinfo>
+<spref>
+<horizsys>
+<planar>
+<mapproj>
+<mapprojn>NAD 1983 UTM Zone 6N</mapprojn>
+<transmer>
+<sfctrmer>0.9996</sfctrmer>
+<longcm>-147.0</longcm>
+<latprjo>0.0</latprjo>
+<feast>500000.0</feast>
+<fnorth>0.0</fnorth>
+</transmer>
+</mapproj>
+<planci>
+<plance>coordinate pair</plance>
+<coordrep>
+<absres>0.0001</absres>
+<ordres>0.0001</ordres>
+</coordrep>
+<plandu>meter</plandu>
+</planci>
+</planar>
+<geodetic>
+<horizdn>D North American 1983</horizdn>
+<ellips>GRS 1980</ellips>
+<semiaxis>6378137.0</semiaxis>
+<denflat>298.257222101</denflat>
+</geodetic>
+</horizsys>
+</spref>
+<eainfo>
+<detailed>
+<enttyp>
+<enttypl>MapUnitPolys</enttypl>
+<enttypd>Polygons that record distribution of map units (including water, snowfields, glaciers, and unmapped area) on the particular map horizon.</enttypd>
+<enttypds>GeMS</enttypds>
+</enttyp>
+<attr>
+<attrlabl>OBJECTID</attrlabl>
+<attrdef>Internal feature number</attrdef>
+<attrdefs>Esri</attrdefs>
+<attrdomv>
+<udom>Unrepresentable domain.</udom>
+</attrdomv>
+</attr>
+<attr>
+<attrlabl>Shape</attrlabl>
+<attrdef>Internal geometry object</attrdef>
+<attrdefs>Esri</attrdefs>
+<attrdomv>
+<udom>Unrepresentable domain.</udom>
+</attrdomv>
+</attr>
+<attr>
+<attrlabl>Shape_Length</attrlabl>
+<attrdef>Internal feature length, double</attrdef>
+<attrdefs>Esri</attrdefs>
+<attrdomv>
+<udom>Unrepresentable domain.</udom>
+</attrdomv>
+</attr>
+<attr>
+<attrlabl>Shape_Area</attrlabl>
+<attrdef>Internal feature area, double</attrdef>
+<attrdefs>Esri</attrdefs>
+<attrdomv>
+<udom>Unrepresentable domain.</udom>
+</attrdomv>
+</attr>
+<attr>
+<attrlabl>MapUnit</attrlabl>
+<attrdef>Short plain-text identifier of the map unit. Foreign key to DescriptionOfMapUnits table.</attrdef>
+<attrdefs>GeMS</attrdefs>
+</attr>
+<attr>
+<attrlabl>IdentityConfidence</attrlabl>
+<attrdef>Confidence that feature is correctly identified.</attrdef>
+<attrdefs>GeMS</attrdefs>
+</attr>
+<attr>
+<attrlabl>Label</attrlabl>
+<attrdef>Plain-text equivalent of the desired annotation for a feature: for example "14 Ma", or "^c" which (when used with the FGDC GeoAge font) results in the geologic map-unit label TRc (with TR run together to make the Triassic symbol).</attrdef>
+<attrdefs>GeMS</attrdefs>
+<attrdomv>
+<udom>Unrepresentable domain.</udom>
+</attrdomv>
+</attr>
+<attr>
+<attrlabl>Symbol</attrlabl>
+<attrdef>Reference to a point marker, line symbol, or area-fill symbol that is used on the map graphic to denote the feature: perhaps a star for a K-Ar age locality, or a heavy black line for a fault.</attrdef>
+<attrdefs>GeMS</attrdefs>
+<attrdomv>
+<udom>Unrepresentable domain.</udom>
+</attrdomv>
+</attr>
+<attr>
+<attrlabl>DataSourceID</attrlabl>
+<attrdef>Source of data; foreign key to table DataSources.</attrdef>
+<attrdefs>GeMS</attrdefs>
+</attr>
+<attr>
+<attrlabl>Notes</attrlabl>
+<attrdef>Additional information specific to a particular feature or table entry.</attrdef>
+<attrdefs>GeMS</attrdefs>
+<attrdomv>
+<udom>Unrepresentable domain. Free text. Values of &lt;null&gt; or #null indicate no entry.</udom>
+</attrdomv>
+</attr>
+<attr>
+<attrlabl>MapUnitPolys_ID</attrlabl>
+<attrdef>Primary key.</attrdef>
+<attrdefs>GeMS</attrdefs>
+<attrdomv>
+<udom>Arbitrary string. Values should be unique within this database.</udom>
+</attrdomv>
+</attr>
+<attr>
+<attrlabl>created_user</attrlabl>
+<attrdomv>
+<udom>Unrepresentable domain.</udom>
+</attrdomv>
+</attr>
+<attr>
+<attrlabl>created_date</attrlabl>
+<attrdomv>
+<udom>Unrepresentable domain.</udom>
+</attrdomv>
+</attr>
+<attr>
+<attrlabl>last_edited_user</attrlabl>
+<attrdomv>
+<udom>Unrepresentable domain.</udom>
+</attrdomv>
+</attr>
+<attr>
+<attrlabl>last_edited_date</attrlabl>
+<attrdomv>
+<udom>Unrepresentable domain.</udom>
+</attrdomv>
+</attr>
+</detailed>
+</eainfo>
+<metainfo>
+<metstdn>FGDC Content Standard for Digital Geospatial Metadata</metstdn>
+<metstdv>FGDC-STD-001-1998</metstdv>
+<mettc>local time</mettc>
+</metainfo>
+</metadata>

@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata>
+<idinfo>
+<citation>
+<citeinfo>
+<title>Non-spatial table StandardLithology, part of Metadata Template</title>
+</citeinfo>
+</citation>
+<descript>
+<supplinf>Non-spatial table StandardLithology is part of GeMS.gdb, a composite dataset that conforms to "GeMS (Geologic Map Schema)--a standard format for the digital publication of geologic maps", available at http://ngmdb.usgs.gov/Info/standards/GeMS/.</supplinf>
+</descript>
+<accconst>None</accconst>
+<useconst>None</useconst>
+</idinfo>
+<dataqual>
+<attracc>
+<attraccr>Confidence that a feature exists and confidence that a feature is correctly identified are described in per-feature attributes ExistenceConfidence and IdentityConfidence.</attraccr>
+</attracc>
+<posacc>
+<horizpa>
+<horizpar>Estimated accuracy of horizontal location is given on a per-feature basis by attribute LocationConfidenceMeters. Values are expected to be correct within a factor of 2.  A LocationConfidenceMeters value of -9 or -9999 indicates that no value has been assigned.</horizpar>
+</horizpa>
+</posacc>
+<lineage></lineage>
+</dataqual>
+<eainfo>
+<detailed>
+<enttyp>
+<enttypl>StandardLithology</enttypl>
+<enttypd>Non-spatial table for describing the lithologic constituents of geologic map units. Has 1 to many rows per map unit. May be used to extend and supplement the GeneralLithology terms and unstructured free text Description found in the DescriptionOfMapUnits table.</enttypd>
+<enttypds>GeMS</enttypds>
+</enttyp>
+<attr>
+<attrlabl>OBJECTID</attrlabl>
+<attrdef>Internal feature number</attrdef>
+<attrdefs>Esri</attrdefs>
+<attrdomv>
+<udom>Unrepresentable domain.</udom>
+</attrdomv>
+</attr>
+<attr>
+<attrlabl>MapUnit</attrlabl>
+<attrdef>Short plain-text identifier of the map unit. Foreign key to DescriptionOfMapUnits table.</attrdef>
+<attrdefs>GeMS</attrdefs>
+</attr>
+<attr>
+<attrlabl>PartType</attrlabl>
+</attr>
+<attr>
+<attrlabl>Lithology</attrlabl>
+<attrdomv>
+<udom>Unrepresentable domain.</udom>
+</attrdomv>
+</attr>
+<attr>
+<attrlabl>ProportionTerm</attrlabl>
+</attr>
+<attr>
+<attrlabl>ProportionValue</attrlabl>
+<attrdomv>
+<udom>Unrepresentable domain.</udom>
+</attrdomv>
+</attr>
+<attr>
+<attrlabl>ScientificConfidence</attrlabl>
+</attr>
+<attr>
+<attrlabl>DataSourceID</attrlabl>
+<attrdef>Source of data; foreign key to table DataSources.</attrdef>
+<attrdefs>GeMS</attrdefs>
+</attr>
+<attr>
+<attrlabl>StandardLithology_ID</attrlabl>
+<attrdef>Primary key.</attrdef>
+<attrdefs>GeMS</attrdefs>
+<attrdomv>
+<udom>Arbitrary string. Values should be unique within this database.</udom>
+</attrdomv>
+</attr>
+<attr>
+<attrlabl>created_user</attrlabl>
+<attrdomv>
+<udom>Unrepresentable domain.</udom>
+</attrdomv>
+</attr>
+<attr>
+<attrlabl>created_date</attrlabl>
+<attrdomv>
+<udom>Unrepresentable domain.</udom>
+</attrdomv>
+</attr>
+<attr>
+<attrlabl>last_edited_user</attrlabl>
+<attrdomv>
+<udom>Unrepresentable domain.</udom>
+</attrdomv>
+</attr>
+<attr>
+<attrlabl>last_edited_date</attrlabl>
+<attrdomv>
+<udom>Unrepresentable domain.</udom>
+</attrdomv>
+</attr>
+</detailed>
+</eainfo>
+<metainfo>
+<metstdn>FGDC Content Standard for Digital Geospatial Metadata</metstdn>
+<metstdv>FGDC-STD-001-1998</metstdv>
+<mettc>local time</mettc>
+</metainfo>
+</metadata>

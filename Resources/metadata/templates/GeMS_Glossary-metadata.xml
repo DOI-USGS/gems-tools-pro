@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata>
+<idinfo>
+<citation>
+<citeinfo>
+<title>Non-spatial table Glossary, part of Metadata Template</title>
+</citeinfo>
+</citation>
+<descript>
+<supplinf>Non-spatial table Glossary is part of GeMS.gdb, a composite dataset that conforms to "GeMS (Geologic Map Schema)--a standard format for the digital publication of geologic maps", available at http://ngmdb.usgs.gov/Info/standards/GeMS/.</supplinf>
+</descript>
+<accconst>None</accconst>
+<useconst>None</useconst>
+</idinfo>
+<dataqual>
+<attracc>
+<attraccr>Confidence that a feature exists and confidence that a feature is correctly identified are described in per-feature attributes ExistenceConfidence and IdentityConfidence.</attraccr>
+</attracc>
+<posacc>
+<horizpa>
+<horizpar>Estimated accuracy of horizontal location is given on a per-feature basis by attribute LocationConfidenceMeters. Values are expected to be correct within a factor of 2.  A LocationConfidenceMeters value of -9 or -9999 indicates that no value has been assigned.</horizpar>
+</horizpa>
+</posacc>
+<lineage></lineage>
+</dataqual>
+<eainfo>
+<detailed>
+<enttyp>
+<enttypl>Glossary</enttypl>
+<enttypd>Non-spatial table that, for certain fields (including all Type fields, Confidence fields, and GeneralLithology), lists the terms that populate these fields, term definitions, and sources for definitions.</enttypd>
+<enttypds>GeMS</enttypds>
+</enttyp>
+<attr>
+<attrlabl>OBJECTID</attrlabl>
+<attrdef>Internal feature number</attrdef>
+<attrdefs>Esri</attrdefs>
+<attrdomv>
+<udom>Unrepresentable domain.</udom>
+</attrdomv>
+</attr>
+<attr>
+<attrlabl>Glossary_ID</attrlabl>
+<attrdef>Primary key.</attrdef>
+<attrdefs>GeMS</attrdefs>
+<attrdomv>
+<udom>Arbitrary string. Values should be unique within this database.</udom>
+</attrdomv>
+</attr>
+<attr>
+<attrlabl>Term</attrlabl>
+<attrdef>Plain-language word for a concept. Values must be unique within database as a whole.</attrdef>
+<attrdefs>GeMS</attrdefs>
+<attrdomv>
+<udom>Unrepresentable domain.</udom>
+</attrdomv>
+</attr>
+<attr>
+<attrlabl>Definition</attrlabl>
+<attrdef>Plain-language definition.</attrdef>
+<attrdefs>GeMS</attrdefs>
+<attrdomv>
+<udom>Unrepresentable domain.</udom>
+</attrdomv>
+</attr>
+<attr>
+<attrlabl>DefinitionSourceID</attrlabl>
+<attrdef>Source of definition; foreign key to DataSources.</attrdef>
+<attrdefs>GeMS</attrdefs>
+</attr>
+</detailed>
+</eainfo>
+<metainfo>
+<metstdn>FGDC Content Standard for Digital Geospatial Metadata</metstdn>
+<metstdv>FGDC-STD-001-1998</metstdv>
+<mettc>local time</mettc>
+</metainfo>
+</metadata>
