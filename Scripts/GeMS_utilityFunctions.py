@@ -8,6 +8,10 @@ editPrefixes = ("xxx", "edit_", "errors_", "ed_")
 debug = False
 import requests
 
+from importlib import reload
+
+reload(gdef)
+
 # I. General utilities
 
 
@@ -345,7 +349,7 @@ def gdb_object_dict(gdb_path):
                 # is found in the table name
                 if (
                     any(n in k.lower() for n in (a.lower(), camel_to_snake(a)))
-                    and gdef.shape_dict[a] in v["concat_type"]
+                    and gdef.shape_dict[a] in v["concat_type"].lower()
                     and not "cmu" in a.lower()
                 ):
                     # set the gems_equivalent key to the GeMS CamelCase name

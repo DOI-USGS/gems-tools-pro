@@ -86,7 +86,6 @@ from osgeo import ogr
 
 # for debugging
 # from importlib import reload
-
 # reload(guf)
 # reload(tp)
 # reload(gdef)
@@ -94,7 +93,7 @@ from osgeo import ogr
 # values dictionary gets sent to report_template.jinja errors_template.jinja
 val = {}
 
-version_string = "GeMS_ValidateDatabase.py, version of 10/18/2023"
+version_string = "GeMS_ValidateDatabase.py, version of 11/28/2023"
 val["version_string"] = version_string
 val["datetime"] = time.asctime(time.localtime(time.time()))
 
@@ -220,6 +219,7 @@ def rule2_1(db_dict, is_gpkg):
             for n in ("correlationofmapunits", "cmu", "crosssection")
         )
     ]
+    # print(fcs)
     # find_topology_pairs returns [GeologicMap feature dataset(if gdb), fd_tag_name, mapunitpolys, contactsandfaults]
     possible_pairs = tp.find_topology_pairs(fcs, is_gpkg, db_dict)
     print(possible_pairs)
