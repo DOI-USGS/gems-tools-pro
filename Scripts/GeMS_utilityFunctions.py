@@ -8,9 +8,8 @@ editPrefixes = ("xxx", "edit_", "errors_", "ed_")
 debug = False
 import requests
 
-from importlib import reload
-
-reload(gdef)
+# from importlib import reload
+# reload(gdef)
 
 # I. General utilities
 
