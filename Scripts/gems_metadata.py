@@ -1,44 +1,44 @@
 import arcpy
 import csv
 from lxml import etree
+import copy
 import tempfile
 from pathlib import Path
+
+# sources_choice = {
+#     "save only DataSources": 1,
+#     "save only embedded sources": 2,
+#     "save only template sources": 3,
+#     "save DataSources and embedded sources": 4,
+#     "save DataSources and template sources": 5,
+#     "save embedded and template sources": 6,
+#     "save all sources": 7,
+#     "save no sources": 8,
+# }
+
+# history_choices = {
+#     "clear all history": 1,
+#     "save only template history": 2,
+#     "save only embedded history": 3,
+#     "save all history": 4,
+# }
 
 toolbox_folder = Path(__file__).parent.parent
 metadata_folder = toolbox_folder / "Resources" / "metadata"
 templates_folder = metadata_folder / "metadata"
 
+child_nodes = [
+    (0, "idinfo"),
+    (1, "dataqual"),
+    (2, "spdoinfo"),
+    (3, "spref"),
+    (4, "eainfo"),
+    (5, "distinfo"),
+    (6, "metainfo"),
+]
+
 
 class CollateFGDCMetadata:
-    gems_full_ref = """GeMS (Geologic Map Schema)--a standard format for the digital publication of geologic maps", available at http://ngmdb.usgs.gov/Info/standards/GeMS/"""
-    nodes = {
-        "gems_nodes": {
-            "suppl": {
-                "xpath": "idinfo/descript/supplinf",
-                "text": f"""db_name is a composite geodataset that conforms to {gems_full_ref}. Metadata records associated with each element within the geodataset contain more detailed descriptions of their purposes, constituent entities, and attributes.). An OPEN shapefile versions of the dataset is also available. It consists of shapefiles, DBF files, and delimited text files and retains all information in the native geodatabase, but some programming will likely be necessary to assemble these components into usable formats.""",
-            },
-            "attraccr": {
-                "xpath": "dataqual/attracc/attraccr",
-                "text": """Confidence that a feature exists and confidence that a feature is correctly identified are described in per-feature attributes ExistenceConfidence and IdentityConfidence.""",
-            },
-            "horizpar": {
-                "xpath": "dataqual/posacc/horizpa/horizpar",
-                "text": """Estimated accuracy of horizontal location is given on a per-feature basis by attribute LocationConfidenceMeters. Values are expected to be correct within a factor of 2. A LocationConfidenceMeters value of -9 or -9999 indicates that no value has been assigned.""",
-            },
-        },
-        "source_nodes": {
-            "lineage": {"xpath": "dataqual/lineage"},
-            "title": {"xpath": "srccite/citeinfo/title"},
-            "onlink": {"xpath": "srccite/citeinfo/onlink"},
-        },
-        "spatial_nodes": {
-            "spdom": {"xpath": "idinfo/spdom"},
-            "spdoinfo": {"xpath": "spdoinfo"},
-            "spref": {"xpath": "spref"},
-        },
-        "entity_nodes": {"eainfo": {"xpath": "eainfo"}},
-    }
-
     def __init__(
         self,
         table,
@@ -46,7 +46,8 @@ class CollateFGDCMetadata:
         arc_md=True,
         template=None,
         definitions=None,
-        sources=None,
+        history=3,
+        sources=1,
         glossary=None,
         dmu=None,
     ):
@@ -55,25 +56,13 @@ class CollateFGDCMetadata:
         self.arc_md = arc_md
         self.template = template
         self.definitions = definitions
+        self.history = history
         self.sources = sources
         self.glossary = glossary
         self.dmu = dmu
         self.dom = None
-
-    def build_metadata(self):
-        if self.embedded_only or self.arc_md:
-            # this will set self.dom to the dom of the exported metadata
-            self._export_embedded()
-        else:
-            # this will set self.dom to a mostly empty dom built from scratch
-            # metadata = et.Element("metadata")
-            # self.dom = et.ElementTree(metadata).getroot()
-            self._md_from_scratch()
-
-        return self.dom
-        # self._add_template_metadata()
-        # self._add_csv_metadata()
-        # self._add_data_dictionary_metadata()
+        self.temp_sources = []
+        self.temp_history = []
 
     def _extend_branch(self, node, xpath):
         """function to test for full xpath and if only partially exists,
@@ -85,9 +74,27 @@ class CollateFGDCMetadata:
             if search_node is not None:
                 node = search_node
             else:
-                e = etree.Element(nibble)
-                node.append(e)
-                node = node.find(nibble)
+                node = etree.SubElement(node, nibble)
+                # node.append(e)
+                # node = node.find(nibble)
+
+    def build_metadata(self):
+        if self.embedded_only or self.arc_md:
+            # this will set self.dom to the dom of the exported metadata
+            self._export_embedded()
+        else:
+            # this will set self.dom to a mostly empty dom built from scratch
+            # metadata = et.Element("metadata")
+            # self.dom = et.ElementTree(metadata).getroot()
+            self._md_from_scratch()
+
+        if self.template:
+            self._add_template_metadata()
+
+        # self._add_csv_metadata()
+        # self._add_data_dictionary_metadata()
+        #
+        return self.dom
 
     def _export_embedded(self):
         # export the embedded metadata to a temporary file
@@ -97,30 +104,123 @@ class CollateFGDCMetadata:
         src_md = arcpy.metadata.Metadata(self.table)
         src_md.synchronize("ALWAYS")
         src_md.exportMetadata(str(temp_xml), "FGDC_CSDGM")
+
         # make an lxml etree
         self.dom = etree.parse(str(temp_xml)).getroot()
 
+        # check for removing embedded sources and history (process steps)
+        # but don't proceed if there is no lineage node
+        if self.dom.xpath("dataqual/lineage"):
+            lineage = self.dom.xpath("dataqual/lineage")[0]
+            if self.sources in (1, 3, 5, 8):
+                for srcinfo in lineage.findall("srcinfo"):
+                    lineage.remove(srcinfo)
+
+            if self.history in (1, 2):
+                for procstep in lineage.findall("procstep"):
+                    lineage.remove(procstep)
+
+        for child in child_nodes:
+            if self.dom.find(child[1] is None):
+                self.dom.insert(child[0], child[1])
+
+    def _add_template_metadata(self):
+        template_tree = etree.parse(self.template)
+        # remove nodes specified by source and history choices
+        # first check for lineage node
+        if self.dom.xpath("dataqual/lineage"):
+            lineage = template_tree.xpath("dataqual/lineage")[0]
+            # make a copy of the sources nodes
+            # for choices 5, 6, and 7 they will be added back but with
+            # other sources (from either embedded or DataSources)
+            # a the entire list will be sorted
+            if self.sources in (5, 6, 7):
+                self.temp_sources = template_tree.xpath("dataqual/lineage/srcinfo")
+
+            # make a copy of the process steps for history choice 4
+            # for same reason as above
+            if self.history == 4:
+                self.temp_history = template_tree.xpath("dataqual/lineage/procstep")
+
+            if self.sources in (3, 8):
+                for srcinfo in lineage.findall("srcinfo"):
+                    lineage.remove(srcinfo)
+
+            if self.history in (1, 3):
+                for procstep in lineage.findall("procstep"):
+                    lineage.remove(procstep)
+
+        # the number and order of entities in the template file may not be the
+        # same as in the table we are writing metadata for.
+        # copy and then delete that information from the template
+        # the dictionary will be used below when writing out the detailed node
+        detailed_dict = {}
+        template_detailed = template_tree.find("eainfo/detailed")
+        for attr in template_detailed.findall("attr"):
+            label = attr.find("attrlabl").text
+            detailed_dict[label] = attr
+        template_detailed.getparent().remove(template_detailed)
+
+        # add any remaining nodes from the template
+        for el in template_tree.iter():
+            el_path = template_tree.getelementpath(el)
+            el_text = template_tree.xpath(el_path)[0].text
+
+            if el_text and el_text != "None" and el_text.isprintable():
+                self._extend_branch(self.dom, el_path)
+                node = self.dom.xpath(el_path)[0]
+                node.text = el_text
+
+        # add the attribute definitions
+        detailed = self.dom.find("eainfo/detailed")
+        for attr in detailed.findall("attr"):
+            label = attr.find("attrlabl").text
+
+            # look for the field name in the attribute definition dictionary from the template
+            if label in detailed_dict:
+                # the dictionary value is an etree element
+                copy_attr = detailed_dict[label]
+
+                # "attrdef", "attrdefs" are in all template attr elements
+                for n in ("attrdef", "attrdefs"):
+                    # use extend_branch to create them if they don't exist in the source detailed node
+                    self._extend_branch(attr, n)
+                    # and set the text to the text in the template
+                    attr.find(n).text = copy_attr.find(n).text
+
+                # attrdomv is only in some template attr elements
+                if copy_attr.find("attrdomv") is not None:
+                    etree.SubElement(attr, "attrdomv")
+                    attr.find("attrdomv").text = copy_attr.find("attrdomv").text
+
+    def _remove_node(tree, xpath):
+        remove = tree.xpath(xpath)[0]
+        remove.getparent().remove(remove)
+
     def _md_from_scratch(self):
-        child_nodes = [
-            "idinfo",
-            "dataqual",
-            "eainfo",
-            "distinfo",
-            "metainfo",
-        ]
+        # write out the top-level children and the eainfo/detailed node from the actual
+        # list of fields in the table
+
+        # make all the metadata first-level children
         metadata = etree.Element("metadata")
         for child in child_nodes:
             etree.SubElement(metadata, child)
-        self.dom = etree.ElementTree(metadata).getroot()
 
-    def _add_template_metadata(self):
-        if self.template:
-            with open(self.template, "r") as template_file:
-                template_content = template_file.read()
-                template_element = et.ElementTree(
-                    et.ElementTree().fromstring(template_content)
-                ).getroot()
-                self.metadata_tree.extend(template_element)
+        # make a detailed node
+        detailed = etree.SubElement(metadata.find("eainfo"), "detailed")
+
+        # make an enttyp node with a enttypl (label) node
+        enttyp = etree.SubElement(detailed, "enttyp")
+        enttypl = etree.SubElement(enttyp, "enttypl")
+        enttypl.text = Path(self.table).name
+
+        # make one attr/attrlabl per field
+        for field in arcpy.ListFields(self.table):
+            attr = etree.SubElement(detailed, "attr")
+            attrl = etree.SubElement(attr, "attrl")
+            attrl.text = field.name
+
+        self.dom = etree.ElementTree(metadata).getroot()
 
     def _add_csv_metadata(self):
         if self.csv_file_path:
