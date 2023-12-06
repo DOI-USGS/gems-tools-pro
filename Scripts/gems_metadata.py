@@ -1,9 +1,17 @@
 import arcpy
 import csv
 from lxml import etree
-import copy
 import tempfile
 from pathlib import Path
+import sys
+
+toolbox_folder = Path(__file__).parent.parent
+scripts_folder = toolbox_folder / "Scripts"
+metadata_folder = toolbox_folder / "Resources" / "metadata"
+templates_folder = metadata_folder / "metadata"
+
+sys.path.append(scripts_folder)
+import GeMS_utilityFunctions as guf
 
 # sources_choice = {
 #     "save only DataSources": 1,
@@ -23,9 +31,6 @@ from pathlib import Path
 #     "save all history": 4,
 # }
 
-toolbox_folder = Path(__file__).parent.parent
-metadata_folder = toolbox_folder / "Resources" / "metadata"
-templates_folder = metadata_folder / "metadata"
 
 child_nodes = [
     (0, "idinfo"),
@@ -49,7 +54,6 @@ class CollateFGDCMetadata:
         history=3,
         sources=1,
         glossary=None,
-        dmu=None,
     ):
         self.table = table
         self.embedded_only = embedded_only
@@ -59,10 +63,18 @@ class CollateFGDCMetadata:
         self.history = history
         self.sources = sources
         self.glossary = glossary
-        self.dmu = dmu
         self.dom = None
-        self.temp_sources = []
-        self.temp_history = []
+
+        # from the table path, figure out the database it's in
+        # and make a dictionary of the objects so we have paths
+        # to Glossary, DataSources, and DMU
+        desc = arcpy.da.Describe(self.table)
+        w_path = Path(desc["path"])
+        if w_path.suffix in (".gdb", ".gpkg"):
+            db_path = str(w_path)
+        else:
+            db_path = str(w_path.parent)
+        self.db_dict = guf.gdb_object_dict(str(db_path))
 
     def _extend_branch(self, node, xpath):
         """function to test for full xpath and if only partially exists,
@@ -75,23 +87,28 @@ class CollateFGDCMetadata:
                 node = search_node
             else:
                 node = etree.SubElement(node, nibble)
-                # node.append(e)
-                # node = node.find(nibble)
 
     def build_metadata(self):
         if self.embedded_only or self.arc_md:
             # this will set self.dom to the dom of the exported metadata
+            # lineage/srcinfo will be removed if sources in (1, 3, 5, 8)
+            # lineage/procstep will be removed if history in (1, 2)
             self._export_embedded()
         else:
             # this will set self.dom to a mostly empty dom built from scratch
-            # metadata = et.Element("metadata")
-            # self.dom = et.ElementTree(metadata).getroot()
             self._md_from_scratch()
 
         if self.template:
+            # lineage/srcinfo will be removed if sources in (1, 2, 4, 8)
+            # lineage/procstep will be removed if history in (1, 3)
             self._add_template_metadata()
 
-        # self._add_csv_metadata()
+        if self.sources in (1, 4, 5, 7):
+            # choices 1, 4, 5, 7 include DataSources
+            self._add_datasources()
+
+        if self.definitions:
+            self._add_csv_metadata()
         # self._add_data_dictionary_metadata()
         #
         return self.dom
@@ -121,8 +138,34 @@ class CollateFGDCMetadata:
                     lineage.remove(procstep)
 
         for child in child_nodes:
-            if self.dom.find(child[1] is None):
-                self.dom.insert(child[0], child[1])
+            if self.dom.find(child[1]) is None:
+                el = etree.Element(child[1])
+                self.dom.insert(child[0], el)
+
+    def _md_from_scratch(self):
+        # write out the top-level children and the eainfo/detailed node from the actual
+        # list of fields in the table
+
+        # make all the metadata first-level children
+        metadata = etree.Element("metadata")
+        for child in child_nodes:
+            etree.SubElement(metadata, child[1])
+
+        # make a detailed node
+        detailed = etree.SubElement(metadata.find("eainfo"), "detailed")
+
+        # make an enttyp node with a enttypl (label) node
+        enttyp = etree.SubElement(detailed, "enttyp")
+        enttypl = etree.SubElement(enttyp, "enttypl")
+        enttypl.text = Path(self.table).name
+
+        # make one attr/attrlabl per field
+        for field in arcpy.ListFields(self.table):
+            attr = etree.SubElement(detailed, "attr")
+            attrl = etree.SubElement(attr, "attrl")
+            attrl.text = field.name
+
+        self.dom = etree.ElementTree(metadata).getroot()
 
     def _add_template_metadata(self):
         template_tree = etree.parse(self.template)
@@ -142,7 +185,7 @@ class CollateFGDCMetadata:
             if self.history == 4:
                 self.temp_history = template_tree.xpath("dataqual/lineage/procstep")
 
-            if self.sources in (3, 8):
+            if self.sources in (1, 2, 4, 8):
                 for srcinfo in lineage.findall("srcinfo"):
                     lineage.remove(srcinfo)
 
@@ -193,49 +236,111 @@ class CollateFGDCMetadata:
                     etree.SubElement(attr, "attrdomv")
                     attr.find("attrdomv").text = copy_attr.find("attrdomv").text
 
+    def _add_datasources(self):
+        # translate rows from the DataSources table into dataqual/lineage/srcinfo nodes
+        # first, bail if there is no DataSources table
+        if not "DataSources" in self.db_dict:
+            arcpy.AddMessage("Could not find a DataSources table. Skipping this step")
+            return
+
+        lineage = self.dom.find("dataqual/lineage")
+        ds_path = self.db_dict["DataSources"]["catalogPath"]
+        fields = ["Source", "URL", "DataSources_ID"]
+        with arcpy.da.SearchCursor(ds_path, fields) as cursor:
+            for row in cursor:
+                srcinfo = etree.SubElement(lineage, "srcinfo")
+
+                self._extend_branch(srcinfo, "srccite/citeinfo/title")
+                title = srcinfo.find("srccite/citeinfo/title")
+                title.text = row[0]
+
+                if row[1]:
+                    self._extend_branch(srcinfo, "srccite/citeinfo/onlink")
+                    onlink = srcinfo.find("srccite/citeinfo/onlink")
+                    onlink.text = row[0]
+
+                srccitea = etree.SubElement(srcinfo, "srccitea")
+                srccitea.text = row[2]
+
+    def _add_csv_metadata(self):
+        # read the csv of
+        with open(self.definitions, mode="r") as file:
+            defs_csv = list(csv.reader(file))
+
+        # check for header line
+        if defs_csv[0] == ["table", "field", "definition", "definition_source"]:
+            i = 1
+        else:
+            i = 0
+
+        # csv definitions file can hold definitions for both tables and fields
+        # parse the csv into two dictionaries
+        # table name: [definition, definition source]
+        table_defs = {
+            row[0]: [row[2], row[3]] for row in defs_csv[i:] if row[0] and not row[1]
+        }
+
+        # fields are different
+        # table name:[[field1 name, definition, definition source],
+        #             [field2 name, definition, definition source], etc.]
+        fields = [row for row in defs_csv[i:] if row[0] and row[1]]
+        field_defs = {}
+        for field in fields:
+            if field[0] in field_defs:
+                field_defs[field[0]].append([field[1], field[2], field[3]])
+            else:
+                field_defs[field[0]] = [[field[1], field[2], field[3]]]
+
+        # find and update entity and attribute nodes
+        for table in table_defs:
+            enttyps = self.dom.xpath(
+                f"eainfo/detailed/enttyp/enttypl[text()='{table}']/parent"
+            )
+            for enttyp in enttyps:
+                # update the table definition and definition source
+                self._def_and_source(enttyp, "enttypd", "enttypds", table)
+
+                # get the detailed (parent node) of this enttyp, attributes are siblings
+                detailed = self.dom.xpath(
+                    f"eainfo/detailed/enttyp/enttypl[text()='{table}']/parent::*/parent::*"
+                )[0]
+                attrs = detailed.findall("attr")
+
+                # and get the field definitions for this table from table_defs dictionary
+                table_fields = field_defs[table]
+
+                for field in table_fields:
+                    attrs = self.dom.xpath(
+                        f"eainfo/detailed/attr/attrlabl/[text()='{field[0]}']/parent"
+                    )
+                    for attr in attrs:
+                        self._def_and_source(
+                            attr, "attrdef", "attrdefs", [field[1], field[2]]
+                        )
+
+    def _def_and_source(parent, def_xpath, source_xpath, text_list):
+        # whether missing or blank add node and/or definition and definition source text
+        # to an entity or attribute node
+        if parent.find(def_xpath) is None:
+            # it doesn't make sense if definition is blank but there exists a
+            # definition source node, however, don't check the text, just remove
+            if parent.find(source_xpath) is not None:
+                parent.remove(parent.find(source_xpath))
+
+            # now add nodes by xpath, leave text empty for now
+            etree.SubElement(parent, def_xpath)
+            etree.SubElement(parent, source_xpath)
+
+        # now we know we can find a def_xpath node, check the text
+        def_node = parent.find(def_xpath)
+        if def_node.text is None:
+            def_node.text = text_list[0]
+            # and update the definition source regardless
+            parent.find(source_xpath).text = text_list[1]
+
     def _remove_node(tree, xpath):
         remove = tree.xpath(xpath)[0]
         remove.getparent().remove(remove)
-
-    def _md_from_scratch(self):
-        # write out the top-level children and the eainfo/detailed node from the actual
-        # list of fields in the table
-
-        # make all the metadata first-level children
-        metadata = etree.Element("metadata")
-        for child in child_nodes:
-            etree.SubElement(metadata, child)
-
-        # make a detailed node
-        detailed = etree.SubElement(metadata.find("eainfo"), "detailed")
-
-        # make an enttyp node with a enttypl (label) node
-        enttyp = etree.SubElement(detailed, "enttyp")
-        enttypl = etree.SubElement(enttyp, "enttypl")
-        enttypl.text = Path(self.table).name
-
-        # make one attr/attrlabl per field
-        for field in arcpy.ListFields(self.table):
-            attr = etree.SubElement(detailed, "attr")
-            attrl = etree.SubElement(attr, "attrl")
-            attrl.text = field.name
-
-        self.dom = etree.ElementTree(metadata).getroot()
-
-    def _add_csv_metadata(self):
-        if self.csv_file_path:
-            with open(self.csv_file_path, "r") as csv_file:
-                csv_reader = csv.DictReader(csv_file)
-                for row in csv_reader:
-                    entity_element = et.SubElement(self.metadata_tree, "entity")
-                    field_element = et.SubElement(entity_element, "field")
-                    field_element.text = row["field"]
-                    definition_element = et.SubElement(entity_element, "definition")
-                    definition_element.text = row["definition"]
-                    definition_source_element = et.SubElement(
-                        entity_element, "definitionsource"
-                    )
-                    definition_source_element.text = row["definitionsource"]
 
     def _add_data_dictionary_metadata(self):
         # Add metadata from the data dictionary tables as needed
