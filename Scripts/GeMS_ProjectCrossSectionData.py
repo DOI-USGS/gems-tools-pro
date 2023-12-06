@@ -218,7 +218,7 @@ def locateEventTable(
 
     if not desc.hasZ:
         addMsgAndPrint("      adding Z values")
-        arcpy.AddSurfaceInformation_3d(pts, dem, zType, "LINEAR")
+        arcpy.da.AddSurfaceInformation(pts, dem, zType, "LINEAR")
 
     ## working around bug in LocateFeaturesAlongRoutes
     # add special field for duplicate detection
@@ -303,9 +303,9 @@ addMsgAndPrint("  Scratch directory is " + scratch)
 arcpy.env.overwriteOutput = True
 
 try:
-    arcpy.CheckOutExtension("3D")
+    arcpy.CheckOutExtension("Spatial")
 except:
-    addMsgAndPrint("\nCannot check out 3D-analyst extension.")
+    addMsgAndPrint("\nCannot check out Spatial Analyst extension.")
     sys.exit()
 
 ## Checking section line
@@ -367,7 +367,7 @@ else:
     # Add Z values
     addMsgAndPrint("    getting elevation values for " + shortName(tempXsLine))
     Zline = arcpy.CreateScratchName("xx", outFdsTag + "_Z", "FeatureClass", scratch)
-    arcpy.InterpolateShape_3d(dem, tempXsLine, Zline)
+    arcpy.da.InterpolateShape(dem, tempXsLine, Zline)
     # Add M values
     addMsgAndPrint("    measuring " + shortName(Zline))
     ZMline = arcpy.CreateScratchName("xx", outFdsTag + "_ZM", "FeatureClass", scratch)
@@ -679,7 +679,7 @@ for polyFC in polyFCs:
             testAndDelete(f)
     del inRows, outRows
 
-arcpy.CheckInExtension("3D")
+arcpy.CheckInExtension("Spatial")
 if not saveIntermediate:
     addMsgAndPrint("\n  Deleting intermediate data sets")
     for fc in tempXsLine, ZMline, Zline, tempBuffer:
