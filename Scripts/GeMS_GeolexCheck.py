@@ -36,13 +36,9 @@ import tempfile
 import GeMS_utilityFunctions as guf
 
 
-versionString = "GeMS_GeolexCheck.py, 8/21/23"
-rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/master/Scripts/GeMS_GeolexCheck.py"
+versionString = "GeMS_GeolexCheck.py, 12/7/23"
+rawurl = "https://raw.githubusercontent.com/DO/I-USGS/gems-tools-pro/master/Scripts/GeMS_GeolexCheck.py"
 guf.checkVersion(versionString, rawurl, "gems-tools-pro")
-
-# initialize empty list to collect usage matches in order to avoid
-# displaying redundant matches.
-usages = []
 
 
 # STRING AND USAGE
@@ -255,6 +251,11 @@ def frame_it(d_path, ext_format):
     # in the input dmu
     dmu_df.columns = [c.lower() for c in dmu_df.columns]
 
+    # hope there is  hierarchykey to sort on
+    if "hierarchykey" in dmu_df.columns:
+        print("sorting")
+        dmu_df.sort_values("hierarchykey", inplace=True)
+
     return dmu_df
 
 
@@ -370,7 +371,7 @@ def format_excel(xlf):
 
 
 # START
-# ------------------------------------------------------------------------
+# -----------------------------------------------------------------------
 if len(sys.argv) == 1:
     print(__doc__)
     quit()
@@ -435,39 +436,32 @@ if len(sys.argv) == 4:
 else:
     open_xl = True
 
-# units table of geolex db
-this_py = os.path.realpath(__file__)
-geolex_db = os.path.join(
-    os.path.dirname(this_py), "..", "Resources", "geolex_units.json"
-)
+cols = [
+    "HierarchyKey",
+    "MapUnit",
+    "Name",
+    "Fullname",
+    "Age",
+    "Extent",  # DMU Contents
+    "GeolexID",
+    "Name",
+    "Usage",
+    "Age",
+    "Extent",
+    "URL",  # Geolex Results
+    "Extent Match?",
+    "Usage Match?",
+    "Age Match?",
+    "Remarks",
+    "References",
+]
 
-# set up a pandas data frame
-d = {}
-df = pd.DataFrame(
-    columns=[
-        "HierarchyKey",
-        "MapUnit",
-        "Name",
-        "Fullname",
-        "Age",
-        "Extent",  # DMU Contents
-        "GeolexID",
-        "Name",
-        "Usage",
-        "Age",
-        "Extent",
-        "URL",  # Geolex Results
-        "Extent Match?",
-        "Usage Match?",
-        "Age Match?",
-        "Remarks",
-        "References",
-    ]
-)  # Author Review
+# initialize an empty list that will hold all of data frame data
+data = []
 
-df["HierarchyKey"] = df["HierarchyKey"].astype("object")
-
-fields = ["hierarchykey", "mapunit", "name", "fullname", "age"]
+# initialize empty list to collect usage matches in order to avoid
+# displaying redundant matches.
+usages = []
 
 n = 0
 for row in dmu_df.itertuples():
@@ -545,7 +539,6 @@ for row in dmu_df.itertuples():
         # initiate this row filling out the first 6 columns
         # needs to be defined outside of 'if matches' statement below for the case where
         # there are no valid matches
-        # unit_list = [mu, fn, fm, age, ext]
         unit_list = [hkey, mu, sn, fn, age, ", ".join(dmu_exts)]
 
         # initialize counter to determine contents of unit_list as matches are recorded
@@ -618,9 +611,8 @@ for row in dmu_df.itertuples():
                                 ]
                             )
 
-                            # add list to dataframe
-                            unit_series = pd.Series(unit_list, index=df.columns)
-                            df = df.append(unit_series, ignore_index=True)
+                            # add list to data list
+                            data.append(unit_list)
 
                             n = 1
                             i = 1
@@ -649,9 +641,11 @@ for row in dmu_df.itertuples():
                     ["", "", "", "", "", "", "no", "", "", "", ""]
                 )
 
-            # add list to dataframe
-            unit_series = pd.Series(unit_list, index=df.columns)
-            df = df.append(unit_series, ignore_index=True)
+            # add list to data list
+            data.append(unit_list)
+
+# make the data frame
+df = pd.DataFrame(data, columns=cols, dtype="string")
 
 xl_path = os.path.join(dmu_home, f"{out_name}_namescheck.xlsx")
 arcpy.AddMessage(f"Saving {xl_path}")
