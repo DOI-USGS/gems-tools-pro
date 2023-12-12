@@ -64,6 +64,7 @@ class CollateFGDCMetadata:
         self.sources = sources
         self.glossary = glossary
         self.dom = None
+        self.is_db = False
 
         # from the table path, figure out the database it's in
         # and make a dictionary of the objects so we have paths
@@ -72,6 +73,7 @@ class CollateFGDCMetadata:
         w_path = Path(desc["path"])
         if w_path.suffix in (".gdb", ".gpkg"):
             db_path = str(w_path)
+            self.is_db = True
         else:
             db_path = str(w_path.parent)
         self.db_dict = guf.gdb_object_dict(str(db_path))
@@ -109,7 +111,17 @@ class CollateFGDCMetadata:
 
         if self.definitions:
             self._add_csv_metadata()
-        # self._add_data_dictionary_metadata()
+
+        # if self.is_db:
+        #     table_dict = {
+        #         k: v
+        #         for k, v in self.db_dict.items()
+        #         if v["dataType"] in ("FeatureClass", "Table")
+        #     }
+        #     for table, v in table_dict.items():
+        #         self._add_data_dictionary_metadata(table, v["fields"])
+        # else:
+        self._add_data_dictionary_metadata()
         #
         return self.dom
 
@@ -137,10 +149,13 @@ class CollateFGDCMetadata:
                 for procstep in lineage.findall("procstep"):
                     lineage.remove(procstep)
 
+        # add all top-level child nodes in case they are not exported
         for child in child_nodes:
             if self.dom.find(child[1]) is None:
                 el = etree.Element(child[1])
                 self.dom.insert(child[0], el)
+
+        # if this is a database, make eainfo/detailed nodes for all tables
 
     def _md_from_scratch(self):
         # write out the top-level children and the eainfo/detailed node from the actual
@@ -263,7 +278,10 @@ class CollateFGDCMetadata:
                 srccitea.text = row[2]
 
     def _add_csv_metadata(self):
-        # read the csv of
+        """Add attribute definition and definition sources for custom fields
+        all GeMS definitions are in template xml files"""
+
+        # read the csv of definitions
         with open(self.definitions, mode="r") as file:
             defs_csv = list(csv.reader(file))
 
@@ -317,6 +335,14 @@ class CollateFGDCMetadata:
                         self._def_and_source(
                             attr, "attrdef", "attrdefs", [field[1], field[2]]
                         )
+
+    def _add_data_dictionary_metadata(self):
+        fields = self.db_dict[self.table].fields
+
+        # get the detailed (parent node) of this enttyp, attributes are siblings
+        detailed = self.dom.xpath(
+            f"eainfo/detailed/enttyp/enttypl[text()='{table}']/parent::*/parent::*"
+        )[0]
 
     def _def_and_source(parent, def_xpath, source_xpath, text_list):
         # whether missing or blank add node and/or definition and definition source text
