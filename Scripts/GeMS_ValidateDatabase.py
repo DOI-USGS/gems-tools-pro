@@ -222,7 +222,6 @@ def rule2_1(db_dict, is_gpkg):
     # print(fcs)
     # find_topology_pairs returns [GeologicMap feature dataset(if gdb), fd_tag_name, mapunitpolys, contactsandfaults]
     possible_pairs = tp.find_topology_pairs(fcs, is_gpkg, db_dict)
-    print(possible_pairs)
     if possible_pairs:
         # check each tagged name pair in the case of no feature dataset (pair[0])
         for pair in possible_pairs:
@@ -286,8 +285,6 @@ def check_fields(db_dict, level, schema_extensions):
             if not v["gems_equivalent"] in req_tables
             and not v["gems_equivalent"] == ""
             and not v["dataType"] in ("Topology", "Annotation", "FeatureDataset")
-            and not "cartographicpoints" in k.lower()
-            and not "cartographiclines" in k.lower()
         ]
         header = "3.1 Missing or mis-defined fields"
 
@@ -318,6 +315,9 @@ def check_fields(db_dict, level, schema_extensions):
                 if not field[2] == "Optional":
                     html = f'<span class="table">{table}</span> missing field <span class="field">{field[0]}</span>'
                     errors.append(html)
+                else:
+                    html = f'<span class="table">{table}</span> field <span class="field">{field[0]}</span>'
+                    fld_warnings.append(html)
             else:
                 req_type = field[1]
 
@@ -335,7 +335,7 @@ def check_fields(db_dict, level, schema_extensions):
             f.name
             for f in found_fields
             if f.name.lower() not in req_names
-            and not f.name.lower().endswith("_id")
+            and not f.name.lower() == f"{table}_id"
             and not f.name.lower() in lower_standard
         ]:
             schema_extensions.append(
