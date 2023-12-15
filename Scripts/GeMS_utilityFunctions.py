@@ -375,6 +375,10 @@ def camel_to_snake(s):
     if "CMU" in s:
         s = s[3:]
         return f"cmu_{''.join(['_'+c.lower() if c.isupper() else c for c in s]).lstrip('_')}"
+    elif s.endswith("ID"):
+        return f"{''.join(['_'+c.lower() if c.isupper() else c for c in s[0:-2]]).lstrip('_')}id"
+    elif s.endswith("_ID"):
+        f"{''.join(['_'+c.lower() if c.isupper() else c for c in s[0:-3]]).lstrip('_')}_id"
     else:
         return "".join(["_" + c.lower() if c.isupper() else c for c in s]).lstrip("_")
 
