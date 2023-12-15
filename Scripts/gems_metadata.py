@@ -1,3 +1,7 @@
+from datetime import datetime
+
+start_time = datetime.now()
+
 import arcpy
 import csv
 from lxml import etree
@@ -13,6 +17,12 @@ templates_folder = metadata_folder / "metadata"
 sys.path.append(scripts_folder)
 import GeMS_utilityFunctions as guf
 import GeMS_Definition as gdef
+
+
+def print_time(func):
+    end_time = datetime.now()
+    print(func, f"Duration: {end_time - start_time}")
+
 
 # sources_choice = {
 #     "save only DataSources": 1,
@@ -58,6 +68,7 @@ class CollateFGDCMetadata:
     def __init__(
         self,
         table,
+        gdb_dict,
         embedded_only=False,
         arc_md=True,
         template=None,
@@ -67,6 +78,7 @@ class CollateFGDCMetadata:
         glossary=None,
     ):
         self.table = table
+        self.db_dict = gdb_dict
         self.embedded_only = embedded_only
         self.arc_md = arc_md
         self.template = template
@@ -79,18 +91,6 @@ class CollateFGDCMetadata:
         self.dom = None
         self.is_db = False
 
-        # from the table path, figure out the database it's in
-        # and make a dictionary of the objects so we have paths
-        # to Glossary, DataSources, and DMU
-        desc = arcpy.da.Describe(self.table)
-        w_path = Path(desc["path"])
-        if w_path.suffix in (".gdb", ".gpkg"):
-            db_path = str(w_path)
-            self.is_db = True
-        else:
-            db_path = str(w_path.parent)
-        self.db_dict = guf.gdb_object_dict(str(db_path))
-
         # make python dictionaries of the data dictionary tables
         sources_dict = self._term_dict("DataSources", ["DataSources_ID", "Source"])
         self.dds = {
@@ -98,12 +98,13 @@ class CollateFGDCMetadata:
             "units_dict": self._term_dict(
                 "DescriptionOfMapUnits",
                 ["MapUnit", "Name", "Fullname", "DescriptionSourceID"],
+                sources_dict,
             ),
             "geomat_dict": self._term_dict(
-                "GeoMaterialDict", ["GeoMaterial", "Definition"]
+                "GeoMaterialDict", ["GeoMaterial", "Definition"], sources_dict
             ),
             "gloss_dict": self._term_dict(
-                "Glossary", ["Term", "Definition", "DefinitionSourceID"]
+                "Glossary", ["Term", "Definition", "DefinitionSourceID"], sources_dict
             ),
         }
 
@@ -147,11 +148,13 @@ class CollateFGDCMetadata:
         temp_dir = tempfile.TemporaryDirectory()
         temp_xml = Path(temp_dir.name) / "temp.xml"
         src_md = arcpy.metadata.Metadata(self.table)
-        src_md.synchronize("ALWAYS")
+        src_md.synchronize("SELECTIVE")
         src_md.exportMetadata(str(temp_xml), "FGDC_CSDGM")
 
         # make an lxml etree
         self.dom = etree.parse(str(temp_xml)).getroot()
+        for n in self.dom:
+            print(n.tag)
 
         # check for removing embedded sources and history (process steps)
         # but don't proceed if there is no lineage node
@@ -173,7 +176,7 @@ class CollateFGDCMetadata:
 
         # if this is a table and has a detailed node
         # find the attr nodes and add the required children
-        detailed = self.dom.find("eainfo", "detailed")
+        detailed = self.dom.find("eainfo/detailed")
         if not detailed is None:
             attrs = detailed.findall("attr")
             for attr in attrs:
@@ -521,7 +524,7 @@ class CollateFGDCMetadata:
             # and update the definition source regardless
             parent.find(source_xpath).text = text_list[1]
 
-    def _term_dict(self, table, fields):
+    def _term_dict(self, table, fields, sources_dict=None):
         """sources_dict needs to be built first"""
         # always supply field to be the dictionary key as fields[0]
         # and the 'ID' field as fields[-1]
@@ -537,23 +540,21 @@ class CollateFGDCMetadata:
                 #     data_dict[row[0]] = [row[1]]
                 #     data_dict[row[0]].append(gems)
                 if table == "DescriptionOfMapUnits":
-                    print("DescriptionOfMapUnits")
-                    print(fields)
+                    # if there is a MapUnit value
                     if row[0]:
                         if not row[2] is None:
+                            # if there is a FullName, that is the value of the mapunit key
                             data_dict[row[0]] = [row[2]]
                         else:
                             if not row[1] is None:
+                                # otherwise use the Name
                                 data_dict[row[0]] = [row[1]]
-                        data_dict[row[0]].append(
-                            self._catch_m2m(self.dds["sources_dict"], row[-1])
-                        )
+                        # append the SourceID
+                        data_dict[row[0]].append(self._catch_m2m(sources_dict, row[-1]))
                     else:
                         data_dict[row[0]] = list(row[1:-1])
-                        print(row[-1])
-                        data_dict[row[0]].append(
-                            self._catch_m2m(self.dds["sources_dict"], row[-1])
-                        )
+                        data_dict[row[0]].append(self._catch_m2m(sources_dict, row[-1]))
+
             return data_dict
         else:
             return None
@@ -571,7 +572,7 @@ class CollateFGDCMetadata:
         else:
             return self.dds["gloss_dict"]
 
-    def _catch_m2m(dictionary, field_value):
+    def _catch_m2m(self, dictionary, field_value):
         """DataSourceIDs could be concatenated, eg., "DAS03 | DAS05"
         To list these values properly when writing out enumerated domains,
         look here for a delimiter, split the foreign keys, look them up, and
