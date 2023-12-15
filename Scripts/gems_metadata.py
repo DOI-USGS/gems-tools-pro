@@ -79,7 +79,6 @@ class CollateFGDCMetadata:
         self.dom = None
         self.is_db = False
 
-
         # from the table path, figure out the database it's in
         # and make a dictionary of the objects so we have paths
         # to Glossary, DataSources, and DMU
@@ -99,15 +98,12 @@ class CollateFGDCMetadata:
             "units_dict": self._term_dict(
                 "DescriptionOfMapUnits",
                 ["MapUnit", "Name", "Fullname", "DescriptionSourceID"],
-                sources_dict,
             ),
             "geomat_dict": self._term_dict(
-                "GeoMaterialDict", ["GeoMaterial", "Definition"], sources_dict
+                "GeoMaterialDict", ["GeoMaterial", "Definition"]
             ),
             "gloss_dict": self._term_dict(
-                "Glossary",
-                ["Term", "Definition", "DefinitionSourceID"],
-                sources_dict,
+                "Glossary", ["Term", "Definition", "DefinitionSourceID"]
             ),
         }
 
@@ -136,9 +132,12 @@ class CollateFGDCMetadata:
         self._ESRI_fields()
 
         # any other tables to exclude from domain descriptions?
-        if not self.db_dict[self.table]["concat_type"] == "Annotation Polygon FeatureClass":
+        if (
+            not self.db_dict[self.table]["concat_type"]
+            == "Annotation Polygon FeatureClass"
+        ):
             self._add_domains()
-        
+
         return self.dom
 
     def _export_embedded(self):
@@ -171,7 +170,7 @@ class CollateFGDCMetadata:
             if self.dom.find(child[1]) is None:
                 el = etree.Element(child[1])
                 self.dom.insert(child[0], el)
-        
+
         # if this is a table and has a detailed node
         # find the attr nodes and add the required children
         detailed = self.dom.find("eainfo", "detailed")
@@ -180,7 +179,6 @@ class CollateFGDCMetadata:
             for attr in attrs:
                 for n in ("attrdef", "attrdefs", "attrdomv"):
                     self._extend_branch(attr, n)
-        
 
     def _md_from_scratch(self):
         # write out the top-level children and the eainfo/detailed node from the actual
@@ -431,7 +429,7 @@ class CollateFGDCMetadata:
                             vals = d_vals.split(",")
                             tuples = [(nodes[i], vals[i]) for i in range(len(vals))]
                             self._domain_nodes(rdom, d_type, tuples)
-                        
+
                     if d_type == "codsetd":
                         codesetd = etree.SubElement(attrdomv, "codesetd")
                         if d_vals:
@@ -439,7 +437,7 @@ class CollateFGDCMetadata:
                             vals = d_vals.split(",")
                             tuples = [(nodes[i], vals[i]) for i in range(len(vals))]
                             self._domain_nodes(codesetd, d_type, tuples)
-                    
+
                     if d_type == "udom":
                         udom = etree.SubElement(attrdomv, "udom")
                         if d_vals:
@@ -462,14 +460,17 @@ class CollateFGDCMetadata:
                                 self._domain_nodes(edom, d_type, tuples)
 
                 # if this field is in the list of gems-defined enumerated domain fields
-                elif (fname.lower in [n.lower() for n in gems_edom] or 
-                      fname.lower in [guf.camel_to_snake(n).lower() for n in gems_edom]):
+                elif fname.lower in [n.lower() for n in gems_edom] or fname.lower in [
+                    guf.camel_to_snake(n).lower() for n in gems_edom
+                ]:
                     # delete the single childless attrdomv so that we can add multiple with
                     # children in a loop
                     attr.remove(attrdomv)
 
                     # collect a unique set of all the values in this field
-                    with arcpy.da.SearchCursor(self.db_dict[self.table]["catalogPath"], field) as cursor:
+                    with arcpy.da.SearchCursor(
+                        self.db_dict[self.table]["catalogPath"], field
+                    ) as cursor:
                         fld_vals = set([row[0] for row in cursor if not row[0] is None])
 
                     for val in fld_vals:
@@ -490,14 +491,15 @@ class CollateFGDCMetadata:
                             else:
                                 val_text = ""
                                 val_source = ""
-                        
+
                         etree.SubElement(edom, "edomv").text = val
                         etree.SubElement(edom, "edomvd").text = val_text
                         etree.SubElement(edom, "edomvds").text = val_source
-                
-                else:
-                    udom = etree.SubElement(attrdomv, "udom").text = "Unrepresentable domain"
 
+                else:
+                    udom = etree.SubElement(
+                        attrdomv, "udom"
+                    ).text = "Unrepresentable domain"
 
     def _def_and_source(parent, def_xpath, source_xpath, text_list):
         # whether missing or blank add node and/or definition and definition source text
@@ -519,7 +521,7 @@ class CollateFGDCMetadata:
             # and update the definition source regardless
             parent.find(source_xpath).text = text_list[1]
 
-    def _term_dict(self, table, fields, sources_dict=None):
+    def _term_dict(self, table, fields):
         """sources_dict needs to be built first"""
         # always supply field to be the dictionary key as fields[0]
         # and the 'ID' field as fields[-1]
@@ -535,16 +537,23 @@ class CollateFGDCMetadata:
                 #     data_dict[row[0]] = [row[1]]
                 #     data_dict[row[0]].append(gems)
                 if table == "DescriptionOfMapUnits":
+                    print("DescriptionOfMapUnits")
+                    print(fields)
                     if row[0]:
                         if not row[2] is None:
                             data_dict[row[0]] = [row[2]]
                         else:
                             if not row[1] is None:
                                 data_dict[row[0]] = [row[1]]
-                        data_dict[row[0]].append(self._catch_m2m(sources_dict, row[-1]))
+                        data_dict[row[0]].append(
+                            self._catch_m2m(self.dds["sources_dict"], row[-1])
+                        )
                     else:
                         data_dict[row[0]] = list(row[1:-1])
-                        data_dict[row[0]].append(self._catch_m2m(sources_dict, row[-1]))
+                        print(row[-1])
+                        data_dict[row[0]].append(
+                            self._catch_m2m(self.dds["sources_dict"], row[-1])
+                        )
             return data_dict
         else:
             return None
@@ -634,10 +643,10 @@ class CollateFGDCMetadata:
 
         return field_defs
 
-    def _domain_nodes(attrdomv, d_type, tuples):
-
-
-
+    def _domain_nodes(parent, d_type, tuples):
+        child = etree.SubElement(parent, d_type)
+        for t in tuples:
+            etree.SubElement(child, t[0]).text = t[1]
 
     def _remove_node(tree, xpath):
         remove = tree.xpath(xpath)[0]
