@@ -156,6 +156,18 @@
           <udom>Unrepresentable domain.</udom>
         </attrdomv>
       </attr>
+      <attr>
+        <attrlabl>fakefield1</attrlabl>
+        <attrdomv>
+          <rdom>Unrepresentable domain.</rdom>
+        </attrdomv>
+      </attr>
+      <attr>
+        <attrlabl>fakefield2</attrlabl>
+        <attrdomv>
+          <codesetd>Unrepresentable domain.</codesetd>
+        </attrdomv>
+      </attr>
     </detailed>
   </eainfo>
   <metainfo>

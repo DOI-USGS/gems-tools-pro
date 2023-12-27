@@ -24,23 +24,25 @@ def print_time(func):
     print(func, f"Duration: {end_time - start_time}")
 
 
-# sources_choice = {
-#     "save only DataSources": 1,
-#     "save only embedded sources": 2,
-#     "save only template sources": 3,
-#     "save DataSources and embedded sources": 4,
-#     "save DataSources and template sources": 5,
-#     "save embedded and template sources": 6,
-#     "save all sources": 7,
-#     "save no sources": 8,
-# }
+"""
+sources_choice = {
+    "save only DataSources": 1,
+    "save only embedded sources": 2,
+    "save only template sources": 3,
+    "save DataSources and embedded sources": 4,
+    "save DataSources and template sources": 5,
+    "save embedded and template sources": 6,
+    "save all sources": 7,
+    "save no sources": 8,
+}
 
-# history_choices = {
-#     "clear all history": 1,
-#     "save only template history": 2,
-#     "save only embedded history": 3,
-#     "save all history": 4,
-# }
+history_choices = {
+    "clear all history": 1,
+    "save only embedded history": 2,
+    "save only template history": 3,
+    "save all history": 4,
+}
+"""
 
 gems_edom = gdef.enumeratedValueDomainFieldList
 
@@ -72,24 +74,40 @@ class CollateFGDCMetadata:
         embedded_only=False,
         arc_md=True,
         template=None,
+        temp_directive="replace",  # options are "replace" or "append"
         definitions=None,
         history=3,
         sources=1,
-        glossary=None,
+        # glossary=None,
     ):
         self.table = table
         self.db_dict = gdb_dict
         self.embedded_only = embedded_only
         self.arc_md = arc_md
         self.template = template
+        self.temp_directive = temp_directive
+
+        self.table_defs = None
+        self.field_defs = None
         if definitions:
             self.table_defs = self._table_defs_from_csv(definitions)
             self.field_defs = self._field_defs_from_csv(definitions)
+
         self.history = history
         self.sources = sources
-        self.glossary = glossary
+        # self.glossary = glossary
         self.dom = None
         self.is_db = False
+        self.log_list = []
+
+        parts = Path(gdb_dict[table]["catalogPath"]).parts
+        gdb_folder = parts[0]
+        for part in parts:
+            if not part.endswith(".gdb") and not part.endswith(".gpkg"):
+                gdb_folder = Path(gdb_folder) / part
+            else:
+                break
+        self.log_file = str(gdb_folder / f"{table}_collate_metadata.txt")
 
         # make python dictionaries of the data dictionary tables
         sources_dict = self._term_dict("DataSources", ["DataSources_ID", "Source"])
@@ -133,28 +151,27 @@ class CollateFGDCMetadata:
         self._ESRI_fields()
 
         # any other tables to exclude from domain descriptions?
-        if (
-            not self.db_dict[self.table]["concat_type"]
-            == "Annotation Polygon FeatureClass"
-        ):
-            self._add_domains()
+        # if (
+        #     not self.db_dict[self.table]["concat_type"]
+        #     == "Annotation Polygon FeatureClass"
+        # ):
+        #     self._add_domains()
 
         return self.dom
 
     def _export_embedded(self):
+        table_path = self.db_dict[self.table]["catalogPath"]
         # export the embedded metadata to a temporary file
         # parse it and return the xml dom
         # synchronizing ensures that there will be eainfo/detailed nodes for every field
         temp_dir = tempfile.TemporaryDirectory()
         temp_xml = Path(temp_dir.name) / "temp.xml"
-        src_md = arcpy.metadata.Metadata(self.table)
-        src_md.synchronize("SELECTIVE")
+        src_md = arcpy.metadata.Metadata(table_path)
+        # src_md.synchronize("SELECTIVE")
         src_md.exportMetadata(str(temp_xml), "FGDC_CSDGM")
 
-        # make an lxml etree
+        # parse the output file and get the root element
         self.dom = etree.parse(str(temp_xml)).getroot()
-        for n in self.dom:
-            print(n.tag)
 
         # check for removing embedded sources and history (process steps)
         # but don't proceed if there is no lineage node
@@ -176,12 +193,12 @@ class CollateFGDCMetadata:
 
         # if this is a table and has a detailed node
         # find the attr nodes and add the required children
-        detailed = self.dom.find("eainfo/detailed")
-        if not detailed is None:
-            attrs = detailed.findall("attr")
-            for attr in attrs:
-                for n in ("attrdef", "attrdefs", "attrdomv"):
-                    self._extend_branch(attr, n)
+        # detailed = self.dom.find("eainfo/detailed")
+        # if not detailed is None:
+        #     attrs = detailed.findall("attr")
+        #     for attr in attrs:
+        #         for n in ("attrdef", "attrdefs"):
+        #             self._extend_branch(attr, n)
 
     def _md_from_scratch(self):
         # write out the top-level children and the eainfo/detailed node from the actual
@@ -205,8 +222,8 @@ class CollateFGDCMetadata:
             attr = etree.SubElement(detailed, "attr")
             attrl = etree.SubElement(attr, "attrl")
             attrl.text = field.name
-            for n in ("attrdef", "attrdefs", "attrdomv"):
-                etree.SubElement(attr, n)
+            # for n in ("attrdef", "attrdefs"):
+            #     etree.SubElement(attr, n)
 
         self.dom = etree.ElementTree(metadata).getroot()
 
@@ -215,11 +232,11 @@ class CollateFGDCMetadata:
         # remove nodes specified by source and history choices
         # first check for lineage node
         if self.dom.xpath("dataqual/lineage"):
-            lineage = template_tree.xpath("dataqual/lineage")[0]
+            temp_lineage = template_tree.xpath("dataqual/lineage")[0]
             # make a copy of the sources nodes
             # for choices 5, 6, and 7 they will be added back but with
             # other sources (from either embedded or DataSources)
-            # a the entire list will be sorted
+            # and the entire list will be sorted
             if self.sources in (5, 6, 7):
                 self.temp_sources = template_tree.xpath("dataqual/lineage/srcinfo")
 
@@ -228,57 +245,80 @@ class CollateFGDCMetadata:
             if self.history == 4:
                 self.temp_history = template_tree.xpath("dataqual/lineage/procstep")
 
+            # if template sources and history are NOT to be added,
+            # remove those nodes from the template dom
             if self.sources in (1, 2, 4, 8):
-                for srcinfo in lineage.findall("srcinfo"):
-                    lineage.remove(srcinfo)
+                for srcinfo in temp_lineage.findall("srcinfo"):
+                    temp_lineage.remove(srcinfo)
 
-            if self.history in (1, 3):
-                for procstep in lineage.findall("procstep"):
-                    lineage.remove(procstep)
+            if self.history in (1, 2):
+                for procstep in temp_lineage.findall("procstep"):
+                    temp_lineage.remove(procstep)
 
         # the number and order of entities in the template file may not be the
         # same as in the table we are writing metadata for.
         # copy and then delete that information from the template
         # the dictionary will be used below when writing out the detailed node
-        detailed_dict = {}
+        # detailed_dict[attribute label/field name] = etree Element (attr node with all children)
+        temp_detailed_dict = {}
         template_detailed = template_tree.find("eainfo/detailed")
-        if not template_detailed is None:
+        if template_detailed is not None:
             for attr in template_detailed.findall("attr"):
                 label = attr.find("attrlabl").text
-                detailed_dict[label] = attr
+                temp_detailed_dict[label] = attr
             template_detailed.getparent().remove(template_detailed)
+
+        # add the attribute definitions from the dictionary we just made
+        detailed = self.dom.find("eainfo/detailed")
+        if detailed is not None:
+            for attr in detailed.findall("attr"):
+                label = attr.find("attrlabl").text
+
+                # look for the field name in the attribute definition dictionary from the template
+                if label in temp_detailed_dict:
+                    # the dictionary value is an etree element
+                    copy_attr = temp_detailed_dict[label]
+
+                    # "attrdef", "attrdefs" are in all template attr elements
+                    for n in ("attrdef", "attrdefs"):
+                        # use extend_branch to create them if they don't exist in the source detailed node
+                        self._extend_branch(attr, n)
+                        # and set the text to the text in the template
+                        attr.find(n).text = copy_attr.find(n).text
+
+                    # if there are any attrdomv elements in the template, delete the one in
+                    # self.dom and they will be added below
+                    els = copy_attr.findall("attrdomv")
+                    if len(els) > 0:
+                        # try/except block rather than testing first for existence of attrdomv
+                        # in self.dom
+                        try:
+                            attr.remove(attr.find("attrdomv"))
+                        except:
+                            pass
 
         # add any remaining nodes from the template
         for el in template_tree.iter():
             el_path = template_tree.getelementpath(el)
             el_text = template_tree.xpath(el_path)[0].text
 
+            # check for printable text at the end of the template node xpath
             if el_text and el_text != "None" and el_text.isprintable():
+                # make sure the same node exists in the self.dom
                 self._extend_branch(self.dom, el_path)
                 node = self.dom.xpath(el_path)[0]
-                node.text = el_text
 
-        # add the attribute definitions
-        detailed = self.dom.find("eainfo/detailed")
-        for attr in detailed.findall("attr"):
-            label = attr.find("attrlabl").text
+                # check for existing text
+                if node.text and node.text.isprintable():
+                    # if the temp_directive is "replace", overwrite any existing text
+                    if self.temp_directive == "replace":
+                        node.text = el_text
+                    else:
+                        # otherwise, append the template text to the end of the existing text
+                        node.text = f"{node.text}\n{el_text}"
 
-            # look for the field name in the attribute definition dictionary from the template
-            if label in detailed_dict:
-                # the dictionary value is an etree element
-                copy_attr = detailed_dict[label]
-
-                # "attrdef", "attrdefs" are in all template attr elements
-                for n in ("attrdef", "attrdefs"):
-                    # use extend_branch to create them if they don't exist in the source detailed node
-                    self._extend_branch(attr, n)
-                    # and set the text to the text in the template
-                    attr.find(n).text = copy_attr.find(n).text
-
-                # attrdomv is only in some template attr elements
-                if copy_attr.find("attrdomv") is not None:
-                    etree.SubElement(attr, "attrdomv")
-                    attr.find("attrdomv").text = copy_attr.find("attrdomv").text
+        # NOTE - xpath for finding the parent of nodes with mulitple tags
+        # attrdomv = attr.xpath("attrdomv/*[self::udom or self::rdom or self::codesetd]/parent::*")
 
     def _add_datasources(self):
         # translate rows from the DataSources table into dataqual/lineage/srcinfo nodes
@@ -354,12 +394,12 @@ class CollateFGDCMetadata:
         for attr in attrs:
             attrlabl = attr.find("attrlabl")
             # if this field is a regular ESRI controlled field
-            if attrlabl.lower() in esri_attribs:
+            if attrlabl.text.lower() in esri_attribs:
                 self._def_and_source(
                     attr,
                     "attrdef",
                     "attrdefs",
-                    [esri_attribs[attrlabl.lower()], "ESRI"],
+                    [esri_attribs[attrlabl.text.lower()], "ESRI"],
                 )
             else:
                 # first check if this is an ESRI annotation feature class
@@ -383,40 +423,61 @@ class CollateFGDCMetadata:
         )[0]
 
         # collect the fields for this table
-        for f in self.db_dict[self.table].fields:
+        for f in self.db_dict[self.table]["fields"]:
             fname = f.name
 
             # find the attribute node for this field
-            attrs = detailed.xpath(f"attr/attrlabl[text()='{fname}]/parent::*")
+            attrs = detailed.xpath(f"attr/attrlabl[text()='{fname}']/parent::*")
 
             # although this is a for loop, it should only run through once
             for attr in attrs:
-                # should be guaranteed by this point that every attr node has an attrdomv node
-                attrdomv = attr.find("attrdomv")
-
                 # look for a field definition for this field in field_defs
+                # field_defs is built from csv definitions file
                 # priority goes to a field in this specific table
                 # finding a field properties list that is longer than 4 means
                 # there is domain information
-                field_list = None
-                if self.table in self.field_defs:
-                    field_list = [
-                        n
-                        for n in self.field_defs[self.table]
-                        if n[0] == fname and len(n) > 4
-                    ]
+                field_w_dom is None
+                if self.table_defs:
+                    if self.table in self.field_defs:
+                        field_w_dom = [
+                            n
+                            for n in self.field_defs[self.table]
+                            if n[0] == fname and len(n) > 4
+                        ]
                 # backup looking for a definition that can be in __any_table__
-                if not field_list:
-                    field_list = [
-                        n
-                        for n in self.field_defs["__any_table__"]
-                        if n[0] == fname and len(n) > 4
-                    ]
+                if not field_w_dom:
+                    if self.field_defs:
+                        field_w_dom = [
+                            n
+                            for n in self.field_defs["__any_table__"]
+                            if n[0] == fname and len(n) > 4
+                        ]
 
-                # if field_list then we have domain information
-                if field_list:
-                    field = field_list[0]
-                    d_type = field[4]
+                # if field_w_dom then we have domain information
+                if field_w_dom:
+                    # but first determine if there is an attrdomv node that will be overwritten
+                    if attr.find("attrdomv") is not None:
+                        arcpy.AddWarning(
+                            f"Attribute domain information for field {fname} will be overwritten with information from definitions CSV file. Check log file for details:\n{self.log_file}"
+                        )
+
+                        print(
+                            f"Attribute domain information for field {fname} will be overwritten with information from definitions CSV file. Check log file for details:\n{self.log_file}"
+                        )
+
+                        # save some details for the log file
+                        preface = f"Attribute domain information, from embedded or template metadata, has been overwritten for field {fname} in {self.table}. The original nodes and values are:"
+                        self.log_list.append(preface)
+                        for attrdomv in attr.findall("attrdomv"):
+                            for child in attrdomv:
+                                self.log_list.append(f"{child.tag}: {child.text}")
+                            attr.remove(attrdomv)
+                        end = "Compare with final values in output metadata."
+                        self.log_list.append(end)
+
+                    # add the domain information
+                    field = field_w_dom[0]
+                    d_type = field_w_dom[4]
 
                     # there is not necessarily a 'domain_values' entry
                     if len(field) > 4:
@@ -426,6 +487,7 @@ class CollateFGDCMetadata:
 
                     tuples = None
                     if d_type == "rdom":
+                        attrdomv = attr.SubElement(attr, "attrdomv")
                         rdom = etree.SubElement(attrdomv, "rdom")
                         if d_vals:
                             nodes = ("rdommin", "rdomax", "attrunit", "attrmres")
@@ -434,6 +496,7 @@ class CollateFGDCMetadata:
                             self._domain_nodes(rdom, d_type, tuples)
 
                     if d_type == "codsetd":
+                        attrdomv = attr.SubElement(attr, "attrdomv")
                         codesetd = etree.SubElement(attrdomv, "codesetd")
                         if d_vals:
                             nodes = ("codesetn", "codesets")
@@ -442,6 +505,7 @@ class CollateFGDCMetadata:
                             self._domain_nodes(codesetd, d_type, tuples)
 
                     if d_type == "udom":
+                        attrdomv = attr.SubElement(attr, "attrdomv")
                         udom = etree.SubElement(attrdomv, "udom")
                         if d_vals:
                             udom.text = d_vals
@@ -463,7 +527,9 @@ class CollateFGDCMetadata:
                                 self._domain_nodes(edom, d_type, tuples)
 
                 # if this field is in the list of gems-defined enumerated domain fields
-                elif fname.lower in [n.lower() for n in gems_edom] or fname.lower in [
+                elif fname.lower() in [
+                    n.lower() for n in gems_edom
+                ] or fname.lower() in [
                     guf.camel_to_snake(n).lower() for n in gems_edom
                 ]:
                     # delete the single childless attrdomv so that we can add multiple with
@@ -472,7 +538,7 @@ class CollateFGDCMetadata:
 
                     # collect a unique set of all the values in this field
                     with arcpy.da.SearchCursor(
-                        self.db_dict[self.table]["catalogPath"], field
+                        self.db_dict[self.table]["catalogPath"], fname
                     ) as cursor:
                         fld_vals = set([row[0] for row in cursor if not row[0] is None])
 
@@ -480,14 +546,14 @@ class CollateFGDCMetadata:
                         attrdomv = etree.SubElement(attr, "attrdomv")
                         edom = etree.SubElement(attrdomv, "edom")
 
-                        if field.lower().endswith("sourceid"):
+                        if fname.lower().endswith("sourceid"):
                             val_text = self._catch_m2m(self.dds["sources_dict"], val)
                             val_source = "This report"
 
                         # otherwise, find the appropriate dictionary and put the definition
                         # and definition source into def_text and def_source
                         else:
-                            val_dict = self._which_dict(self.dds, self.table, fname)
+                            val_dict = self._which_dict(self.table, fname)
                             if val in val_dict:
                                 val_text = val_dict[val][0]
                                 val_source = val_dict[val][1]
@@ -504,7 +570,7 @@ class CollateFGDCMetadata:
                         attrdomv, "udom"
                     ).text = "Unrepresentable domain"
 
-    def _def_and_source(parent, def_xpath, source_xpath, text_list):
+    def _def_and_source(self, parent, def_xpath, source_xpath, text_list):
         # whether missing or blank add node and/or definition and definition source text
         # to an entity or attribute node
         if parent.find(def_xpath) is None:
