@@ -10,13 +10,6 @@
 #   USGS Pubs template MapManuscript_v1-0_04-11.dotx which ran with no errors but
 #   different DMU documents may still contain formatting or objects which throw errors.
 
-import os
-
-# xx = os.sys.path
-# for x in xx:
-# print(x)
-# addMsgAndPrint(x)
-
 import sys, copy, arcpy
 from GeMS_utilityFunctions import *
 from docxModified import *
@@ -27,8 +20,26 @@ checkVersion(versionString, rawurl, "gems-tools-pro")
 
 debug = False
 
-manuscriptFile = sys.argv[1]
-gdb = sys.argv[2]
+# the document.xml file in the .docx archive saves the style id value, not name which is more like
+# an alias. Either works for building a word file, but when going from docx to dmu table, we'll save the
+# the name to be consistent with what is seen in Word.
+style_dict = {
+    "DMUUnit11stafterheading": "DMU Unit 1 (1st after heading)",
+    "DMU-Heading1": "DMU-Heading1",
+    "DMUUnit1": "DMU Unit 1",
+    "DMU-Heading2": "DMU-Heading2",
+    "DMU-Heading3": "DMU-Heading3",
+    "DMU-Heading4": "DMU-Heading4",
+    "DMU-Heading5": "DMU-Heading5",
+    "DMUUnit2": "DMU Unit 2",
+    "DMUParagraph": "DMU Paragraph",
+    "DMUUnit3": "DMU Unit 3",
+    "DMUUnit4": "DMU Unit 4",
+    "DMUUnit5": "DMU Unit 5",
+    "DMUHeadnote": "DMU Headnote",
+    "DMUUnitLabeltypestyle": "DMU Unit Label (type style)",
+    "DMUUnitNameAgetypestyle": "DMU Unit Name/Age (type style)",
+}
 
 
 def styleType(paraStyle):
@@ -98,7 +109,7 @@ def rankParaStyle2IsHigher(style1, style2):
     elif style1.find("Unit") > -1 and style2.find("Heading") > -1:
         return True
     else:  # both are Heading or both are Unit
-        if style1 == "DMUUnit11stafterheading":
+        if style1 == "DMU Unit 1 (1st after heading)":
             return False
         elif style2 < style1:  # larger N is smaller rank
             return True
@@ -119,14 +130,14 @@ def rankParaStylesAreEqual(style1, style2):
         # print 'both are unit descriptions'
         if style1[-1:] == style2[-1:]:
             return True
-        elif style1 == "DMUUnit11stafterheading" and style2 == "DMUUnit1":
+        elif style1 == "DMU Unit 1 (1st after heading)" and style2 == "DMU Unit 1":
             return True
         else:
             return False
     elif style1 == "DMU Headnote" and style2.find("Heading") > -1:
         return True
 
-    elif style1 == "DMUUnit1" and style2.find("Heading") > -1:
+    elif style1 == "DMU Unit 1" and style2.find("Heading") > -1:
         # a heading is equal rank with DMUUnit1 if they have same parent
         return True
 
@@ -134,198 +145,222 @@ def rankParaStylesAreEqual(style1, style2):
         return False
 
 
-addMsgAndPrint(versionString)
-addMsgAndPrint("Parsing file " + manuscriptFile)
+##### - START - #####
+def main(params):
+    manuscriptFile = params[0]
+    gdb = params[1]
 
-if debug:
-    addMsgAndPrint("0")
-document = opendocx(manuscriptFile)
-if debug:
-    addMsgAndPrint("00")
-paragraphList = getDMUdocumenttext(document)
-if debug:
-    addMsgAndPrint("There are {} paragraphs".format(len(paragraphList)))
+    overwrite = False
+    if len(params) > 3:
+        overwrite = params[2]
 
-msRows = []
-labels = []
-i = 0
-if debug:
-    addMsgAndPrint("000")
+    update = False
+    if len(params) > 4:
+        update = params[3]
 
-for paragraph in paragraphList:  # each paragraph is a list: [style, text]
-    # paraStyle = paragraph[0].encode("utf-8")
-    paraStyle = paragraph[0]
-    # addMsgAndPrint fails when sent a variable as opposed to an explicit string
-    # with quotes. Don't understand this behavior. Using AddMessage
+    rewrite_hkey = None
+    if len(params) > 5:
+        rewrite_hkey = params[4]
+
+    zero_pad = 3
+    if len(params) > 6:
+        zero_pad = params[5]
+
+    addMsgAndPrint(versionString)
+    addMsgAndPrint("Parsing file " + manuscriptFile)
+
     if debug:
-        arcpy.AddMessage(paraStyle)
-    # If this is a DMU paragraph style and not "DESCRIPTION OF MAP UNITS"
-    if paraStyle[0:3] == "DMU" and paraStyle != "DMU-Heading1":
-        # paraText = paragraph[1].encode("utf-8")
-        paraText = paragraph[1]
-        arcpy.AddMessage(type(paraText))
+        addMsgAndPrint("0")
+    document = opendocx(manuscriptFile)
+    if debug:
+        addMsgAndPrint("00")
+    paragraphList = getDMUdocumenttext(document)
+    if debug:
+        addMsgAndPrint("There are {} paragraphs".format(len(paragraphList)))
+
+    msRows = []
+    labels = []
+    i = 0
+    if debug:
+        addMsgAndPrint("000")
+
+    for paragraph in paragraphList:  # each paragraph is a list: [style, text]
+        # paraStyle = paragraph[0].encode("utf-8")
+        paraStyle = paragraph[0]
+        # addMsgAndPrint fails when sent a variable as opposed to an explicit string
+        # with quotes. Don't understand this behavior. Using AddMessage
         if debug:
-            arcpy.AddMessage("1")
-        if styleType(paraStyle) == "DMUParagraph":
+            arcpy.AddMessage(paraStyle)
+        # If this is a DMU paragraph style and not "DESCRIPTION OF MAP UNITS"
+        if paraStyle[0:3] == "DMU" and paraStyle != "DMU-Heading1":
+            # paraText = paragraph[1].encode("utf-8")
+            paraText = paragraph[1]
             if debug:
-                addMsgAndPrint("2a")
-            msRows[i - 1][3] = msRows[i - 1][3] + " <br>" + paraText
-            if debug:
-                addMsgAndPrint("3")
-        else:
-            if debug:
-                addMsgAndPrint("2b")
-            label = ""
-            name = ""
-            age = ""
-            description = ""
-            if styleType(paraStyle) == "Unit":
-                label, name, age, description = parseUnitPara(paraText)
-            elif styleType(paraStyle) == "Heading":
-                name = paraText
-            elif styleType(paraStyle) == "Headnote":
-                description = paraText[1:-1]  # subtract beginning and ending brackets
+                arcpy.AddMessage("1")
+            if styleType(paraStyle) == "DMU Paragraph":
+                if debug:
+                    addMsgAndPrint("2a")
+                msRows[i - 1][3] = msRows[i - 1][3] + " <br>" + paraText
+                if debug:
+                    addMsgAndPrint("3")
             else:
-                addMsgAndPrint("Unrecognized paragraph style")
-                addMsgAndPrint(paraStyle)
-                addMsgAndPrint(paraText)
-                sys.exit()
-            if label != "" and label in labels:
-                addMsgAndPrint("NON-UNIQUE VALUE OF LABEL: " + label)
-                addMsgAndPrint("  Fix it and re-run!")
-                sys.exit()
-            labels.append(label)
-            msRows.append([label, name, age, description, paraStyle])
-            i = i + 1
+                if debug:
+                    addMsgAndPrint("2b")
+                label = ""
+                name = ""
+                age = ""
+                description = ""
+                if styleType(paraStyle) == "Unit":
+                    label, name, age, description = parseUnitPara(paraText)
+                elif styleType(paraStyle) == "Heading":
+                    name = paraText
+                elif styleType(paraStyle) == "Headnote":
+                    description = paraText[
+                        1:-1
+                    ]  # subtract beginning and ending brackets
+                else:
+                    addMsgAndPrint("Unrecognized paragraph style")
+                    addMsgAndPrint(paraStyle)
+                    addMsgAndPrint(paraText)
+                    sys.exit()
+                if label != "" and label in labels:
+                    addMsgAndPrint("NON-UNIQUE VALUE OF LABEL: " + label)
+                    addMsgAndPrint("  Fix it and re-run!")
+                    sys.exit()
+                labels.append(label)
+                msRows.append([label, name, age, description, paraStyle])
+                i = i + 1
 
-if i == 0:
-    addMsgAndPrint("Did not find any paragraphs with DMU styles!")
-    addMsgAndPrint(" Is this the right Word document?")
-    sys.exit()
+    if i == 0:
+        addMsgAndPrint("Did not find any paragraphs with DMU styles!")
+        addMsgAndPrint(" Is this the right Word document?")
+        sys.exit()
+
+    # build hKeys
+    hKeyStyleDict = {}
+    hKeys = []
+    hKeys.append([1])  # set 0th element
+    hKeyStyleDict[str(hKeys[0])] = msRows[0][4]
+    lastHKey = copy.deepcopy(hKeys[0])
+    for n in range(1, len(msRows)):
+        row = msRows[n]
+        # find previous row of higher rank
+        while rankParaStyle2IsHigher(hKeyStyleDict[str(lastHKey)], row[4]):
+            lastHKey = lastHKey[0:-1]  # remove last element
+        if rankParaStylesAreEqual(
+            hKeyStyleDict[str(lastHKey)], row[4]
+        ):  # is sibling to lastHKey
+            # increment last element in lastHKey by 1
+            nLast = len(lastHKey) - 1
+            lastElement = lastHKey[nLast] + 1
+            lastHKey[nLast] = lastElement
+            if zero_pad < len(str(lastElement)):
+                zero_pad = len(str(lastElement))
+        else:  # is child to lastHKey
+            lastHKey.append(1)
+        hKeys.append(copy.deepcopy(lastHKey))
+        hKeyStyleDict[str(hKeys[n])] = row[4]
+        lastHKey = copy.deepcopy(hKeys[n])
+
+    # translate hKeys from lists of integers to zero-padded strings
+    # with '-' as separator and append to row
+    for n in range(len(msRows)):
+        newHKey = []
+        for element in hKeys[n]:
+            newHKey.append(str(element).zfill(zero_pad))
+        msRows[n].append("-".join(newHKey))
+
+    # print results
+    for row in msRows:
+        addMsgAndPrint("  " + row[0] + " | " + row[1] + " | " + row[2])
+        addMsgAndPrint("    ParagraphStyle = " + row[4])
+        addMsgAndPrint("    HierarchyKey = " + row[5])
+
+    addMsgAndPrint("")
+    addMsgAndPrint("Updating table DescriptionOfMapUnits in " + gdb)
+
+    #### Now, to move results into the geodatabase
+    # build msRowLabelDict, msRowNameDict, msRowDescDict
+    msRowLabelDict = {}
+    msRowNameDict = {}
+    msRowDescDict = {}
+    msRowMapUnitDict = {}
+    for i in range(len(msRows)):
+        sType = styleType(msRows[i][4])
+        if sType == "Unit":
+            msRowLabelDict[msRows[i][0]] = i
+            msRowMapUnitDict[msRows[i][0]] = i
+        if sType == "Heading":
+            msRowNameDict[msRows[i][1]] = i
+        if sType == "Headnote":
+            msRowDescDict[msRows[i][3][0:20]] = i
+
+    # open updateCursor on DMU table
+    msRowsMatched = []
+    dmuRows = arcpy.UpdateCursor(gdb + "/DescriptionOfMapUnits")
+    # step through DMU table, trying to match label or Name or Description
+    # if DMU row matches msRow, append msRow number to msRowsMatched
+    addMsgAndPrint("Updating any matching rows in DescriptionOfMapUnits")
+    i = 1
+    for row in dmuRows:
+        matchRow = -1
+        addMsgAndPrint(row.Label)
+        if row.Label != "" and row.Label in msRowLabelDict:
+            matchRow = msRowLabelDict[row.Label]
+        elif row.Name != "" and row.Name in msRowNameDict:
+            matchRow = msRowNameDict[row.Name]
+        elif row.MapUnit != "" and row.MapUnit in msRowMapUnitDict:
+            matchRow = msRowNameDict[row.MapUnit]
+        elif (
+            row.Description != None
+            and row.Description != ""
+            and row.Description[0:20] in msRowDescDict
+        ):
+            matchRow = msRowDescDict[row.Description[0:20]]
+        else:
+            addMsgAndPrint(
+                "  DMU row " + str(i) + ", label = " + str(row.Label) + " has no match"
+            )
+        if matchRow > -1:
+            addMsgAndPrint("  updating DMU row " + str(i))
+            msRowsMatched.append(matchRow)
+            row.Label = msRows[matchRow][0]
+            if row.MapUnit == "" or row.MapUnit == None or row.MapUnit == " ":
+                row.MapUnit = row.Label
+            row.Name = msRows[matchRow][1]
+            row.Age = msRows[matchRow][2]
+            row.Description = msRows[matchRow][3]
+            row.ParagraphStyle = msRows[matchRow][4]
+            row.HierarchyKey = msRows[matchRow][5]
+            dmuRows.updateRow(row)
+        i = i + 1
+    del row
+    del dmuRows
+
+    # open insertion cursor on DMU table
+    # step through msRows. If msRow number not in msRowsMatched,
+    # insert row in DMU
+    addMsgAndPrint("Adding new rows to DescriptionOfMapUnits")
+    dmuRows = arcpy.InsertCursor(gdb + "/DescriptionOfMapUnits")
+    for i in range(len(msRows)):
+        if not i in msRowsMatched:
+            addMsgAndPrint("  " + str(msRows[i])[:40] + "...")
+            row = dmuRows.newRow()
+            row.Label = msRows[i][0]
+            row.MapUnit = msRows[i][0]
+            # addMsgAndPrint(str(i)+'  '+str(msRows[i][0])[:20])
+            row.Name = msRows[i][1]
+            row.Age = msRows[i][2]
+            row.Description = msRows[i][3]
+            row.ParagraphStyle = style_dict[msRows[i][4]]
+            row.HierarchyKey = msRows[i][5]
+            try:
+                dmuRows.insertRow(row)
+            except:
+                row.Description = ""
+                dmuRows.insertRow(row)
+    del dmuRows
 
 
-# build hKeys
-hKeyStyleDict = {}
-hKeys = []
-hKeys.append([1])  # set 0th element
-maxHKeyElementLength = 1
-hKeyStyleDict[str(hKeys[0])] = msRows[0][4]
-lastHKey = copy.deepcopy(hKeys[0])
-for n in range(1, len(msRows)):
-    row = msRows[n]
-    # find previous row of higher rank
-    while rankParaStyle2IsHigher(hKeyStyleDict[str(lastHKey)], row[4]):
-        lastHKey = lastHKey[0:-1]  # remove last element
-    if rankParaStylesAreEqual(
-        hKeyStyleDict[str(lastHKey)], row[4]
-    ):  # is sibling to lastHKey
-        # increment last element in lastHKey by 1
-        nLast = len(lastHKey) - 1
-        lastElement = lastHKey[nLast] + 1
-        lastHKey[nLast] = lastElement
-        if maxHKeyElementLength < len(str(lastElement)):
-            maxHKeyElementLength = len(str(lastElement))
-    else:  # is child to lastHKey
-        lastHKey.append(1)
-    hKeys.append(copy.deepcopy(lastHKey))
-    hKeyStyleDict[str(hKeys[n])] = row[4]
-    lastHKey = copy.deepcopy(hKeys[n])
-
-# translate hKeys from lists of integers to zero-padded strings
-# with '-' as separator and append to row
-for n in range(len(msRows)):
-    newHKey = []
-    for element in hKeys[n]:
-        newHKey.append(str(element).zfill(maxHKeyElementLength))
-    msRows[n].append("-".join(newHKey))
-
-# print results
-for row in msRows:
-    addMsgAndPrint("  " + row[0] + " | " + row[1] + " | " + row[2])
-    addMsgAndPrint("    ParagraphStyle = " + row[4])
-    addMsgAndPrint("    HierarchyKey = " + row[5])
-
-addMsgAndPrint("")
-addMsgAndPrint("Updating table DescriptionOfMapUnits in " + gdb)
-
-#### Now, to move results into the geodatabase
-# build msRowLabelDict, msRowNameDict, msRowDescDict
-msRowLabelDict = {}
-msRowNameDict = {}
-msRowDescDict = {}
-msRowMapUnitDict = {}
-for i in range(len(msRows)):
-    sType = styleType(msRows[i][4])
-    if sType == "Unit":
-        msRowLabelDict[msRows[i][0]] = i
-        msRowMapUnitDict[msRows[i][0]] = i
-    if sType == "Heading":
-        msRowNameDict[msRows[i][1]] = i
-    if sType == "Headnote":
-        msRowDescDict[msRows[i][3][0:20]] = i
-
-# open updateCursor on DMU table
-msRowsMatched = []
-dmuRows = arcpy.UpdateCursor(gdb + "/DescriptionOfMapUnits")
-# step through DMU table, trying to match label or Name or Description
-# if DMU row matches msRow, append msRow number to msRowsMatched
-addMsgAndPrint("Updating any matching rows in DescriptionOfMapUnits")
-i = 1
-for row in dmuRows:
-    matchRow = -1
-    addMsgAndPrint(row.Label)
-    if row.Label != "" and row.Label in msRowLabelDict:
-        matchRow = msRowLabelDict[row.Label]
-    elif row.Name != "" and row.Name in msRowNameDict:
-        matchRow = msRowNameDict[row.Name]
-    elif row.MapUnit != "" and row.MapUnit in msRowMapUnitDict:
-        matchRow = msRowNameDict[row.MapUnit]
-    elif (
-        row.Description != None
-        and row.Description != ""
-        and row.Description[0:20] in msRowDescDict
-    ):
-        matchRow = msRowDescDict[row.Description[0:20]]
-    else:
-        addMsgAndPrint(
-            "  DMU row " + str(i) + ", label = " + str(row.Label) + " has no match"
-        )
-    if matchRow > -1:
-        addMsgAndPrint("  updating DMU row " + str(i))
-        msRowsMatched.append(matchRow)
-        row.Label = msRows[matchRow][0]
-        if row.MapUnit == "" or row.MapUnit == None or row.MapUnit == " ":
-            row.MapUnit = row.Label
-        row.Name = msRows[matchRow][1]
-        row.Age = msRows[matchRow][2]
-        row.Description = msRows[matchRow][3]
-        row.ParagraphStyle = msRows[matchRow][4]
-        row.HierarchyKey = msRows[matchRow][5]
-        dmuRows.updateRow(row)
-    i = i + 1
-del row
-del dmuRows
-
-# open insertion cursor on DMU table
-# step through msRows. If msRow number not in msRowsMatched,
-# insert row in DMU
-addMsgAndPrint("Adding new rows to DescriptionOfMapUnits")
-dmuRows = arcpy.InsertCursor(gdb + "/DescriptionOfMapUnits")
-for i in range(len(msRows)):
-    if not i in msRowsMatched:
-        addMsgAndPrint("  " + str(msRows[i])[:40] + "...")
-        row = dmuRows.newRow()
-        row.Label = msRows[i][0]
-        row.MapUnit = msRows[i][0]
-        # addMsgAndPrint(str(i)+'  '+str(msRows[i][0])[:20])
-        row.Name = msRows[i][1]
-        row.Age = msRows[i][2]
-        row.Description = msRows[i][3]
-        row.ParagraphStyle = msRows[i][4]
-        row.HierarchyKey = msRows[i][5]
-        try:
-            dmuRows.insertRow(row)
-        except:
-            row.Description = ""
-            dmuRows.insertRow(row)
-del dmuRows
+if __name__ == "__main__":
+    main(sys.argv[1:])
