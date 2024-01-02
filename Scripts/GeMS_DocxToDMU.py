@@ -12,7 +12,7 @@
 
 import sys, copy, arcpy
 from GeMS_utilityFunctions import *
-from docxModified import *
+import docxModified as docxm
 
 versionString = "GeMS_DocxToDMU.py, version of 8/21/23"
 rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/master/Scripts/GeMS_DocxToDMU.py"
@@ -50,17 +50,32 @@ def styleType(paraStyle):
     if paraStyle.find("Headnote") > -1:
         return "Headnote"
     if paraStyle.find("Paragraph") > -1:
-        return "DMUParagraph"
+        return "DMU Paragraph"
     else:
         return "??"
 
 
 def parseUnitPara(para):
+    arcpy.AddMessage(f"para = {para}")
     # get the  first word as unit label
-    label = para.split(" ")[0]
-    # find the dash
-    emDashStart = para.find(chr(226))
-    emDashEnd = emDashStart + 3
+    label, s, text = para.partition(" ")
+    # look for emdash, hyphen, or colon that separates name(age) from description
+    # unicodes, respectively, '\u2014', '\u002d', '\u003a'
+
+    emDashStart = 0
+    emDashEnd = 0
+    dashes = ("\u2014", "\u002d", "\u003a")
+    if any((match := c) in text for c in dashes):
+        emDashStart = para.find(match)
+
+        # now we have the index of the em-dash
+        # find the next non-hyphen or space character and that
+        # should be the start of the description
+        for i, c in enumerate(para[emDashStart]):
+            if not c != "-" and not c.isspace:
+                emDashEnd = emDashStart + 1 + i
+                break
+
     if emDashStart < 0:
         emDashStart = para.find("--")
         if emDashStart > 0:
@@ -150,31 +165,27 @@ def main(params):
     manuscriptFile = params[0]
     gdb = params[1]
 
+    rewrite_hkey = False
+    if len(params) > 2:
+        rewrite_hkey = params[2]
+
     overwrite = False
     if len(params) > 3:
-        overwrite = params[2]
-
-    update = False
-    if len(params) > 4:
-        update = params[3]
-
-    rewrite_hkey = None
-    if len(params) > 5:
-        rewrite_hkey = params[4]
+        overwrite = params[3]
 
     zero_pad = 3
-    if len(params) > 6:
-        zero_pad = params[5]
+    if len(params) > 4:
+        zero_pad = int(params[4])
 
     addMsgAndPrint(versionString)
     addMsgAndPrint("Parsing file " + manuscriptFile)
 
     if debug:
         addMsgAndPrint("0")
-    document = opendocx(manuscriptFile)
+    document = docxm.opendocx(manuscriptFile)
     if debug:
         addMsgAndPrint("00")
-    paragraphList = getDMUdocumenttext(document)
+    paragraphList = docxm.getDMUdocumenttext(document)
     if debug:
         addMsgAndPrint("There are {} paragraphs".format(len(paragraphList)))
 
@@ -184,28 +195,17 @@ def main(params):
     if debug:
         addMsgAndPrint("000")
 
-    for paragraph in paragraphList:  # each paragraph is a list: [style, text]
-        # paraStyle = paragraph[0].encode("utf-8")
+    for paragraph in paragraphList:  # each paragraph is a list: [style name, text]
         paraStyle = paragraph[0]
-        # addMsgAndPrint fails when sent a variable as opposed to an explicit string
-        # with quotes. Don't understand this behavior. Using AddMessage
-        if debug:
-            arcpy.AddMessage(paraStyle)
+
         # If this is a DMU paragraph style and not "DESCRIPTION OF MAP UNITS"
-        if paraStyle[0:3] == "DMU" and paraStyle != "DMU-Heading1":
-            # paraText = paragraph[1].encode("utf-8")
+        if paraStyle.startswith("DMU") and paraStyle != "DMU-Heading1":
             paraText = paragraph[1]
-            if debug:
-                arcpy.AddMessage("1")
+
             if styleType(paraStyle) == "DMU Paragraph":
-                if debug:
-                    addMsgAndPrint("2a")
                 msRows[i - 1][3] = msRows[i - 1][3] + " <br>" + paraText
-                if debug:
-                    addMsgAndPrint("3")
+
             else:
-                if debug:
-                    addMsgAndPrint("2b")
                 label = ""
                 name = ""
                 age = ""
