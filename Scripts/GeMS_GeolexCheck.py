@@ -36,7 +36,7 @@ import tempfile
 import GeMS_utilityFunctions as guf
 
 
-versionString = "GeMS_GeolexCheck.py, 12/7/23"
+versionString = "GeMS_GeolexCheck.py, 1/4/24"
 rawurl = "https://raw.githubusercontent.com/DO/I-USGS/gems-tools-pro/master/Scripts/GeMS_GeolexCheck.py"
 guf.checkVersion(versionString, rawurl, "gems-tools-pro")
 
@@ -113,8 +113,12 @@ def ext_check(states_list, fn_ext):
         return False
 
 
-def parse_age(age_str):
-    return age_str.replace("\r\n", "\n")
+def parse_age(age_list):
+    ages = []
+    for age in age_list:
+        ages.append(age.replace("\r\n", "\n"))
+
+    return ", ".join(ages)
 
 
 # API
@@ -237,6 +241,7 @@ def frame_it(d_path, ext_format):
             usecols=lambda x: x.lower() in flds,
             dtype=types,
             keep_default_na=False,
+            skipinitialspace=True,
         )
 
     else:
@@ -245,6 +250,7 @@ def frame_it(d_path, ext_format):
             usecols=lambda x: x.lower() in flds,
             dtype=types,
             keep_default_na=False,
+            skipinitialspace=True,
         )
 
     # smash all column names to lower case because we can't be sure of the case
@@ -477,9 +483,9 @@ for row in dmu_df.itertuples():
             sn_subbed = sanitize_text(sn).strip().lower()
             sn_lower = sn.lower()
         else:
-            sn = ""
-            sn_subbed = ""
-            sn_lower = ""
+            sn = None
+            sn_subbed = None
+            sn_lower = None
 
         # full map unit name
         if not (pd.isna(row.fullname) or row.fullname == ""):
@@ -487,9 +493,9 @@ for row in dmu_df.itertuples():
             fn_subbed = sanitize_text(fn).strip().lower()
             fn_lower = fn.lower()
         else:
-            fn = ""
-            fn_subbed = ""
-            fn_lower = ""
+            fn = None
+            fn_subbed = None
+            fn_lower = None
 
         age = row.age
 
@@ -511,11 +517,11 @@ for row in dmu_df.itertuples():
 
         sn_results = None
         fn_results = None
-        if sn:
+        if not sn == None:
             arcpy.AddMessage(f"Looking for GEOLEX names in {sn}")
             sn_results = units_query(sn)
 
-        if fn:
+        if not fn == None:
             arcpy.AddMessage(f"Looking for GEOLEX names in {fn}")
             fn_results = units_query(fn)
 
@@ -559,10 +565,10 @@ for row in dmu_df.itertuples():
                 for r in [
                     result for result in results if result["unit_name"] == name[1]
                 ]:
-                    arcpy.AddMessage(f"Evaluating usages for {name[1]}")
+                    arcpy.AddMessage(f"  Evaluating usages for {name[1]}")
                     glx_id = r["id"]
                     glx_name = name[1]
-                    glx_age = parse_age(r["age_description"][0])
+                    glx_age = parse_age(r["age_description"])
                     glx_url = r["url"]
 
                     # begin iterating the usages
