@@ -14,6 +14,10 @@ import sys, copy, arcpy
 from GeMS_utilityFunctions import *
 import docxModified as docxm
 
+from importlib import reload
+
+reload(docxm)
+
 versionString = "GeMS_DocxToDMU.py, version of 8/21/23"
 rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/master/Scripts/GeMS_DocxToDMU.py"
 checkVersion(versionString, rawurl, "gems-tools-pro")
@@ -56,62 +60,62 @@ def styleType(paraStyle):
 
 
 def parseUnitPara(para):
-    arcpy.AddMessage(f"para = {para}")
-    # get the  first word as unit label
-    label, s, text = para.partition(" ")
-    # look for emdash, hyphen, or colon that separates name(age) from description
-    # unicodes, respectively, '\u2014', '\u002d', '\u003a'
+    # get the label including any formatting tags
+    label, x, unit_age_desc = para.partition(" ")
 
-    emDashStart = 0
-    emDashEnd = 0
-    dashes = ("\u2014", "\u002d", "\u003a")
-    if any((match := c) in text for c in dashes):
-        emDashStart = para.find(match)
+    # try to partition the unit name(age) from the description
+    # for this, we are counting on the description starting after an emdash or hyphen
+    # if double-hyphen, the second will be stripped below
+    # more delimiters can be added to this tuple
+    dashes = ("\u2014", "\u002d\u002d")
 
-        # now we have the index of the em-dash
-        # find the next non-hyphen or space character and that
-        # should be the start of the description
-        for i, c in enumerate(para[emDashStart]):
-            if not c != "-" and not c.isspace:
-                emDashEnd = emDashStart + 1 + i
-                break
+    # dictionary of {character: index} in string if found
+    dash_dict = {d: para.find(d) for d in dashes if para.find(d) > -1}
 
-    if emDashStart < 0:
-        emDashStart = para.find("--")
-        if emDashStart > 0:
-            emDashEnd = emDashStart + 2
-    if emDashStart > 0:  # there is either an emdash or two hyphens (--)
-        desc = para[emDashEnd:]
-        nameAge = para[len(label) : emDashStart]
-    else:  # there is no emdash or two hyphens
-        desc = ""
-        nameAge = para[len(label) :]
+    # if the dictionary is empty, there are no dash delimiters
+    if dash_dict:
+        # but if there are, get the dash character closest to the beginning of the string (the minimum value),
+        # this should be the name(age)/description delimiter
+        dash = min(dash_dict, key=dash_dict.get)
+        name_age, x, desc = unit_age_desc.partition(dash)
 
-    lParen = nameAge.find("(")
-    if lParen < 0:  # no age in parentheses (age inherited from parent)
-        name = nameAge.strip()
-        age = ""
+        # if it's a double hyphen, there will still be one left right now, strip it
+        desc = desc.strip("-")
+        # strip whitespace
+        desc = desc.strip()
     else:
-        name = nameAge[0:lParen].strip()
-        rParen = nameAge.find(")")
-        age = nameAge[lParen + 1 : rParen]
-    # print label+' | '+name+' | '+age
-    # remove any bolding FGDCGeoAge font, and DMUUnitLabel style specification from
-    # label
+        # if there are no dashes, there is only a name(age) string
+        name_age = unit_age_desc
+        desc = None
+
+    # if there are parantheses, we have an age
+    # partition on the first one to get the unit name
+    if name_age.find("(") > 0:
+        name, x, age = name_age.partition("(")
+
+        # and on the second one to get the age
+        age = age.partition(")")[0]
+    else:
+        age = None
+        name = name_age
+
+    # remove formatting tags
     for fmt in ("<b>", "</b>", "<g>", "</g>", "<ul>", "</ul>"):
-        label = label.replace(fmt, "")
-    # remove any bolding from name and age
-    for fmt in ("<b>", "</b>"):
-        name = name.replace(fmt, "")
-        age = age.replace(fmt, "")
-    if debug:
-        addMsgAndPrint(label + "**" + name + "**" + age)
-    if debug:
-        addMsgAndPrint("    " + desc[0:20])
+        if label:
+            label = label.replace(fmt, "").strip()
+        if name:
+            name = name.replace(fmt, "").strip()
+        if age:
+            age = age.replace(fmt, "").strip()
+
     return label, name, age, desc
 
 
 def rankParaStyle2IsHigher(style1, style2):
+    for c in (" ", "(", ")"):
+        style1 = style1.replace(c, "")
+        style2 = style2.replace(c, "")
+
     if style1.find("Heading") > -1 and style2.find("Unit") > -1:
         return False
     elif style1.find("Heading") > -1 and style2.find("Headnote") > -1:
@@ -124,7 +128,7 @@ def rankParaStyle2IsHigher(style1, style2):
     elif style1.find("Unit") > -1 and style2.find("Heading") > -1:
         return True
     else:  # both are Heading or both are Unit
-        if style1 == "DMU Unit 1 (1st after heading)":
+        if style1 == "DMUUnit11stafterheading":
             return False
         elif style2 < style1:  # larger N is smaller rank
             return True
@@ -133,8 +137,10 @@ def rankParaStyle2IsHigher(style1, style2):
 
 
 def rankParaStylesAreEqual(style1, style2):
-    if debug:
-        addMsgAndPrint(style1 + "  " + style2)
+    for c in (" ", "(", ")"):
+        style1 = style1.replace(c, "")
+        style2 = style2.replace(c, "")
+
     if style1.find("Heading") > -1 and style2.find("Heading") > -1:
         # both are headings
         if style1[-1:] == style2[-1:]:
@@ -145,14 +151,14 @@ def rankParaStylesAreEqual(style1, style2):
         # print 'both are unit descriptions'
         if style1[-1:] == style2[-1:]:
             return True
-        elif style1 == "DMU Unit 1 (1st after heading)" and style2 == "DMU Unit 1":
+        elif style1 == "DMUUnit11stafterheading" and style2 == "DMUUnit1":
             return True
         else:
             return False
-    elif style1 == "DMU Headnote" and style2.find("Heading") > -1:
+    elif style1 == "DMUHeadnote" and style2.find("Heading") > -1:
         return True
 
-    elif style1 == "DMU Unit 1" and style2.find("Heading") > -1:
+    elif style1 == "DMUUnit1" and style2.find("Heading") > -1:
         # a heading is equal rank with DMUUnit1 if they have same parent
         return True
 
@@ -160,43 +166,28 @@ def rankParaStylesAreEqual(style1, style2):
         return False
 
 
-##### - START - #####
 def main(params):
     manuscriptFile = params[0]
     gdb = params[1]
-
-    rewrite_hkey = False
-    if len(params) > 2:
-        rewrite_hkey = params[2]
-
-    overwrite = False
-    if len(params) > 3:
-        overwrite = params[3]
-
     zero_pad = 3
-    if len(params) > 4:
-        zero_pad = int(params[4])
+    if len(params) > 2:
+        zero_pad = int(params[2])
 
     addMsgAndPrint(versionString)
     addMsgAndPrint("Parsing file " + manuscriptFile)
 
-    if debug:
-        addMsgAndPrint("0")
     document = docxm.opendocx(manuscriptFile)
-    if debug:
-        addMsgAndPrint("00")
     paragraphList = docxm.getDMUdocumenttext(document)
-    if debug:
-        addMsgAndPrint("There are {} paragraphs".format(len(paragraphList)))
-
     msRows = []
     labels = []
-    i = 0
-    if debug:
-        addMsgAndPrint("000")
 
+    i = 0
     for paragraph in paragraphList:  # each paragraph is a list: [style name, text]
         paraStyle = paragraph[0]
+        label = ""
+        name = ""
+        age = ""
+        description = ""
 
         # If this is a DMU paragraph style and not "DESCRIPTION OF MAP UNITS"
         if paraStyle.startswith("DMU") and paraStyle != "DMU-Heading1":
@@ -204,14 +195,16 @@ def main(params):
 
             if styleType(paraStyle) == "DMU Paragraph":
                 msRows[i - 1][3] = msRows[i - 1][3] + " <br>" + paraText
-
             else:
-                label = ""
-                name = ""
-                age = ""
-                description = ""
                 if styleType(paraStyle) == "Unit":
                     label, name, age, description = parseUnitPara(paraText)
+                    if label and not label in labels:
+                        labels.append(label)
+                    elif label in labels:
+                        addMsgAndPrint("NON-UNIQUE VALUE OF LABEL: " + label)
+                        addMsgAndPrint("  Fix it and re-run!")
+                        sys.exit()
+
                 elif styleType(paraStyle) == "Heading":
                     name = paraText
                 elif styleType(paraStyle) == "Headnote":
@@ -223,11 +216,7 @@ def main(params):
                     addMsgAndPrint(paraStyle)
                     addMsgAndPrint(paraText)
                     sys.exit()
-                if label != "" and label in labels:
-                    addMsgAndPrint("NON-UNIQUE VALUE OF LABEL: " + label)
-                    addMsgAndPrint("  Fix it and re-run!")
-                    sys.exit()
-                labels.append(label)
+
                 msRows.append([label, name, age, description, paraStyle])
                 i = i + 1
 
@@ -237,16 +226,25 @@ def main(params):
         sys.exit()
 
     # build hKeys
-    hKeyStyleDict = {}
     hKeys = []
-    hKeys.append([1])  # set 0th element
+    hKeys.append([1])
+
+    # set 0th element
+    # hKeyStyleDict = {hkey: style}
+    hKeyStyleDict = {}
     hKeyStyleDict[str(hKeys[0])] = msRows[0][4]
     lastHKey = copy.deepcopy(hKeys[0])
+    last_heading = ""
     for n in range(1, len(msRows)):
         row = msRows[n]
         # find previous row of higher rank
         while rankParaStyle2IsHigher(hKeyStyleDict[str(lastHKey)], row[4]):
             lastHKey = lastHKey[0:-1]  # remove last element
+
+        if row[1].startswith("Puget"):
+            arcpy.AddMessage("Puget")
+            arcpy.AddMessage(f"{hKeyStyleDict[str(lastHKey)]}, {str(lastHKey)}")
+
         if rankParaStylesAreEqual(
             hKeyStyleDict[str(lastHKey)], row[4]
         ):  # is sibling to lastHKey
@@ -272,12 +270,12 @@ def main(params):
 
     # print results
     for row in msRows:
-        addMsgAndPrint("  " + row[0] + " | " + row[1] + " | " + row[2])
-        addMsgAndPrint("    ParagraphStyle = " + row[4])
-        addMsgAndPrint("    HierarchyKey = " + row[5])
+        addMsgAndPrint(f"  {row[0]} | {row[1]} | {row[2]}")
+        addMsgAndPrint(f"    ParagraphStyle = {row[4]}")
+        addMsgAndPrint(f"    HierarchyKey = {row[5]}")
 
-    addMsgAndPrint("")
-    addMsgAndPrint("Updating table DescriptionOfMapUnits in " + gdb)
+        addMsgAndPrint("")
+        addMsgAndPrint(f"Updating table DescriptionOfMapUnits in {gdb}")
 
     #### Now, to move results into the geodatabase
     # build msRowLabelDict, msRowNameDict, msRowDescDict
@@ -304,7 +302,6 @@ def main(params):
     i = 1
     for row in dmuRows:
         matchRow = -1
-        addMsgAndPrint(row.Label)
         if row.Label != "" and row.Label in msRowLabelDict:
             matchRow = msRowLabelDict[row.Label]
         elif row.Name != "" and row.Name in msRowNameDict:
@@ -348,7 +345,6 @@ def main(params):
             row = dmuRows.newRow()
             row.Label = msRows[i][0]
             row.MapUnit = msRows[i][0]
-            # addMsgAndPrint(str(i)+'  '+str(msRows[i][0])[:20])
             row.Name = msRows[i][1]
             row.Age = msRows[i][2]
             row.Description = msRows[i][3]

@@ -408,6 +408,7 @@ elif os.path.splitext(dmu_home)[1] == ".xls":
     raise SystemError
 
 elif os.path.splitext(dmu)[1] == ".csv":
+    arcpy.AddMessage("Found CSV file")
     out_name = os.path.basename(dmu)[:-4]
     dmu_df = frame_it(dmu, "csv")
 
@@ -472,7 +473,7 @@ for row in dmu_df.itertuples():
         mu = row.mapunit
 
         # short map unit name
-        if not (pd.isna(row.name) or row.name == ""):
+        if not (pd.isna(row.name) or row.name.strip() == ""):
             sn = row.name
             sn_subbed = sanitize_text(sn).strip().lower()
             sn_lower = sn.lower()
@@ -482,7 +483,7 @@ for row in dmu_df.itertuples():
             sn_lower = ""
 
         # full map unit name
-        if not (pd.isna(row.fullname) or row.fullname == ""):
+        if not (pd.isna(row.fullname) or row.fullname.strip() == ""):
             fn = row.fullname
             fn_subbed = sanitize_text(fn).strip().lower()
             fn_lower = fn.lower()
@@ -562,7 +563,8 @@ for row in dmu_df.itertuples():
                     arcpy.AddMessage(f"Evaluating usages for {name[1]}")
                     glx_id = r["id"]
                     glx_name = name[1]
-                    glx_age = parse_age(r["age_description"][0])
+                    ages = [parse_age(n) for n in r["age_description"]]
+                    glx_age = ", ".join(ages)
                     glx_url = r["url"]
 
                     # begin iterating the usages
