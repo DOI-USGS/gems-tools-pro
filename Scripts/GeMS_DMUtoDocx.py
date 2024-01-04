@@ -344,7 +344,7 @@ while row:
 addMsgAndPrint("    finished appending paragraphs")
 
 if sys.argv[4] == 3:
-    print(Null)
+    print("Null")
     pass
 
 # Save our document
