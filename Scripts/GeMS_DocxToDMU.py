@@ -48,8 +48,16 @@ def parseUnitPara(para):
     # get the  first word as unit label
     label = para.split(" ")[0]
     # find the dash
-    emDashStart = para.find(chr(226))
-    emDashEnd = emDashStart + 3
+
+    # more delimiters can be added to this tuple
+    # dashes = ("\u2014", "\u002d\u002d")
+
+    # # dictionary of {character: index} in string if found
+    # dash_dict = {d: para.find(d) for d in dashes if para.find(d) > -1}
+
+    # emDashStart = para.find(chr(226))
+    emDashStart = para.find("\u2014")
+    emDashEnd = emDashStart + 1
     if emDashStart < 0:
         emDashStart = para.find("--")
         if emDashStart > 0:
@@ -163,7 +171,6 @@ for paragraph in paragraphList:  # each paragraph is a list: [style, text]
     if paraStyle[0:3] == "DMU" and paraStyle != "DMU-Heading1":
         # paraText = paragraph[1].encode("utf-8")
         paraText = paragraph[1]
-        arcpy.AddMessage(type(paraText))
         if debug:
             arcpy.AddMessage("1")
         if styleType(paraStyle) == "DMUParagraph":
