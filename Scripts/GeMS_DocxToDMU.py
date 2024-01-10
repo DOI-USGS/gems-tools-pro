@@ -241,10 +241,6 @@ def main(params):
         while rankParaStyle2IsHigher(hKeyStyleDict[str(lastHKey)], row[4]):
             lastHKey = lastHKey[0:-1]  # remove last element
 
-        if row[1].startswith("Puget"):
-            arcpy.AddMessage("Puget")
-            arcpy.AddMessage(f"{hKeyStyleDict[str(lastHKey)]}, {str(lastHKey)}")
-
         if rankParaStylesAreEqual(
             hKeyStyleDict[str(lastHKey)], row[4]
         ):  # is sibling to lastHKey
