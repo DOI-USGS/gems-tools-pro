@@ -36,7 +36,7 @@ import tempfile
 import GeMS_utilityFunctions as guf
 
 
-versionString = "GeMS_GeolexCheck.py, 1/4/24"
+versionString = "GeMS_GeolexCheck.py, 1/10/24"
 rawurl = "https://raw.githubusercontent.com/DO/I-USGS/gems-tools-pro/master/Scripts/GeMS_GeolexCheck.py"
 guf.checkVersion(versionString, rawurl, "gems-tools-pro")
 
@@ -118,7 +118,7 @@ def parse_age(age_list):
     for age in age_list:
         ages.append(age.replace("\r\n", "\n"))
 
-    return ", ".join(ages)
+    return " | ".join(ages)
 
 
 # API
