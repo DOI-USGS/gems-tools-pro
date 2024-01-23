@@ -10,17 +10,19 @@
 #   USGS Pubs template MapManuscript_v1-0_04-11.dotx which ran with no errors but
 #   different DMU documents may still contain formatting or objects which throw errors.
 
-import sys, copy, arcpy
-from GeMS_utilityFunctions import *
+import sys
+import copy
+import arcpy
+import GeMS_utilityFunctions as guf
 import docxModified as docxm
 
 from importlib import reload
 
 reload(docxm)
 
-versionString = "GeMS_DocxToDMU.py, version of 8/21/23"
+versionString = "GeMS_DocxToDMU.py, version of 1/18/24"
 rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/master/Scripts/GeMS_DocxToDMU.py"
-checkVersion(versionString, rawurl, "gems-tools-pro")
+guf.checkVersion(versionString, rawurl, "gems-tools-pro")
 
 debug = False
 
@@ -43,6 +45,28 @@ style_dict = {
     "DMUHeadnote": "DMU Headnote",
     "DMUUnitLabeltypestyle": "DMU Unit Label (type style)",
     "DMUUnitNameAgetypestyle": "DMU Unit Name/Age (type style)",
+}
+
+style_dict = {
+    "DMU-Heading1": "DMUHead1Back",
+    "DMU-Heading2": "DMUHead2",
+    "DMU-Heading3": "DMUHead3",
+    "DMU-Heading4": "DMUHead4",
+    "DMU-Heading5": "DMUHead5",
+    "DMU Headnote": "DMUBodyPara",
+    "DMUParagraph": "DMUBodyPara",
+    "DMU Unit 1": "DMU1",
+    "DMU Unit 1 (1st after heading)": "DMU1",
+    "DMUUnit11stafterheading": "DMU1",
+    "DMU Unit 2": "DMU2",
+    "DMU Unit 3": "DMU3",
+    "DMU Unit 4": "DMU4",
+    "DMU Unit 5": "DMU5",
+    "DMUUnit1": "DMU1",
+    "DMUUnit2": "DMU2",
+    "DMUUnit3": "DMU3",
+    "DMUUnit4": "DMU4",
+    "DMUUnit5": "DMU5",
 }
 
 
@@ -93,8 +117,9 @@ def parseUnitPara(para):
     if name_age.find("(") > 0:
         name, x, age = name_age.partition("(")
 
-        # and on the second one to get the age
-        age = age.partition(")")[0]
+        # and nothing should follow the age except the em-dash and description
+        # so strip the trailing ")"
+        age = age.strip(")")
     else:
         age = None
         name = name_age
@@ -111,61 +136,6 @@ def parseUnitPara(para):
     return label, name, age, desc
 
 
-def rankParaStyle2IsHigher(style1, style2):
-    for c in (" ", "(", ")"):
-        style1 = style1.replace(c, "")
-        style2 = style2.replace(c, "")
-
-    if style1.find("Heading") > -1 and style2.find("Unit") > -1:
-        return False
-    elif style1.find("Heading") > -1 and style2.find("Headnote") > -1:
-        return False
-    elif style1.find("Headnote") > -1 and style2.find("Heading") > -1:
-        return False
-    ##  Don't allow heading to be sibling with DMUUnit1
-    # elif style1 == 'DMUUnit1' and style2.find('Heading') > -1:
-    #    return False
-    elif style1.find("Unit") > -1 and style2.find("Heading") > -1:
-        return True
-    else:  # both are Heading or both are Unit
-        if style1 == "DMUUnit11stafterheading":
-            return False
-        elif style2 < style1:  # larger N is smaller rank
-            return True
-        else:
-            return False
-
-
-def rankParaStylesAreEqual(style1, style2):
-    for c in (" ", "(", ")"):
-        style1 = style1.replace(c, "")
-        style2 = style2.replace(c, "")
-
-    if style1.find("Heading") > -1 and style2.find("Heading") > -1:
-        # both are headings
-        if style1[-1:] == style2[-1:]:
-            return True
-        else:
-            return False
-    elif style1.find("Unit") > -1 and style2.find("Unit") > -1:
-        # print 'both are unit descriptions'
-        if style1[-1:] == style2[-1:]:
-            return True
-        elif style1 == "DMUUnit11stafterheading" and style2 == "DMUUnit1":
-            return True
-        else:
-            return False
-    elif style1 == "DMUHeadnote" and style2.find("Heading") > -1:
-        return True
-
-    elif style1 == "DMUUnit1" and style2.find("Heading") > -1:
-        # a heading is equal rank with DMUUnit1 if they have same parent
-        return True
-
-    else:
-        return False
-
-
 def main(params):
     manuscriptFile = params[0]
     gdb = params[1]
@@ -173,8 +143,8 @@ def main(params):
     if len(params) > 2:
         zero_pad = int(params[2])
 
-    addMsgAndPrint(versionString)
-    addMsgAndPrint("Parsing file " + manuscriptFile)
+    guf.addMsgAndPrint(versionString)
+    guf.addMsgAndPrint("Parsing file " + manuscriptFile)
 
     document = docxm.opendocx(manuscriptFile)
     paragraphList = docxm.getDMUdocumenttext(document)
@@ -201,8 +171,8 @@ def main(params):
                     if label and not label in labels:
                         labels.append(label)
                     elif label in labels:
-                        addMsgAndPrint("NON-UNIQUE VALUE OF LABEL: " + label)
-                        addMsgAndPrint("  Fix it and re-run!")
+                        guf.addMsgAndPrint("NON-UNIQUE VALUE OF LABEL: " + label)
+                        guf.addMsgAndPrint("  Fix it and re-run!")
                         sys.exit()
 
                 elif styleType(paraStyle) == "Heading":
@@ -212,17 +182,17 @@ def main(params):
                         1:-1
                     ]  # subtract beginning and ending brackets
                 else:
-                    addMsgAndPrint("Unrecognized paragraph style")
-                    addMsgAndPrint(paraStyle)
-                    addMsgAndPrint(paraText)
+                    guf.addMsgAndPrint("Unrecognized paragraph style")
+                    guf.addMsgAndPrint(paraStyle)
+                    guf.addMsgAndPrint(paraText)
                     sys.exit()
 
                 msRows.append([label, name, age, description, paraStyle])
                 i = i + 1
 
     if i == 0:
-        addMsgAndPrint("Did not find any paragraphs with DMU styles!")
-        addMsgAndPrint(" Is this the right Word document?")
+        guf.addMsgAndPrint("Did not find any paragraphs with DMU styles!")
+        guf.addMsgAndPrint(" Is this the right Word document?")
         sys.exit()
 
     # build hKeys
@@ -266,12 +236,12 @@ def main(params):
 
     # print results
     for row in msRows:
-        addMsgAndPrint(f"  {row[0]} | {row[1]} | {row[2]}")
-        addMsgAndPrint(f"    ParagraphStyle = {row[4]}")
-        addMsgAndPrint(f"    HierarchyKey = {row[5]}")
+        guf.addMsgAndPrint(f"  {row[0]} | {row[1]} | {row[2]}")
+        guf.addMsgAndPrint(f"    ParagraphStyle = {row[4]}")
+        guf.addMsgAndPrint(f"    HierarchyKey = {row[5]}")
 
-        addMsgAndPrint("")
-        addMsgAndPrint(f"Updating table DescriptionOfMapUnits in {gdb}")
+        guf.addMsgAndPrint("")
+        guf.addMsgAndPrint(f"Updating table DescriptionOfMapUnits in {gdb}")
 
     #### Now, to move results into the geodatabase
     # build msRowLabelDict, msRowNameDict, msRowDescDict
@@ -294,7 +264,7 @@ def main(params):
     dmuRows = arcpy.UpdateCursor(gdb + "/DescriptionOfMapUnits")
     # step through DMU table, trying to match label or Name or Description
     # if DMU row matches msRow, append msRow number to msRowsMatched
-    addMsgAndPrint("Updating any matching rows in DescriptionOfMapUnits")
+    guf.addMsgAndPrint("Updating any matching rows in DescriptionOfMapUnits")
     i = 1
     for row in dmuRows:
         matchRow = -1
@@ -311,11 +281,11 @@ def main(params):
         ):
             matchRow = msRowDescDict[row.Description[0:20]]
         else:
-            addMsgAndPrint(
+            guf.addMsgAndPrint(
                 "  DMU row " + str(i) + ", label = " + str(row.Label) + " has no match"
             )
         if matchRow > -1:
-            addMsgAndPrint("  updating DMU row " + str(i))
+            guf.addMsgAndPrint("  updating DMU row " + str(i))
             msRowsMatched.append(matchRow)
             row.Label = msRows[matchRow][0]
             if row.MapUnit == "" or row.MapUnit == None or row.MapUnit == " ":
@@ -333,11 +303,11 @@ def main(params):
     # open insertion cursor on DMU table
     # step through msRows. If msRow number not in msRowsMatched,
     # insert row in DMU
-    addMsgAndPrint("Adding new rows to DescriptionOfMapUnits")
+    guf.addMsgAndPrint("Adding new rows to DescriptionOfMapUnits")
     dmuRows = arcpy.InsertCursor(gdb + "/DescriptionOfMapUnits")
     for i in range(len(msRows)):
         if not i in msRowsMatched:
-            addMsgAndPrint("  " + str(msRows[i])[:40] + "...")
+            guf.addMsgAndPrint("  " + str(msRows[i])[:40] + "...")
             row = dmuRows.newRow()
             row.Label = msRows[i][0]
             row.MapUnit = msRows[i][0]
