@@ -723,7 +723,7 @@ def sources_check(db_dict, level, all_sources):
     if not "DataSources_ID" in [f.name for f in db_dict["DataSources"]["fields"]]:
         return "Could not find DataSources_ID field in DataSources. See Rule 2.1", []
 
-    # found table and filed, proceeed
+    # found table and field, proceeed
     # decide which tables to check
     if level == 2:
         # just required fc and tables
