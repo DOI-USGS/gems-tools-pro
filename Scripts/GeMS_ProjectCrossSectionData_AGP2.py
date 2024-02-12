@@ -568,7 +568,7 @@ for fc_path in line_fcs:
         # initialize an integer counter for appending to the gems-style prefix
         # returned by add_id above
         i = 0
-        guf.addMsgAndPrint("9creating new features and moving attributes")
+        guf.addMsgAndPrint("creating new features and moving attributes")
         for in_row in in_rows:
             i = i + 1
             # do the shape
