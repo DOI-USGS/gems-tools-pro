@@ -62,42 +62,25 @@ endTags.append("</span>")
 # the keys come from the input DMU table and are matched up against the styleID
 # of the style found inside DMUtemplate.docx
 style_dict = {
-    "dmuheading1": "DMU-Heading1",
-    "heading1": "DMU-Heading1",
-    "dmuheading2": "DMU-Heading2",
-    "heading2": "DMU-Heading2",
-    "dmuheading3": "DMU-Heading3",
-    "heading3": "DMU-Heading3",
-    "dmuheading4": "DMU-Heading4",
-    "heading4": "DMU-Heading4",
-    "dmuheading5": "DMU-Heading5",
-    "heading5": "DMU-Heading5",
-    "dmuunit11stafterheading": "DMU Unit 1 (1st after heading)",
-    "1stunitafterheading": "DMU Unit 1 (1st after heading)",
-    "dmuunit1": "DMU Unit 1",
-    "dmu1": "DMU Unit 1",
-    "unit1": "DMU Unit 1",
-    "dmuunit2": "DMU Unit 2",
-    "dmu2": "DMU Unit 2",
-    "unit2": "DMU Unit 2",
-    "dmuunit3": "DMU Unit 3",
-    "dmu3": "DMU Unit 3",
-    "unit3": "DMU Unit 3",
-    "dmuunit4": "DMU Unit 4",
-    "dmu4": "DMU Unit 4",
-    "unit4": "DMU Unit 4",
-    "dmuunit5": "DMU Unit 5",
-    "dmu5": "DMU Unit 5",
-    "unit5": "DMU Unit 5",
-    "dmuunit1char": "DMU Unit 1 Char",
-    "dmuparagraph": "DMU Paragraph",
-    "dmuunitlabeltype style": "DMU Unit Label (type style)",
-    "dmuunitnameagetypestyle": "DMU Unit Name/Age (type style)",
-    "dmuheadnote": "DMU Headnote",  # can't actually find this style in styles.xml, but it
-    # shows up in the styles dialog in Word ??
-    "headnote": "DMU Headnote",
-    "dmuheadnote1line": "DMU Headnote-1 Line",
-    "dmuheadnotemorethan1line": "DMU Headnote-More Than 1 Line",
+    "DMU-Heading1": "DMUHead1Back",
+    "DMU-Heading2": "DMUHead2",
+    "DMU-Heading3": "DMUHead3",
+    "DMU-Heading4": "DMUHead4",
+    "DMU-Heading5": "DMUHead5",
+    "DMU Headnote": "DMUBodyPara",
+    "DMUParagraph": "DMUBodyPara",
+    "DMU Unit 1": "DMU1",
+    "DMU Unit 1 (1st after heading)": "DMU1",
+    "DMUUnit11stafterheading": "DMU1",
+    "DMU Unit 2": "DMU2",
+    "DMU Unit 3": "DMU3",
+    "DMU Unit 4": "DMU4",
+    "DMU Unit 5": "DMU5",
+    "DMUUnit1": "DMU1",
+    "DMUUnit2": "DMU2",
+    "DMUUnit3": "DMU3",
+    "DMUUnit4": "DMU4",
+    "DMUUnit5": "DMU5",
 }
 
 
@@ -126,8 +109,8 @@ def add_formatting(paragraph, ptext):
         # make a sorted list of the first to the last occurrence of all
         # startTags found in this text
         find_pos = []
-        addMsgAndPrint("  Applying Word formatting for the following HTML tags:")
-        addMsgAndPrint("  {}".format(", ".join(res)))
+        addMsgAndPrint("  Applying Word formatting for the following tags:")
+        addMsgAndPrint(f"  {', '.join(res)}")
         for st in res:
             et = endTags[startTags.index(st)]
             f_all = re.finditer(st, ptext)
@@ -248,9 +231,9 @@ dmuRows = arcpy.da.SearchCursor(str(dmu), fields, sql_clause=sqlclause)
 # look for the case where we are making just a list of map units regardless of what
 # the title row of the table may be.
 if isLMU:
-    title = document.add_paragraph("LIST OF MAP UNITS", "DMU-Heading1")
+    title = document.add_paragraph("LIST OF MAP UNITS", "DMUHead1Back")
 else:
-    title = document.add_paragraph("DESCRIPTION OF MAP UNITS", "DMU-Heading1")
+    title = document.add_paragraph("DESCRIPTION OF MAP UNITS", "DMUHead1Back")
 
 # check the first row for a title and pass over it regardless because we named
 # the document depending on the isLMU parameter
@@ -259,8 +242,8 @@ if row[2].lower in ["description of map units", "list of map units"]:
     row = dmuRows.next()
 
 # check the first row for a headnote and add it only if we are building a full DMU
-if clean(row[5]) == "dmuheadnote" and not isLMU:
-    headnote = document.add_paragraph(row[4], "DMU Headnote")
+if clean(row[5]) == "dmubodypara" and not isLMU:
+    headnote = document.add_paragraph(row[4], "DMUBodyPara")
     row = dmuRows.next()
 
 while row:
@@ -268,22 +251,22 @@ while row:
     addMsgAndPrint(f"  {row[6]}: {row[0]}, {row[5]}")
     k = clean(row[5])
     if k in style_dict:
-        if "heading" in k:  # is a heading
+        if "head" in k:  # is a heading
             header_pr = document.add_paragraph(style=style_dict[k])
             add_formatting(header_pr, row[2])
             if notNullText(
                 row[4]
             ):  # heading has headnote. Append heading as a paragraph
-                headnote = document.add_paragraph(style="DMU Headnote")
+                headnote = document.add_paragraph(style="DMUBodyPara")
                 add_formatting(headnote, row[4])
             lastParaWasHeading = True
 
-        elif "Unit" in style_dict[k]:  # is a unit
+        elif len(k) == 4:  # is a unit
             abbrv = ""
             # add an empty paragraph using ParagraphStyle
             unit = document.add_paragraph()
             if lastParaWasHeading:
-                unit.style = "DMU Unit 1 (1st after heading)"
+                unit.style = "DMU1"
             else:
                 unit.style = style_dict[k]
 
@@ -294,16 +277,18 @@ while row:
                 abbrv = row[0]
             abbrv = f"{abbrv}\t"
             if clean(row[5])[-1:] in ("4", "5"):
-                abbrv = "{}\t".format(abbrv)  # add second tab for DMUUnit4 and DMUUnit4
-            unit.add_run(abbrv, "DMU Unit Label (type style)")
+                abbrv = f"{abbrv}\t"  # add second tab for DMUUnit4 and DMUUnit4
+            unit.add_run(abbrv)
+            font = unit.font
+            font.name = "FGDCGeoAge"
 
             # check for name
             if isNotBlank(row[2]):
-                unit.add_run(row[2], "DMU Unit Name/Age (type style)")
+                unit.add_run(f"{row[2]}").bold = True
 
             # check for age
             if isNotBlank(row[3]):
-                unit.add_run("({})".format(row[3], "DMU Unit Name/Age (type style)"))
+                unit.add_run(f"({row[3]})").bold = True
 
             # check for a description
             if isNotBlank(row[4]) and not isLMU:
@@ -333,7 +318,7 @@ while row:
                 # and look for other paragraphs to add with DMUParagraph
                 if len(paras) > 1:
                     for i in range(1, len(paras)):
-                        addP = document.add_paragraph(style="DMU Paragraph")
+                        addP = document.add_paragraph(style="DMUParaCont")
                         addMsgAndPrint("  Evaluating paragraph {}".format(i + 1))
                         add_formatting(addP, paras[i])
 
@@ -348,10 +333,6 @@ while row:
         row = None
 
 addMsgAndPrint("    finished appending paragraphs")
-
-if sys.argv[4] == 3:
-    print(Null)
-    pass
 
 # Save our document
 addMsgAndPrint("Saving to file {}".format(outDMUdocx))
