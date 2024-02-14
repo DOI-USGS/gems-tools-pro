@@ -23,40 +23,16 @@ guf.checkVersion(versionString, rawurl, "gems-tools-pro")
 
 debug = False
 
-# the document.xml file in the .docx archive saves the style id value, not name which is more like
-# an alias. Either works for building a word file, but when going from docx to dmu table, we'll save the
-# the name to be consistent with what is seen in Word.
-# style_dict = {
-#     "DMU-Heading1": "DMUHead1Back",
-#     "DMU-Heading2": "DMUHead2",
-#     "DMU-Heading3": "DMUHead3",
-#     "DMU-Heading4": "DMUHead4",
-#     "DMU-Heading5": "DMUHead5",
-#     "DMU Headnote": "DMUBodyPara",
-#     "DMUParagraph": "DMUBodyPara",
-#     "DMU Unit 1": "DMU1",
-#     "DMU Unit 1 (1st after heading)": "DMU1",
-#     "DMUUnit11stafterheading": "DMU1",
-#     "DMU Unit 2": "DMU2",
-#     "DMU Unit 3": "DMU3",
-#     "DMU Unit 4": "DMU4",
-#     "DMU Unit 5": "DMU5",
-#     "DMUUnit1": "DMU1",
-#     "DMUUnit2": "DMU2",
-#     "DMUUnit3": "DMU3",
-#     "DMUUnit4": "DMU4",
-#     "DMUUnit5": "DMU5",
-# }
-
 # styles from MapManuscript_v3-1_06-22.dotx
 style_dict = {
-    "DMU - List Bullet": "bullet",
+    "DMU - List Bullet": "unit text",
     "DMU Headnote - 1 Line": "headnote",
     "DMU Headnote - More Than 1 Line": "headnote",
     "DMU Headnote Paragraph": "headnote",
     "DMU NoIndent": "unit text",
     "DMU Paragraph": "unit text",
     "DMU Quotation": "unit text",
+    "DMU Unit 1 (1st after heading)": "unit",
     "DMU Unit 1": "unit",
     "DMU Unit 2": "unit",
     "DMU Unit 3": "unit",
@@ -73,7 +49,7 @@ style_dict = {
 }
 
 
-def parse_text(p_object, doc_list):
+def parse_text(p_object, doc_list, reformat):
     label = None
     name = None
     age = None
@@ -84,23 +60,29 @@ def parse_text(p_object, doc_list):
 
     # parse the text
     # heading text goes into Name
-    if style_dict[style] == "heading":
+    if style_dict.get(style) == "heading":
         name = text
 
     # headnote text goes into Description
-    elif style_dict[style] == "headnote":
-        description = text
+    elif style_dict.get(style) == "headnote":
+        if reformat:
+            description = replace_formatting(p_object.runs)
+        else:
+            description = text
 
     # only DMU unit paragraph style names are 10 characters long and end in a number
-    elif len(style) == 10 and style[-1].isnumeric():
-        label = text_runs(p_object, "DMU Unit Label (type style)")
-        name_age = text_runs(p_object, "DMU Unit Name/Age (type style)")
+    elif (
+        len(style) == 10
+        and style[-1].isnumeric()
+        or style == "DMU Unit 1 (1st after heading)"
+    ):
+        label, i = text_runs(p_object, "DMU Unit Label (type style)")
+        name_age, i = text_runs(p_object, "DMU Unit Name/Age (type style)")
 
         # if there are parantheses, we have an age,
         # partition on the first one to get the unit name
         if name_age.find("(") > 0:
             name, x, age = name_age.partition("(")
-
             # and strip the final ")" character
             age = age.rstrip(")")
         else:
@@ -108,28 +90,16 @@ def parse_text(p_object, doc_list):
             age = None
             name = name_age
 
-        description = text.lstrip(label).strip().lstrip(name_age)
-
-        if label:
-            name_age_desc = text.lstrip(label).strip()
-
-        # try to partition the unit name(unit age) from the description
-        # for this, we are counting on the description starting after an emdash
-        # or double hyphens
-        dashes = ("\u2014", "\u002d\u002d")
-        if name_age_desc.find("\u2014") > 0:
-            name_age, x, description = name_age_desc.partition("\u2014")
-        elif name_age_desc.find("\u002d\u002d") > 0:
-            name_age, x, description = name_age_desc.partition("\u002d\u002d")
+        if reformat:
+            description = replace_formatting(p_object.runs[i:])
         else:
-            # if there are no dashes, there is only a name(age) string
-            name_age = name_age_desc
+            d_list = []
+            for r in p_object.runs[i:]:
+                d_list.append(r.text)
+            description = "".join(d_list)
 
-    elif style == "DMUParaCont":
-        # append this paragraph to the previous entry's description
-        doc_list[-1][5] = f"{doc_list[-1][5]}\n{p_object.text}"
     else:
-        pass
+        print(f"Unknown paragraph style '{style}'")
 
     return label, name, age, description, doc_list
 
@@ -138,11 +108,13 @@ def text_runs(p, style_name):
     # build a single text string from the text of sequential runs
     # that all share the same character style
     text_runs = []
-    for run in p.runs:
+    i = 0
+    for n, run in enumerate(p.runs):
         if run.style.name == style_name:
+            i = n
             text_runs.append(run.text)
 
-    return "".join(text_runs)
+    return "".join(text_runs), i
 
 
 def child_hkey(hkey):
@@ -163,37 +135,101 @@ def sibling_hkey(hkey):
 
 
 def para_props(p_style):
-    if p_style in style_dict:
-        p_style = style_dict[p_style]
+    """return a general paragraph style type based on style_dict
+    and, for unit and heading paragraphs, a rank"""
+    p_type = style_dict.get(p_style)
 
-    if len(p_style) == 4:
-        p_type = "unit"
+    if p_type in ("unit", "heading"):
         rank = p_style[-1]
 
-    if p_style.startswith("DMUHead"):
-        p_type = "heading"
-
-        if p_style.endswith("back"):
-            rank = 1
-        else:
-            rank = p_style[7:8]
-
-    if p_style in ("DMUAuthors", "DMUBodyPara"):
-        p_type = "text"
+    if p_type in ("unit text", "headnote"):
         rank = 0
 
     return p_type, rank
 
 
+def replace_formatting(runs):
+    """
+    Detects formatting runs in a paragraph.
+
+    Returns a string where Word formatted bold, italic, super/subscript and
+    cases of FGDCGeoAge have been converted to HTML formatting tags
+    (mostly written by ChatGPT!)
+    """
+    formatting_runs = []
+    current_run_text = ""
+    current_run_formatting = {}
+
+    for run in runs:
+        if run.text.strip():
+            # Check if formatting properties have changed
+            if (
+                run.bold != current_run_formatting.get("bold")
+                or run.italic != current_run_formatting.get("italic")
+                or run.font.name != current_run_formatting.get("font")
+                or run.style.name != current_run_formatting.get("style")
+                or run.font.superscript != current_run_formatting.get("super")
+                or run.font.subscript != current_run_formatting.get("sub")
+            ):
+                if current_run_text:
+                    formatting_runs.append((current_run_text, current_run_formatting))
+                current_run_text = run.text
+                current_run_formatting = {
+                    "bold": run.bold,
+                    "italic": run.italic,
+                    "font": run.font.name,
+                    "style": run.style.name,
+                    "super": run.font.superscript,
+                    "sub": run.font.subscript,
+                }
+            else:
+                current_run_text += run.text
+
+    # Append the last run
+    if current_run_text:
+        formatting_runs.append((current_run_text, current_run_formatting))
+
+    reformatted = []
+    for text, formatting in formatting_runs:
+        if formatting.get("bold"):
+            text = f"<b>{text}</b>"
+        if formatting.get("italic"):
+            text = f"<em>{text}</em>"
+        if formatting.get("font") == "FGDCGeoAge":
+            text = f'<span style="font-family: FGDCGeoAge;">{text}</span>'
+        if formatting.get("style") == "Run-inHead":
+            text = f"<em>{text}</em>"
+        if formatting.get("super") == True:
+            text = f"<sup>{text}</sup>"
+        if formatting.get("sub") == True:
+            text = f"<sub>{text}</sub>"
+
+        reformatted.append(text)
+
+    return "".join(reformatted)
+
+
 def main(params):
+    """Parses a Word document of a DMU into a DMU table
+
+    Args:
+        manuscript_file (file path): MS Word document that contains only a Description of Map Units section
+            based on USGS MapManuscript_v3-1_06-22.dotx.
+        gdb (file path): File geodatabase that may or may not contain a DescriptionOfMapUnits table
+        zero_pad (integer): How many spaces left of the number should be filled with zeros
+        reformat (boolean): Attempt (or not) to translate Word character styles in descriptions to HTML format tags
+    """
     manuscript_file = params[0]
     gdb = params[1]
     zero_pad = 3
     if len(params) > 2:
         zero_pad = int(params[2])
 
+    reformat = False
+    if len(params) == 4:
+        reformat = guf.eval_bool(params[3])
+
     guf.addMsgAndPrint(versionString)
-    guf.addMsgAndPrint("Parsing file " + manuscript_file)
 
     dmu_table = str(Path(gdb) / "DescriptionOfMapUnits")
     if not arcpy.Exists(dmu_table):
@@ -208,39 +244,39 @@ def main(params):
                 f"DescriptionOfMapUnits table could not be found and could not be created in {gdb}"
             )
 
+    guf.addMsgAndPrint(f"Parsing file {manuscript_file}")
+
+    # open document and get a list of paragraphs
     document = docx.Document(manuscript_file)
     paras = document.paragraphs
 
-    if paras[0].text.lower() == "description of map units":
+    # build a list of doc_list items
+    # [hkey, style, label, name, age, description]
+    # avoid first paragraph if it is just "Description Of Map Units"
+    if paras[0].text.strip().lower() == "description of map units":
         paras = paras[1:]
 
+    # set up variables for initial entry in list
     hkeys = [[1]]
     hkey_dict = {}
-    if paras[0].style.name in style_dict:
-        style_1 = style_dict[paras[0].style.name]
-    else:
-        style_1 = p.style.name
-
+    style_1 = paras[0].style.name
     hkey_dict[str(hkeys[0])] = style_1
-
-    # doc_list items
-    # [hkey, style, label, name, age, description]
     doc_list = []
-    label, name, age, description, doc_list = parse_text(paras[0], doc_list)
+    label, name, age, description, doc_list = parse_text(paras[0], doc_list, reformat)
     doc_list.append([[1], style_1, label, name, age, description])
 
-    # last_head_level = 1
+    # prepare to iterate through the rest of the document paragraphs
+    last_head_level = 1
+    paras = [p for p in paras if not p.text.isspace()]
     for p in paras[1:]:
-        # translate between pre-v5.4 and v5.4 manuscript styles
-        if p.style.name in style_dict:
-            style = style_dict[p.style.name]
-        else:
-            style = p.style.name
+        style = p.style.name
 
-        if not style == "DMUParaCont":
+        if not style_dict[style] == "unit text":
             # determine the HierarchyKey
+            # each of the following cases compares the style of the current paragraph
+            # to the style of the previous paragraph
             last_hkey = hkeys[-1]
-            current_type, current_rank = para_props(p.style.name)
+            current_type, current_rank = para_props(style)
             last_type, last_rank = para_props(hkey_dict[str(last_hkey)])
 
             # paragraph types are the same, rank is the same
@@ -253,19 +289,24 @@ def main(params):
             if current_type == last_type and current_rank > last_rank:
                 this_hkey = child_hkey(last_hkey)
 
-            # current paragraph is unit, previous is heading
-            # unit is always child to heading
+            # headnotes are children to previous headings
+            if current_type == "headnote" and last_type == "heading":
+                this_hkey = child_hkey(last_hkey)
+
+            # headings are siblings to previous headnotes
+            if current_type == "heading" and last_type == "headnote":
+                this_hkey = sibling_hkey(last_hkey)
+
+            # unit is always child to previous heading
             if current_type == "unit" and last_type == "heading":
                 this_hkey = child_hkey(last_hkey)
 
-            # current paragraph is unit, previous is some text
-            # unit is always sibling to text
-            if current_type == "unit" and last_type == "text":
+            # unit is always sibling to previous text
+            if current_type == "unit" and last_type in ("unit text", "headnote"):
                 this_hkey = sibling_hkey(last_hkey)
 
-            # current paragraph is text and prevous is a heading
-            # text is always child to heading
-            if current_type == "text" and last_type in ("unit", "heading"):
+            # text is always child to previous heading
+            if current_type == "unit text" and last_type in ("unit", "heading"):
                 this_hkey = child_hkey(last_hkey)
 
             # paragraph types are the same but the current is one rank higher than the
@@ -283,15 +324,15 @@ def main(params):
             # more complex case where the current paragraph is a heading and the
             # previous is a unit. The two will be siblings only if the last heading seen
             # is of a higher rank
-            if current_type == "heading" and last_type in ("unit", "text"):
+            if current_type == "heading" and last_type in ("unit", "unit text"):
                 heading_above_unit = False
                 for n in reversed(hkeys):
                     n_style, n_rank = para_props(hkey_dict[str(n)])
                     # Special case where DMUHead2 follows DMUHead1Back
                     # though numerically of different ranks, they are siblings
                     if (
-                        hkey_dict[str(n)] == "DMUHead1Back"
-                        and p.style.name == "DMUHead2"
+                        hkey_dict[str(n)] == "DMU-Heading1"
+                        and p.style.name == "DMU-Heading2"
                     ):
                         this_hkey = [2]
                         heading_above_unit = True
@@ -309,19 +350,20 @@ def main(params):
                         # parent heading, so now look for the first DMU1 above the current heading
                         heading_above_unit = True
                         for n in reversed(hkeys):
-                            if hkey_dict[str(n)] == "DMU1":
+                            if hkey_dict[str(n)] == "DMU Unit 1":
                                 this_hkey = sibling_hkey(n)
                                 break
                         break
+
                 # case where there is no younger heading in the document,
                 # that is, no Description of Map Units heading
                 if heading_above_unit == False:
                     for n in reversed(hkeys):
-                        if hkey_dict[str(n)] == "DMU1":
+                        if hkey_dict[str(n)] == "DMU Unit 1":
                             this_hkey = sibling_hkey(n)
                             break
 
-                # last_head_level = current_rank
+                last_head_level = current_rank
 
                 # append this hkey to the hkeys list
                 hkeys.append(this_hkey)
@@ -331,16 +373,20 @@ def main(params):
             # append this hkey to the hkeys list
             hkeys.append(this_hkey)
             hkey_dict[str(this_hkey)] = style
-
-            label, name, age, desc, doc_list = parse_text(p, doc_list)
+            if not p.text == "":
+                label, name, age, desc, doc_list = parse_text(p, doc_list, reformat)
             doc_list.append([this_hkey, style, label, name, age, desc])
+        else:
+            paragraph = replace_formatting(p.runs)
+            doc_list[-1][5] = f"{doc_list[-1][5]}\n{paragraph}"
 
     for line in doc_list:
-        hkey_list = [str(i).zfill(int(zero_pad)) for i in line[0]]
+        hkey_list = [str(i).zfill(zero_pad) for i in line[0]]
         line[0] = "-".join(hkey_list)
 
-    # doc_list items
-    # [hkey, style, label, name, age, description]
+    guf.addMsgAndPrint("Document parsed.")
+    guf.addMsgAndPrint(f"Searching for changes to be made to {dmu_table}")
+
     cursor_fields = [
         "HierarchyKey",
         "ParagraphStyle",
@@ -375,8 +421,9 @@ def main(params):
             f"MapUnit = '{mu}' AND MapUnit IS NOT NULL",  # MapUnit is primary key
             f"MapUnit IS NOT NULL AND MapUnit <> '{mu}' AND Name = '{name}'",  # name is primary key when MapUnits are not the same
             f"MapUnit IS NULL AND Name = '{name}'",  # Name is primary key when MapUnit is null (heading)
-            f"MapUnit IS NULL AND Name IS NOT NULL AND Name <> '{name}' AND HierarchyKey = '{hkey}'",  # heading has been changed but not re-ordered
+            f"MapUnit IS NULL AND Name IS NOT NULL AND Name <> '{name}' AND HierarchyKey = '{hkey}'",  # heading has not been changed but not re-ordered
             f"MapUnit IS NULL AND Name IS NULL and Description <> '{description}' AND HierarchyKey = '{hkey}'",  # description (headnote) is primary key
+            f"MapUnit IS NULL AND Name IS NULL and Description = '{description}'",
         ]
 
         for where in wheres:
@@ -396,6 +443,7 @@ def main(params):
             insert_list.append(row)
 
     if update_list:
+        guf.addMsgAndPrint(f"{len(update_list)} row(s) will be updated.")
         for r in update_list:
             where = r[6]
             vals = r[0:6]
@@ -406,9 +454,15 @@ def main(params):
                     cursor.updateRow(vals)
 
     if insert_list:
+        guf.addMsgAndPrint(f"{len(insert_list)} new row(s) will be inserted.")
         with arcpy.da.InsertCursor(dmu_table, cursor_fields) as cursor:
             for r in insert_list:
                 cursor.insertRow(r)
+
+    if not update_list and not insert_list:
+        guf.addMsgAndPrint(
+            "Document content matches table content. No changes will be made."
+        )
 
 
 if __name__ == "__main__":
