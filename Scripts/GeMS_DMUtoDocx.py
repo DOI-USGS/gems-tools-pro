@@ -231,9 +231,9 @@ dmuRows = arcpy.da.SearchCursor(str(dmu), fields, sql_clause=sqlclause)
 # look for the case where we are making just a list of map units regardless of what
 # the title row of the table may be.
 if isLMU:
-    title = document.add_paragraph("LIST OF MAP UNITS", "DMUHead1Back")
+    title = document.add_paragraph("LIST OF MAP UNITS", "DMU-Heading1")
 else:
-    title = document.add_paragraph("DESCRIPTION OF MAP UNITS", "DMUHead1Back")
+    title = document.add_paragraph("DESCRIPTION OF MAP UNITS", "DMU-Heading1")
 
 # check the first row for a title and pass over it regardless because we named
 # the document depending on the isLMU parameter
@@ -242,90 +242,94 @@ if row[2].lower in ["description of map units", "list of map units"]:
     row = dmuRows.next()
 
 # check the first row for a headnote and add it only if we are building a full DMU
-if clean(row[5]) == "dmubodypara" and not isLMU:
-    headnote = document.add_paragraph(row[4], "DMUBodyPara")
+if (
+    row[5]
+    in (
+        "DMU Headnote - 1 Line",
+        "DMU Headnote - More Than 1 Line",
+        "DMU Headnote Paragraph",
+    )
+    and not isLMU
+):
+    headnote = document.add_paragraph(row[4], row[5])
     row = dmuRows.next()
 
 while row:
     # for row in dmuRows:
     addMsgAndPrint(f"  {row[6]}: {row[0]}, {row[5]}")
-    k = clean(row[5])
-    if k in style_dict:
-        if "head" in k:  # is a heading
-            header_pr = document.add_paragraph(style=style_dict[k])
-            add_formatting(header_pr, row[2])
-            if notNullText(
-                row[4]
-            ):  # heading has headnote. Append heading as a paragraph
-                headnote = document.add_paragraph(style="DMUBodyPara")
-                add_formatting(headnote, row[4])
-            lastParaWasHeading = True
+    if "Heading" in row[5]:  # is a heading
+        header_pr = document.add_paragraph(style=style_dict[k])
+        add_formatting(header_pr, row[2])
+        if notNullText(row[4]):  # heading has headnote. Append heading as a paragraph
+            headnote = document.add_paragraph(style="DMU Headnote Paragraph")
+            add_formatting(headnote, row[4])
+        lastParaWasHeading = True
 
-        elif len(k) == 4:  # is a unit
-            abbrv = ""
-            # add an empty paragraph using ParagraphStyle
-            unit = document.add_paragraph()
-            if lastParaWasHeading:
-                unit.style = "DMU1"
+    elif len(row[5]) == 10 and row[5][-1].isnumeric():  # is a unit
+        abbrv = ""
+        # add an empty paragraph using ParagraphStyle
+        unit = document.add_paragraph()
+        if lastParaWasHeading:
+            unit.style = "DMU Unit 1"
+        else:
+            unit.style = style_dict[k]
+
+        # start this paragraph by adding the mapunit abbreviation, name, and age runs
+        if not useMapUnitForUnitLabl and notNullText(row[1]):
+            abbrv = row[1]
+        elif useMapUnitForUnitLabl and notNullText(row[0]):
+            abbrv = row[0]
+        abbrv = f"{abbrv}\t"
+        if clean(row[5])[-1:] in ("4", "5"):
+            abbrv = f"{abbrv}\t"  # add second tab for DMUUnit4 and DMUUnit4
+        unit.add_run(abbrv)
+        font = unit.font
+        font.name = "FGDCGeoAge"
+
+        # check for name
+        if isNotBlank(row[2]):
+            unit.add_run(f"{row[2]}").bold = True
+
+        # check for age
+        if isNotBlank(row[3]):
+            unit.add_run(f"({row[3]})").bold = True
+
+        # check for a description
+        if isNotBlank(row[4]) and not isLMU:
+            sep = ""
+            desc_text = row[4]
+            # try a couple ways to look for multiple paragraphs in the text
+            # first, look for html break tags. If they are there, we'll trust
+            # that those are the only ones
+            if "<br>" in desc_text:
+                paras = desc_text.split("<br>")
+            elif "<p>" in desc_text:
+                paras = desc_text.split("<p>")
+                paras = [t.replace("</p>", "") for t in paras]
+            # otherwise, split on non-printing newline characters recognized by
+            # string.splitlines. Hopefully, this catches the rest
             else:
-                unit.style = style_dict[k]
+                # splitlines() is safe to use even if there are no lines in the text
+                # we'll just get a list with one item
+                paras = desc_text.splitlines()
+            # in any case, add the first paragraph as a run or set of runs inside the current paragraph
+            # first, add the emdash
+            unit.add_run(emDash)
 
-            # start this paragraph by adding the mapunit abbreviation, name, and age runs
-            if not useMapUnitForUnitLabl and notNullText(row[1]):
-                abbrv = row[1]
-            elif useMapUnitForUnitLabl and notNullText(row[0]):
-                abbrv = row[0]
-            abbrv = f"{abbrv}\t"
-            if clean(row[5])[-1:] in ("4", "5"):
-                abbrv = f"{abbrv}\t"  # add second tab for DMUUnit4 and DMUUnit4
-            unit.add_run(abbrv)
-            font = unit.font
-            font.name = "FGDCGeoAge"
+            addMsgAndPrint("  Evaluating paragraph 1")
+            add_formatting(unit, paras[0])
 
-            # check for name
-            if isNotBlank(row[2]):
-                unit.add_run(f"{row[2]}").bold = True
+            # and look for other paragraphs to add with DMUParagraph
+            if len(paras) > 1:
+                for i in range(1, len(paras)):
+                    addP = document.add_paragraph(style="DMU Paragraph")
+                    addMsgAndPrint("  Evaluating paragraph {}".format(i + 1))
+                    add_formatting(addP, paras[i])
 
-            # check for age
-            if isNotBlank(row[3]):
-                unit.add_run(f"({row[3]})").bold = True
+        lastParaWasHeading = False
 
-            # check for a description
-            if isNotBlank(row[4]) and not isLMU:
-                sep = ""
-                desc_text = row[4]
-                # try a couple ways to look for multiple paragraphs in the text
-                # first, look for html break tags. If they are there, we'll trust
-                # that those are the only ones
-                if "<br>" in desc_text:
-                    paras = desc_text.split("<br>")
-                elif "<p>" in desc_text:
-                    paras = desc_text.split("<p>")
-                    paras = [t.replace("</p>", "") for t in paras]
-                # otherwise, split on non-printing newline characters recognized by
-                # string.splitlines. Hopefully, this catches the rest
-                else:
-                    # splitlines() is safe to use even if there are no lines in the text
-                    # we'll just get a list with one item
-                    paras = desc_text.splitlines()
-                # in any case, add the first paragraph as a run or set of runs inside the current paragraph
-                # first, add the emdash
-                unit.add_run(emDash)
-
-                addMsgAndPrint("  Evaluating paragraph 1")
-                add_formatting(unit, paras[0])
-
-                # and look for other paragraphs to add with DMUParagraph
-                if len(paras) > 1:
-                    for i in range(1, len(paras)):
-                        addP = document.add_paragraph(style="DMUParaCont")
-                        addMsgAndPrint("  Evaluating paragraph {}".format(i + 1))
-                        add_formatting(addP, paras[i])
-
-            lastParaWasHeading = False
-
-    else:  # Unrecognized paragraph style
-        addMsgAndPrint("Do not recognize paragraph style {}".format(row[5]))
+else:  # Unrecognized paragraph style
+    addMsgAndPrint("Do not recognize paragraph style {}".format(row[5]))
 
     try:
         row = dmuRows.next()

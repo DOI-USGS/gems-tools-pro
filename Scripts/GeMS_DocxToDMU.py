@@ -293,7 +293,15 @@ def main(params):
             if current_type == "headnote" and last_type == "heading":
                 this_hkey = child_hkey(last_hkey)
 
-            # headings are siblings to previous headnotes
+            # headings are siblings to previous headnotes:
+            # level2 heading
+            #   headnote
+            #   level3 heading
+            # assuming it would never make sense to write:
+            # level2 heading
+            #   headnote
+            # level2 heading
+            # with no unit under the first level2 heading
             if current_type == "heading" and last_type == "headnote":
                 this_hkey = sibling_hkey(last_hkey)
 
