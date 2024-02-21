@@ -349,7 +349,7 @@ def gdb_object_dict(gdb_path):
                 if (
                     any(n in k.lower() for n in (a.lower(), camel_to_snake(a)))
                     and gdef.shape_dict[a] in v["concat_type"].lower()
-                    and not "cmu" in a.lower()
+                    # and not "cmu" in a.lower()
                 ):
                     # set the gems_equivalent key to the GeMS CamelCase name
                     v["gems_equivalent"] = a
