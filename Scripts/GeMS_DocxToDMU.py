@@ -165,29 +165,29 @@ def replace_formatting(runs):
     current_run_formatting = {}
 
     for run in runs:
-        if run.text.strip():
-            # Check if formatting properties have changed
-            if (
-                run.bold != current_run_formatting.get("bold")
-                or run.italic != current_run_formatting.get("italic")
-                or run.font.name != current_run_formatting.get("font")
-                or run.style.name != current_run_formatting.get("style")
-                or run.font.superscript != current_run_formatting.get("super")
-                or run.font.subscript != current_run_formatting.get("sub")
-            ):
-                if current_run_text:
-                    formatting_runs.append((current_run_text, current_run_formatting))
-                current_run_text = run.text
-                current_run_formatting = {
-                    "bold": run.bold,
-                    "italic": run.italic,
-                    "font": run.font.name,
-                    "style": run.style.name,
-                    "super": run.font.superscript,
-                    "sub": run.font.subscript,
-                }
-            else:
-                current_run_text += run.text
+        # if run.text:
+        # Check if formatting properties have changed
+        if (
+            run.bold != current_run_formatting.get("bold")
+            or run.italic != current_run_formatting.get("italic")
+            or run.font.name != current_run_formatting.get("font")
+            or run.style.name != current_run_formatting.get("style")
+            or run.font.superscript != current_run_formatting.get("super")
+            or run.font.subscript != current_run_formatting.get("sub")
+        ):
+            if current_run_text:
+                formatting_runs.append((current_run_text, current_run_formatting))
+            current_run_text = run.text
+            current_run_formatting = {
+                "bold": run.bold,
+                "italic": run.italic,
+                "font": run.font.name,
+                "style": run.style.name,
+                "super": run.font.superscript,
+                "sub": run.font.subscript,
+            }
+        else:
+            current_run_text += run.text
 
     # Append the last run
     if current_run_text:
