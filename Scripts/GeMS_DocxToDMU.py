@@ -91,12 +91,16 @@ def parse_text(p_object, doc_list, reformat):
             name = name_age
 
         if reformat:
-            description = replace_formatting(p_object.runs[i:])
+            description = replace_formatting(p_object.runs[i + 1 :])
         else:
             d_list = []
             for r in p_object.runs[i:]:
                 d_list.append(r.text)
             description = "".join(d_list)
+
+        # remove leading em-dash or double hyphens if they exist
+        description = description.lstrip("—")
+        description = description.lstrip("--")
 
     else:
         print(f"Unknown paragraph style '{style}'")
