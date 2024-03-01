@@ -50,6 +50,7 @@ style_dict = {
 
 
 def parse_text(p_object, doc_list, reformat):
+    mu = None
     label = None
     name = None
     age = None
@@ -76,7 +77,13 @@ def parse_text(p_object, doc_list, reformat):
         and style[-1].isnumeric()
         or style == "DMU Unit 1 (1st after heading)"
     ):
-        label, i = text_runs(p_object, "DMU Unit Label (type style)")
+        mu, i = text_runs(p_object, "DMU Unit Label (type style)")
+
+        if reformat:
+            label = replace_formatting(p_object.runs[0 : i + 1])
+        else:
+            label = mu
+
         name_age, i = text_runs(p_object, "DMU Unit Name/Age (type style)")
 
         # if there are parantheses, we have an age,
@@ -105,7 +112,7 @@ def parse_text(p_object, doc_list, reformat):
     else:
         print(f"Unknown paragraph style '{style}'")
 
-    return label, name, age, description, doc_list
+    return mu, label, name, age, description, doc_list
 
 
 def text_runs(p, style_name):
@@ -199,7 +206,10 @@ def replace_formatting(runs):
             text = f"<b>{text}</b>"
         if formatting.get("italic"):
             text = f"<em>{text}</em>"
-        if formatting.get("font") == "FGDCGeoAge":
+        if (
+            formatting.get("font") == "FGDCGeoAge"
+            or formatting.get("style") == "DMU Unit Label (type style)"
+        ):
             text = f'<span style="font-family: FGDCGeoAge;">{text}</span>'
         if formatting.get("style") == "Run-inHead":
             text = f"<em>{text}</em>"
@@ -225,12 +235,13 @@ def main(params):
     """
     manuscript_file = params[0]
     gdb = params[1]
+
     zero_pad = 3
     if len(params) > 2:
         zero_pad = int(params[2])
 
-    reformat = False
-    if len(params) == 4:
+    reformat = True
+    if len(params) > 3:
         reformat = guf.eval_bool(params[3])
 
     guf.addMsgAndPrint(versionString)
@@ -247,6 +258,7 @@ def main(params):
             arcpy.AddError(
                 f"DescriptionOfMapUnits table could not be found and could not be created in {gdb}"
             )
+            sys.exit()
 
     guf.addMsgAndPrint(f"Parsing file {manuscript_file}")
 
@@ -266,11 +278,13 @@ def main(params):
     style_1 = paras[0].style.name
     hkey_dict[str(hkeys[0])] = style_1
     doc_list = []
-    label, name, age, description, doc_list = parse_text(paras[0], doc_list, reformat)
-    doc_list.append([[1], style_1, label, name, age, description])
+    mu, label, name, age, description, doc_list = parse_text(
+        paras[0], doc_list, reformat
+    )
+    doc_list.append([[1], style_1, mu, label, name, age, description])
 
     # prepare to iterate through the rest of the document paragraphs
-    last_head_level = 1
+    # last_head_level = 1
     paras = [p for p in paras if not p.text.isspace()]
     for p in paras[1:]:
         style = p.style.name
@@ -375,7 +389,7 @@ def main(params):
                             this_hkey = sibling_hkey(n)
                             break
 
-                last_head_level = current_rank
+                # last_head_level = current_rank
 
                 # append this hkey to the hkeys list
                 hkeys.append(this_hkey)
@@ -386,11 +400,11 @@ def main(params):
             hkeys.append(this_hkey)
             hkey_dict[str(this_hkey)] = style
             if not p.text == "":
-                label, name, age, desc, doc_list = parse_text(p, doc_list, reformat)
-            doc_list.append([this_hkey, style, label, name, age, desc])
+                mu, label, name, age, desc, doc_list = parse_text(p, doc_list, reformat)
+            doc_list.append([this_hkey, style, mu, label, name, age, desc])
         else:
             paragraph = replace_formatting(p.runs)
-            doc_list[-1][5] = f"{doc_list[-1][5]}\n{paragraph}"
+            doc_list[-1][6] = f"{doc_list[-1][6]}\n{paragraph}"
 
     for line in doc_list:
         hkey_list = [str(i).zfill(zero_pad) for i in line[0]]
@@ -403,6 +417,7 @@ def main(params):
         "HierarchyKey",
         "ParagraphStyle",
         "MapUnit",
+        "label",
         "Name",
         "Age",
         "Description",
@@ -421,9 +436,11 @@ def main(params):
         update_row = False
         hkey = row[0]
         mu = row[2]
-        name = row[3]
-        description = row[5]
+        label = row[3]
+        name = row[4]
+        description = row[6]
 
+        # add double quotes to prepare for SQL query
         if name:
             name = name.replace("'", "''")
         if description:
@@ -457,8 +474,8 @@ def main(params):
     if update_list:
         guf.addMsgAndPrint(f"{len(update_list)} row(s) will be updated.")
         for r in update_list:
-            where = r[6]
-            vals = r[0:6]
+            where = r[7]
+            vals = r[0:7]
             with arcpy.da.UpdateCursor(
                 dmu_table, cursor_fields, where_clause=where
             ) as cursor:

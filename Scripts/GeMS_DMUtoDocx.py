@@ -11,6 +11,7 @@ Arguments
     UseMapUnitForUnitLabl (Boolean, either 'true' or 'false')
     
 """
+
 # 4 June 2019: Edited to work with Python 3 in ArcGIS Pro - Evan Thoms
 #   This version uses the docx module for Python 3, which is not included
 #   in the miniconda distribution of python with ArcGIS Pro.
@@ -28,316 +29,294 @@ Arguments
 # Note - We build the Word doc here with the style names, but document.xml in the .docx archive saves
 #   the style id.
 
-import sys, arcpy
-import re
+import sys
+import os
+import arcpy
 from pathlib import Path
-from GeMS_utilityFunctions import *
+import GeMS_utilityFunctions as guf
 import docx
+from bs4 import BeautifulSoup
 
-versionString = "GeMS_DMUtoDocx_AGP2.py, version of 8/21/23"
-rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/master/Scripts/GeMS_DMUtoDocx.py"
-checkVersion(versionString, rawurl, "gems-tools-pro")
+versionString = "GeMS_DMUtoDOCX_AGP2.py, version of 2/28/24"
+rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/master/Scripts/GeMS_DMUtoDOCX.py"
+guf.checkVersion(versionString, rawurl, "gems-tools-pro")
 
-debug = False
-debug2 = False
-
-emDash = "\u2014"
-
-startTags = []
-endTags = []
-tags = ["b", "p", "i", "g", "ul", "sup", "sub"]
-# bold, italic, group, unordered list, supercript, subscript
-for tag in tags:
-    startTags.append(f"<{tag}>")
-    endTags.append(f"</{tag}>")
-
-# span elements are special in that they contain attributes
-# with this version, we'll only look for spans that are changing
-# the font for unit labels
-startTags.append('<span style="font-family: FGDCGeoAge">')
-endTags.append("</span>")
-
-# with style_dict and keys equal to clean(value), we will try to allow
-# for variations in how paragraph styles are named.
-# the keys come from the input DMU table and are matched up against the styleID
-# of the style found inside DMUtemplate.docx
+# styles from MapManuscript_v3-1_06-22.dotx
 style_dict = {
-    "DMU-Heading1": "DMUHead1Back",
-    "DMU-Heading2": "DMUHead2",
-    "DMU-Heading3": "DMUHead3",
-    "DMU-Heading4": "DMUHead4",
-    "DMU-Heading5": "DMUHead5",
-    "DMU Headnote": "DMUBodyPara",
-    "DMUParagraph": "DMUBodyPara",
-    "DMU Unit 1": "DMU1",
-    "DMU Unit 1 (1st after heading)": "DMU1",
-    "DMUUnit11stafterheading": "DMU1",
-    "DMU Unit 2": "DMU2",
-    "DMU Unit 3": "DMU3",
-    "DMU Unit 4": "DMU4",
-    "DMU Unit 5": "DMU5",
-    "DMUUnit1": "DMU1",
-    "DMUUnit2": "DMU2",
-    "DMUUnit3": "DMU3",
-    "DMUUnit4": "DMU4",
-    "DMUUnit5": "DMU5",
+    "DMU - List Bullet": "unit text",
+    "DMU Headnote - 1 Line": "headnote",
+    "DMU Headnote - More Than 1 Line": "headnote",
+    "DMU Headnote Paragraph": "headnote",
+    "DMU NoIndent": "unit text",
+    "DMU Paragraph": "unit text",
+    "DMU Quotation": "unit text",
+    "DMU Unit 1 (1st after heading)": "unit",
+    "DMU Unit 1": "unit",
+    "DMU Unit 2": "unit",
+    "DMU Unit 3": "unit",
+    "DMU Unit 4": "unit",
+    "DMU Unit 5": "unit",
+    "DMU Unit Label (type style)": "label",
+    "DMU Unit Name/Age (type style)": "age",
+    "DMU-Heading1": "heading",
+    "DMU-Heading2": "heading",
+    "DMU-Heading3": "heading",
+    "DMU-Heading4": "heading",
+    "DMU-Heading5": "heading",
+    "Run-inHead": "headnote",
 }
 
 
-def isNotBlank(thing):
-    if thing != "" and thing != None:
-        return True
+def main(params):
+    # PARAMETERS
+    gdb = Path(params[0])
+    dmu_table = str(gdb / "DescriptionOfMapUnits")
+
+    if not arcpy.Exists(dmu_table):
+        arcpy.AddError("Could not find or create DescriptionOfMapUnits table")
+
+    out_dir = Path(params[1])
+    out_name = params[2]
+    if not out_name.endswith(".docx"):
+        out_name = f"{out_name}.docx"
+    out_file = out_dir / out_name
+
+    # do we calculate paragraph styles based on dmu attributes or use the value in ParagraphStyle?
+    calc_style = True
+    if len(params) > 3:
+        calc_style = guf.eval_bool(params[3])
+
+    # do we use the value in MapUnit or Label for the unit abbreviations in the docx?
+    use_label = False
+    if len(params) > 4:
+        use_label = guf.eval_bool(params[4])
+
+    if use_label:
+        mu = "Label"
     else:
-        return False
+        mu = "MapUnit"
 
-
-def notNullText(txt):
-    if txt in ["#null", "#Null", "<null>", "#", "", None] or len(txt.split()) == 0:
-        # if txt == '#null' or txt == None or txt == '#Null' or txt == '#' or txt == '' or len(txt.split()) == 0:
-        return False
+    if calc_style:
+        fields = ["HierarchyKey", mu, "Name", "Age", "Description"]
     else:
-        return True
+        fields = ["HierarchyKey", mu, "Name", "Age", "Description", "ParagraphStyle"]
 
+    # are we making a DMU or an LMU?
+    is_lmu = False
+    if len(params) > 5:
+        is_lmu = guf.eval_bool(params[5])
 
-def add_formatting(paragraph, ptext):
-    """<paragraph> is a docx paragraph
-    <ptext> is some text to be checked for HTML formatting tags"""
-    # check to see if any tags appear in the text and, if so
-    # collect a list of which ones
-    res = [n for n in startTags if (n in ptext)]
-    if res:
-        # make a sorted list of the first to the last occurrence of all
-        # startTags found in this text
-        find_pos = []
-        addMsgAndPrint("  Applying Word formatting for the following tags:")
-        addMsgAndPrint(f"  {', '.join(res)}")
-        for st in res:
-            et = endTags[startTags.index(st)]
-            f_all = re.finditer(st, ptext)
-            for match in f_all:
-                begin = match.start()
-                end = ptext.find(et, begin)
-                find_pos.append([begin, end, st])
-        find_pos.sort()
+    # do we try to translate annotation text formatting into Word styles?
+    format = True
+    if len(params) > 6:
+        format = guf.eval_bool(params[6])
 
-        # look for untagged text before the first tag
-        before = ptext[0 : find_pos[0][0]]
-        if before:
-            paragraph.add_run(before)
+    open_doc = True
+    if len(params) > 7:
+        open_doc = guf.eval_bool(params[7])
 
-        # start slicing the rest
-        for i, item in enumerate(find_pos):
-            # the slice indices were stored during the creation of find_pos
-            start = item[0] + len(item[2])
-            end = item[1]
-            tagged_text = ptext[start:end]
+    # START
+    sqlclause = (None, "ORDER by HierarchyKey ASC")
+    rows = [
+        list(row)
+        for row in arcpy.da.SearchCursor(dmu_table, fields, sql_clause=sqlclause)
+    ]
 
-            # don't know a more elegant way to select the case for each of the tags
-            # for which we are looking
-            if item[2] == "<b>":
-                paragraph.add_run(tagged_text).bold = True
-            elif item[2] == "<i>":
-                paragraph.add_run(tagged_text).italic = True
-            elif item[2] == "<sup>":
-                paragraph.add_run(tagged_text).font.superscript = True
-            elif item[2] == "<sub>":
-                paragraph.add_run(tagged_text).font.subscript = True
-            elif item[2] == '<span style="font-family: FGDCGeoAge">':
-                paragraph.add_run(tagged_text, "DMU Unit Label (type style)")
-
-            # find the untagged text between this tag and the next tag
-            # or between this tag and the end of the paragraph text
-            # first, find the closing tag for the current tag
-            et = endTags[startTags.index(item[2])]
-            # and go len(et) steps beyond it to get to the start of the next slice
-            start_n = end + len(et)
-            # and find the index of the end of the next slice. As long as we
-            # have not just evaluated the last tag in find_pos, the end index
-            # is just before the next tag
-            if i < len(find_pos) - 1:
-                end_n = find_pos[i + 1][0]
-            else:
-                # otherwise, the end index is the end of the paragraph text
-                end_n = len(ptext)
-
-            untagged_text = ptext[start_n:end_n]
-            if untagged_text:
-                paragraph.add_run(untagged_text)
+    if is_lmu == True:
+        head1 = "LIST OF MAP UNITS"
     else:
-        paragraph.add_run(ptext)
+        head1 = "DESCRIPTION OF MAP UNITS"
 
+    # add LMU or DMU title to rows
+    if rows[0][2]:
+        if not rows[0][2].lower().strip() == head1:
+            rows.insert(0, ["000", None, head1, None, None])
+    else:
+        rows.insert(0, ["000", None, head1, None, None])
 
-def clean(val):
-    for c in ["-", "—", " ", ",", "(", ")"]:
-        val = val.replace(c, "")
-    return val.lower()
+    if not calc_style:
+        rows[0].append("DMU-Heading1")
 
-
-gdb = sys.argv[1]
-dmu = Path(gdb) / "DescriptionOfMapUnits"
-outdir = Path(sys.argv[2])
-outname = sys.argv[3]
-if outname.lower()[-5:] != ".docx":
-    outname = "{}.docx".format(outname)
-outDMUdocx = str(outdir.joinpath(outname))
-
-if sys.argv[4] == "true":
-    useMapUnitForUnitLabl = True
-else:
-    useMapUnitForUnitLabl = False
-
-if sys.argv[5] == "true":  # LMU only
-    isLMU = True
-else:
-    isLMU = False
-
-arcpy.env.workspace = gdb
-script_parent = Path(sys.argv[0]).parent.parent
-template_path = script_parent.joinpath(
-    "Resources", "MSWordDMUtemplate", "DMUtemplate.docx"
-)
-document = docx.Document(template_path)
-document._body.clear_content()
-lastParaWasHeading = False
-
-"""
-DMU has many rows
-  Each row has content for 1 or more paragraphs. 1st paragraph has style 'row.ParagraphStyle'
-  2nd and subsequent paragraphs have style 'DMUParagraph'
-     Each paragraph is composed of one or more runs, each of which _may_ include
-     markup tags
-
-We sort DMU on HierarchyKey and then step through the rows, constructing rowtext w/ markup
-  according to row.paragraphStyle.
-We then divide the newly-built rowtext into paragraphs.
-For each paragraph, we 
-
-"""
-
-addMsgAndPrint("Getting DMU rows and creating output paragraphs")
-fields = [
-    "mapunit",
-    "label",
-    "name",
-    "age",
-    "description",
-    "paragraphstyle",
-    "hierarchykey",
-]
-#          0          1        2       3      4              5                 6
-sqlclause = (None, "ORDER by HierarchyKey ASC")
-dmuRows = arcpy.da.SearchCursor(str(dmu), fields, sql_clause=sqlclause)
-
-# look for the case where we are making just a list of map units regardless of what
-# the title row of the table may be.
-if isLMU:
-    title = document.add_paragraph("LIST OF MAP UNITS", "DMU-Heading1")
-else:
-    title = document.add_paragraph("DESCRIPTION OF MAP UNITS", "DMU-Heading1")
-
-# check the first row for a title and pass over it regardless because we named
-# the document depending on the isLMU parameter
-row = dmuRows.next()
-if row[2].lower in ["description of map units", "list of map units"]:
-    row = dmuRows.next()
-
-# check the first row for a headnote and add it only if we are building a full DMU
-if (
-    row[5]
-    in (
-        "DMU Headnote - 1 Line",
-        "DMU Headnote - More Than 1 Line",
-        "DMU Headnote Paragraph",
-    )
-    and not isLMU
-):
-    headnote = document.add_paragraph(row[4], row[5])
-    row = dmuRows.next()
-
-while row:
-    # for row in dmuRows:
-    addMsgAndPrint(f"  {row[6]}: {row[0]}, {row[5]}")
-    if "Heading" in row[5]:  # is a heading
-        header_pr = document.add_paragraph(style=style_dict[k])
-        add_formatting(header_pr, row[2])
-        if notNullText(row[4]):  # heading has headnote. Append heading as a paragraph
-            headnote = document.add_paragraph(style="DMU Headnote Paragraph")
-            add_formatting(headnote, row[4])
-        lastParaWasHeading = True
-
-    elif len(row[5]) == 10 and row[5][-1].isnumeric():  # is a unit
-        abbrv = ""
-        # add an empty paragraph using ParagraphStyle
-        unit = document.add_paragraph()
-        if lastParaWasHeading:
-            unit.style = "DMU Unit 1"
+    # rows = [hkey, unit, name, age, description]
+    # doc_rows = [hkey, unit, name, age, description, paragraph style]
+    for i, row in enumerate(rows):
+        para_type = determine_type(row[1:5])
+        if not calc_style:
+            para_style = row[5]
         else:
-            unit.style = style_dict[k]
+            para_style = determine_style(para_type, i, rows)
+        row.append(para_style)
 
-        # start this paragraph by adding the mapunit abbreviation, name, and age runs
-        if not useMapUnitForUnitLabl and notNullText(row[1]):
-            abbrv = row[1]
-        elif useMapUnitForUnitLabl and notNullText(row[0]):
-            abbrv = row[0]
-        abbrv = f"{abbrv}\t"
-        if clean(row[5])[-1:] in ("4", "5"):
-            abbrv = f"{abbrv}\t"  # add second tab for DMUUnit4 and DMUUnit4
-        unit.add_run(abbrv)
-        font = unit.font
-        font.name = "FGDCGeoAge"
+    # remove headnotes if this is a list of map units
+    for row in rows:
+        if is_lmu and style_dict[row[5]] == "headnote":
+            rows.remove(row)
 
-        # check for name
-        if isNotBlank(row[2]):
-            unit.add_run(f"{row[2]}").bold = True
+    # rows = [hkey, unit, name, age, description, paragraph style]
+    scripts = Path.cwd()
+    toolbox = scripts.parent
+    resources = toolbox / "Resources"
+    template = resources / "DMU_template.docx"
 
-        # check for age
-        if isNotBlank(row[3]):
-            unit.add_run(f"({row[3]})").bold = True
+    document = docx.Document(template)
+    document._body.clear_content()
+    for p in rows:
+        if style_dict[p[5]] == "heading":
+            document.add_paragraph(p[2], p[5])
 
-        # check for a description
-        if isNotBlank(row[4]) and not isLMU:
-            sep = ""
-            desc_text = row[4]
-            # try a couple ways to look for multiple paragraphs in the text
-            # first, look for html break tags. If they are there, we'll trust
-            # that those are the only ones
-            if "<br>" in desc_text:
-                paras = desc_text.split("<br>")
-            elif "<p>" in desc_text:
-                paras = desc_text.split("<p>")
-                paras = [t.replace("</p>", "") for t in paras]
-            # otherwise, split on non-printing newline characters recognized by
-            # string.splitlines. Hopefully, this catches the rest
+        if style_dict[p[5]] == "headnote":
+            for para in p[4].splitlines():
+                headnote = document.add_paragraph(style=p[5])
+                if format:
+                    format_description(headnote, para, "headnote")
+                else:
+                    arcpy.AddMessage(para)
+                    headnote.text = para
+
+        if style_dict[p[5]] == "unit":
+            unit = document.add_paragraph(style=p[5])
+            if use_label:
+                format_description(unit, p[1], "unit_label")
             else:
-                # splitlines() is safe to use even if there are no lines in the text
-                # we'll just get a list with one item
-                paras = desc_text.splitlines()
-            # in any case, add the first paragraph as a run or set of runs inside the current paragraph
-            # first, add the emdash
-            unit.add_run(emDash)
+                unit.add_run(f"{p[1]}", "DMU Unit Label (type style)")
 
-            addMsgAndPrint("  Evaluating paragraph 1")
-            add_formatting(unit, paras[0])
+            unit.add_run(f"\t{p[2]}({p[3]})", "DMU Unit Name/Age (type style)")
 
-            # and look for other paragraphs to add with DMUParagraph
-            if len(paras) > 1:
-                for i in range(1, len(paras)):
-                    addP = document.add_paragraph(style="DMU Paragraph")
-                    addMsgAndPrint("  Evaluating paragraph {}".format(i + 1))
-                    add_formatting(addP, paras[i])
+            if not is_lmu:
+                paras = p[4].splitlines()
+                if paras:
+                    if format:
+                        format_description(unit, f"—{paras[0]}")
+                    else:
+                        unit.add_run(para)
 
-        lastParaWasHeading = False
-
-else:  # Unrecognized paragraph style
-    addMsgAndPrint("Do not recognize paragraph style {}".format(row[5]))
+                for para in paras[1:]:
+                    new_p = document.add_paragraph(style="DMU Paragraph")
+                    if format:
+                        format_description(new_p, para)
+                    else:
+                        new_p.add_run(para)
 
     try:
-        row = dmuRows.next()
-    except StopIteration:
-        row = None
+        document.save(out_file)
+        del document
+    except IOError:
+        arcpy.AddError(
+            f"Cannot save changes to {out_file}. If it is open. Close it and try again."
+        )
+        sys.exit()
 
-addMsgAndPrint("    finished appending paragraphs")
+    if open_doc:
+        os.startfile(out_file, "edit")
 
-# Save our document
-addMsgAndPrint("Saving to file {}".format(outDMUdocx))
-document.save(outDMUdocx)
+
+def format_description(paragraph, text, special=None):
+    """add html tagged text as runs in docx paragraph"""
+    soup = BeautifulSoup(text, "html.parser")
+    for i, child in enumerate(soup.children):
+        tag = child.name
+        run = paragraph.add_run(child.get_text())
+
+        if special == "unit":
+            run.style = "DMU Unit Label (type style)"
+
+        if tag == "b":
+            run.bold = True
+
+        elif tag in ("em", "i"):
+            if special == "headnote" and i == 0:
+                run.style = "Run-inHead"
+            else:
+                run.italic = True
+
+        elif tag == "span":
+            if "font-family: FGDCGeoAge" in child.get("style"):
+                # if special == "unit_label":
+                run.font.name = "FGDCGeoAge"
+
+        elif tag == "sub":
+            run.font.subscript = True
+
+        elif tag == "sup":
+            run.font.superscript = True
+
+        else:
+            pass
+
+
+def determine_style(para_type, i, rows):
+    """determines the specific Word doc style to apply to the paragraph based
+    on paragraph type and properties of the previously inserted row or rows"""
+    # rows = [hkey, unit, name, age, description, paragraph style]
+
+    # the first item in the list has already been set as Description or
+    # List of Map Units and this will always be DMU-Heading1
+    if i == 0:
+        return "DMU-Heading1"
+
+    # headnotes do not need to be ranked
+    if para_type == "headnote":
+        if rows[i][4].startswith("["):
+            if len(rows[i][4]) <= 91:
+                return "DMU Headnote - 1 Line"
+            else:
+                return "DMU Headnote - More Than 1 Line"
+        else:
+            return "DMU Headnote Paragraph"
+
+    # continue for headings and units
+    # hkey of this row
+    i_hkey = rows[i][0]
+
+    # properties of previous row
+    p_hkey = rows[i - 1][0]
+    p_para_style = rows[i - 1][5]
+    p_para_type = style_dict[p_para_style]
+
+    # unit after headnotes or headings are always DMU Unit 1
+    if para_type == "unit":
+        if p_para_type in ("heading", "headnote"):
+            return "DMU Unit 1"
+
+    # now go backwards through list looking for the last paragraph of the same type
+    for row in reversed(rows[0:i]):
+        if style_dict[row[5]] == para_type:
+            # special case of discovering Heading 2 after Heading 1
+            if row[5] == "DMU-Heading1":
+                return "DMU-Heading2"
+
+            # same type and same hkey length means these are siblings
+            # use the same style as the older sibling
+            if len(row[0]) == len(i_hkey):
+                return row[5]
+
+            # same type but current hkey is longer, the current is a child
+            # of the last one found, increment the style rank by one
+            if len(i_hkey) > len(row[0]):
+                r_para_style = row[5]
+                r_rank_i = int(r_para_style[-1])
+                i_unit_rank = r_rank_i + 1
+                return f"{r_para_style[0:-1]}{i_unit_rank}"
+
+    return None
+
+
+def determine_type(vals):
+    """determines the general paragraph type from table field values"""
+    unit = vals[0]
+    name = vals[1]
+    age = vals[2]
+    desc = vals[3]
+
+    if unit:
+        return "unit"
+    if not unit and name:
+        return "heading"
+    if not unit and not name and desc:
+        return "headnote"
+
+    return None
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])
