@@ -49,7 +49,7 @@ style_dict = {
 }
 
 
-def parse_text(p_object, doc_list, reformat):
+def parse_text(p_object, doc_list, reformat, add_label):
     mu = None
     label = None
     name = None
@@ -79,7 +79,7 @@ def parse_text(p_object, doc_list, reformat):
     ):
         mu, i = text_runs(p_object, "DMU Unit Label (type style)")
 
-        if reformat:
+        if add_label:
             label = replace_formatting(p_object.runs[0 : i + 1])
         else:
             label = mu
@@ -223,6 +223,57 @@ def replace_formatting(runs):
     return "".join(reformatted)
 
 
+def alter_table(doc_list, dmu_table):
+    """attempts to increase the length property of a field in the DMU table if the
+    corresponding text from the Word document is too long"""
+    # get a list of the lengths of all items in doc_list
+    # doc_list = [hkey, paragraph_style, mu, label, name, age, desc]
+    lengths = []
+    for i, n in enumerate(doc_list):
+        current = []
+        for k in n:
+            if k:
+                current.append(len(k))
+            else:
+                current.append(0)
+        lengths.append(current)
+
+    # Maximum of each Column
+    maxs = []
+    for i in range(0, len(lengths)):
+        # arcpy.AddMessage(f"{i} : {doc_list[i]}")
+        x = []
+        for j in range(0, len(lengths[i])):
+            # arcpy.AddMessage(f"{j}")
+            a = lengths[i][j]
+            x.append(a)
+        maxs.append(max(x))
+
+    list_fields = [
+        "hierarchykey",
+        "paragraphfield",
+        "mapunit",
+        "label",
+        "name",
+        "description",
+    ]
+    fields = [
+        field
+        for field in arcpy.ListFields(dmu_table)
+        if field.name.lower() in list_fields
+    ]
+    for i, f in enumerate(fields):
+        if f.length < maxs[i]:
+            try:
+                arcpy.AddWarning(f"Trying to increase the length of {f.name}.")
+                arcpy.AlterField_management(dmu_table, f.name, field_length=maxs[i])
+            except:
+                arcpy.AddError(
+                    f"""Failed to increase the length of {f.name} to at least {maxs[i]} to accommodate long text in the Word document.
+                               Try altering it manually before trying again."""
+                )
+
+
 def main(params):
     """Parses a Word document of a DMU into a DMU table
 
@@ -243,6 +294,10 @@ def main(params):
     reformat = True
     if len(params) > 3:
         reformat = guf.eval_bool(params[3])
+
+    add_label = True
+    if len(params) > 4:
+        add_label = guf.eval_bool(params[4])
 
     guf.addMsgAndPrint(versionString)
 
@@ -279,7 +334,7 @@ def main(params):
     hkey_dict[str(hkeys[0])] = style_1
     doc_list = []
     mu, label, name, age, description, doc_list = parse_text(
-        paras[0], doc_list, reformat
+        paras[0], doc_list, reformat, add_label
     )
     doc_list.append([[1], style_1, mu, label, name, age, description])
 
@@ -400,11 +455,15 @@ def main(params):
             hkeys.append(this_hkey)
             hkey_dict[str(this_hkey)] = style
             if not p.text == "":
-                mu, label, name, age, desc, doc_list = parse_text(p, doc_list, reformat)
+                mu, label, name, age, desc, doc_list = parse_text(
+                    p, doc_list, reformat, add_label
+                )
             doc_list.append([this_hkey, style, mu, label, name, age, desc])
         else:
             paragraph = replace_formatting(p.runs)
             doc_list[-1][6] = f"{doc_list[-1][6]}\n{paragraph}"
+
+    alter_table(doc_list, dmu_table)
 
     for line in doc_list:
         hkey_list = [str(i).zfill(zero_pad) for i in line[0]]

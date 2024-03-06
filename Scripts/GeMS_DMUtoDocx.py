@@ -129,7 +129,7 @@ def main(params):
 
     # add LMU or DMU title to rows
     if rows[0][2]:
-        if not rows[0][2].lower().strip() == head1:
+        if not rows[0][2].lower().strip() == head1.lower():
             rows.insert(0, ["000", None, head1, None, None])
     else:
         rows.insert(0, ["000", None, head1, None, None])
@@ -180,7 +180,7 @@ def main(params):
             else:
                 unit.add_run(f"{p[1]}", "DMU Unit Label (type style)")
 
-            unit.add_run(f"\t{p[2]}({p[3]})", "DMU Unit Name/Age (type style)")
+            unit.add_run(f"\t{p[2]} ({p[3]})", "DMU Unit Name/Age (type style)")
 
             if not is_lmu:
                 paras = p[4].splitlines()
@@ -304,6 +304,7 @@ def determine_style(para_type, i, rows):
 def determine_type(vals):
     """determines the general paragraph type from table field values"""
     unit = vals[0]
+    # arcpy.AddMessage(str(unit))
     name = vals[1]
     age = vals[2]
     desc = vals[3]
