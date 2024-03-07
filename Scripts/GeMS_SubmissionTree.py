@@ -53,7 +53,7 @@ db_readme = [
     "Add the following files to this folder:\n",
     "  Required:\n",
     "    .gdb file geodatabase\n",
-    "    .mapx or .mxd (preferred)\n",
+    "    .mapx (preferred) or .mxd \n",
     "  As-needed:\n",
     "    mapXYZ.pdf publication pamphlet\n",
     "  Optional:\n",
@@ -66,26 +66,26 @@ resources_readme = [
     "    symbology as style file, layer file, etc.\n",
     "  As-needed:\n",
     "    CMU graphic if not present in any other element\n",
-    "    Figures as editable graphics files, e.g., PDF, AI, EPS, etc."
+    "    Figures as editable graphics files, e.g., PDF, AI, EPS, etc.\n"
     "    Tables as editable Excel, CSV, etc.\n",
     "  Optional:\n",
     "    Formatted DMU or LMU document",
 ]
 
-shp_readme = [
-    "Run the Translate to Shapefiles tool from the GeMS Toolbox and put the results here.\n",
-    "  Shapefile for each feature class\n",
-    "  .dbf for each nonspatial table\n",
-    "  text file (CSV) for each table with contents over 254 characters in length\n",
-    "  README-like text file describin file and field names",
-]
+# shp_readme = [
+#     "Run the Translate to Shapefiles tool from the GeMS Toolbox and put the results here.\n",
+#     "  Shapefile for each feature class\n",
+#     "  .dbf for each nonspatial table\n",
+#     "  text file (CSV) for each table with contents over 254 characters in length\n",
+#     "  README-like text file describin file and field names",
+# ]
 
 readme_dict = {
     "fullname-submittal": sub_readme,
     "fullname-submittal/fullname": map_readme,
     "fullname-submittal/fullname/fullname-database": db_readme,
     "fullname-submittal/fullname/fullname-database/resources": resources_readme,
-    "fullname-submittal/fullname/fullname-shapefile": shp_readme,
+    # "fullname-submittal/fullname/fullname-shapefile": shp_readme,
 }
 
 

@@ -36,5 +36,3 @@ if "%basedata%"=="y" (
 	mkdir "%parent%/%fullname%-submittal/%fullname%/%fullname%-database/basedata
 	mkdir "%parent%/%fullname%-submittal/%fullname%/%fullname%-database/basedata/resources
 	)
-REM shapefile folder
-mkdir "%parent%"/%fullname%-submittal/%fullname%/%fullname%-shapefile
