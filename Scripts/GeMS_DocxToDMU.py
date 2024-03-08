@@ -49,6 +49,15 @@ style_dict = {
 }
 
 
+def strip_string(a):
+    """strip leading and trailing spaces from a string but check first
+    that the string variable is not None."""
+    if a:
+        return str(a).strip()
+    else:
+        return a
+
+
 def parse_text(p_object, doc_list, reformat, add_label):
     mu = None
     label = None
@@ -101,7 +110,7 @@ def parse_text(p_object, doc_list, reformat, add_label):
             description = replace_formatting(p_object.runs[i + 1 :])
         else:
             d_list = []
-            for r in p_object.runs[i:]:
+            for r in p_object.runs[i + 1 :]:
                 d_list.append(r.text)
             description = "".join(d_list)
 
@@ -112,7 +121,12 @@ def parse_text(p_object, doc_list, reformat, add_label):
     else:
         print(f"Unknown paragraph style '{style}'")
 
-    return mu, label, name, age, description, doc_list
+    # check all column values to leading and trailing spaces
+    cols = [mu, label, name, age, description]
+    vals = list(map(strip_string, cols))
+    vals.append(doc_list)
+
+    return tuple(vals)
 
 
 def text_runs(p, style_name):
@@ -223,53 +237,40 @@ def replace_formatting(runs):
     return "".join(reformatted)
 
 
+def get_length(f_name, dmu_table):
+    f = arcpy.ListFields(dmu_table, f_name)
+    return f[0].length
+
+
 def alter_table(doc_list, dmu_table):
     """attempts to increase the length property of a field in the DMU table if the
     corresponding text from the Word document is too long"""
     # get a list of the lengths of all items in doc_list
     # doc_list = [hkey, paragraph_style, mu, label, name, age, desc]
-    lengths = []
-    for i, n in enumerate(doc_list):
-        current = []
-        for k in n:
-            if k:
-                current.append(len(k))
-            else:
-                current.append(0)
-        lengths.append(current)
+    field_props = {
+        "hierarchykey": (0, get_length("hierarchykey", dmu_table)),
+        "paragraphstyle": (1, get_length("paragraphstyle", dmu_table)),
+        "mapunit": (2, get_length("mapunit", dmu_table)),
+        "label": (3, get_length("label", dmu_table)),
+        "name": (4, get_length("name", dmu_table)),
+        "age": (5, get_length("age", dmu_table)),
+        "description": (6, get_length("description", dmu_table)),
+    }
 
-    # Maximum of each Column
     maxs = []
-    for i in range(0, len(lengths)):
-        # arcpy.AddMessage(f"{i} : {doc_list[i]}")
-        x = []
-        for j in range(0, len(lengths[i])):
-            # arcpy.AddMessage(f"{j}")
-            a = lengths[i][j]
-            x.append(a)
-        maxs.append(max(x))
+    for j in range(0, 7):
+        max_j = max([len(p[j]) if p[j] else 0 for p in doc_list])
+        maxs.append(max_j)
 
-    list_fields = [
-        "hierarchykey",
-        "paragraphfield",
-        "mapunit",
-        "label",
-        "name",
-        "description",
-    ]
-    fields = [
-        field
-        for field in arcpy.ListFields(dmu_table)
-        if field.name.lower() in list_fields
-    ]
-    for i, f in enumerate(fields):
-        if f.length < maxs[i]:
+    for k, v in field_props.items():
+        # arcpy.AddMessage(f"field {k} is {val[1]} long and val is {maxs[i]} long")
+        if v[1] < maxs[v[0]]:
             try:
-                arcpy.AddWarning(f"Trying to increase the length of {f.name}.")
-                arcpy.AlterField_management(dmu_table, f.name, field_length=maxs[i])
+                arcpy.AddWarning(f"Trying to increase the length of {k}.")
+                arcpy.AlterField_management(dmu_table, k, field_length=maxs[v[0]])
             except:
                 arcpy.AddError(
-                    f"""Failed to increase the length of {f.name} to at least {maxs[i]} to accommodate long text in the Word document.
+                    f"""Failed to increase the length of {k} to at least {maxs[v[0]]} to accommodate long text in the Word document.
                                Try altering it manually before trying again."""
                 )
 
@@ -463,11 +464,12 @@ def main(params):
             paragraph = replace_formatting(p.runs)
             doc_list[-1][6] = f"{doc_list[-1][6]}\n{paragraph}"
 
-    alter_table(doc_list, dmu_table)
-
     for line in doc_list:
         hkey_list = [str(i).zfill(zero_pad) for i in line[0]]
         line[0] = "-".join(hkey_list)
+
+    # check if we have to increase the lengths of any fields to accommodate the document text
+    alter_table(doc_list, dmu_table)
 
     guf.addMsgAndPrint("Document parsed.")
     guf.addMsgAndPrint(f"Searching for changes to be made to {dmu_table}")
@@ -488,6 +490,8 @@ def main(params):
     # we know these are different, but do they need to update an only partially different row
     # or are they brand new and need to be inserted? Each action requires a different cursor
     mod_list = [row for row in doc_list if not row in table_list]
+    for row in mod_list:
+        arcpy.AddMessage(row)
 
     insert_list = []
     update_list = []
@@ -529,6 +533,16 @@ def main(params):
 
         if not update_row:
             insert_list.append(row)
+
+    arcpy.AddMessage("update_list")
+    for row in update_list:
+        arcpy.AddMessage(row)
+
+    arcpy.AddMessage("insert_list")
+    for row in insert_list:
+        arcpy.AddMessage(row)
+
+    sys.exit()
 
     if update_list:
         guf.addMsgAndPrint(f"{len(update_list)} row(s) will be updated.")

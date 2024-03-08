@@ -67,6 +67,15 @@ style_dict = {
 }
 
 
+def strip_string(a):
+    """strip leading and trailing spaces from a string but check first
+    that the string variable is not None."""
+    if a:
+        return str(a).strip()
+    else:
+        return a
+
+
 def main(params):
     # PARAMETERS
     gdb = Path(params[0])
@@ -86,10 +95,15 @@ def main(params):
     if len(params) > 3:
         calc_style = guf.eval_bool(params[3])
 
+    # do we try to translate annotation text formatting into Word styles?
+    format = True
+    if len(params) > 4:
+        format = guf.eval_bool(params[4])
+
     # do we use the value in MapUnit or Label for the unit abbreviations in the docx?
     use_label = False
-    if len(params) > 4:
-        use_label = guf.eval_bool(params[4])
+    if len(params) > 5:
+        use_label = guf.eval_bool(params[5])
 
     if use_label:
         mu = "Label"
@@ -103,13 +117,8 @@ def main(params):
 
     # are we making a DMU or an LMU?
     is_lmu = False
-    if len(params) > 5:
-        is_lmu = guf.eval_bool(params[5])
-
-    # do we try to translate annotation text formatting into Word styles?
-    format = True
     if len(params) > 6:
-        format = guf.eval_bool(params[6])
+        is_lmu = guf.eval_bool(params[6])
 
     open_doc = True
     if len(params) > 7:
@@ -121,6 +130,9 @@ def main(params):
         list(row)
         for row in arcpy.da.SearchCursor(dmu_table, fields, sql_clause=sqlclause)
     ]
+
+    # strings might have leading or trailing spaces
+    rows = [list(map(strip_string, row)) for row in rows]
 
     if is_lmu == True:
         head1 = "LIST OF MAP UNITS"
@@ -170,13 +182,12 @@ def main(params):
                 if format:
                     format_description(headnote, para, "headnote")
                 else:
-                    arcpy.AddMessage(para)
                     headnote.text = para
 
         if style_dict[p[5]] == "unit":
             unit = document.add_paragraph(style=p[5])
             if use_label:
-                format_description(unit, p[1], "unit_label")
+                format_description(unit, p[1], "unit")
             else:
                 unit.add_run(f"{p[1]}", "DMU Unit Label (type style)")
 
@@ -185,24 +196,27 @@ def main(params):
             if not is_lmu:
                 paras = p[4].splitlines()
                 if paras:
+                    # add the first paragraph with style based on unit rank
+                    # prepend an em-dash
                     if format:
                         format_description(unit, f"—{paras[0]}")
                     else:
-                        unit.add_run(para)
+                        unit.add_run(f"—{paras[0]}")
 
-                for para in paras[1:]:
-                    new_p = document.add_paragraph(style="DMU Paragraph")
-                    if format:
-                        format_description(new_p, para)
-                    else:
-                        new_p.add_run(para)
+                    # add the rest of the paragraphs with style DMU Paragraph
+                    for para in paras[1:]:
+                        new_p = document.add_paragraph(style="DMU Paragraph")
+                        if format:
+                            format_description(new_p, para)
+                        else:
+                            new_p.add_run(para)
 
     try:
         document.save(out_file)
         del document
     except IOError:
         arcpy.AddError(
-            f"Cannot save changes to {out_file}. If it is open. Close it and try again."
+            f"Cannot save changes to {out_file}. If it is open, close it and try again."
         )
         sys.exit()
 
