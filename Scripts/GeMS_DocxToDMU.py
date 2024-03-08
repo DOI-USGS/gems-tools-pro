@@ -490,8 +490,8 @@ def main(params):
     # we know these are different, but do they need to update an only partially different row
     # or are they brand new and need to be inserted? Each action requires a different cursor
     mod_list = [row for row in doc_list if not row in table_list]
-    for row in mod_list:
-        arcpy.AddMessage(row)
+    # for row in mod_list:
+    #     arcpy.AddMessage(row)
 
     insert_list = []
     update_list = []
@@ -534,15 +534,15 @@ def main(params):
         if not update_row:
             insert_list.append(row)
 
-    arcpy.AddMessage("update_list")
-    for row in update_list:
-        arcpy.AddMessage(row)
+    # arcpy.AddMessage("update_list")
+    # for row in update_list:
+    #     arcpy.AddMessage(row)
 
-    arcpy.AddMessage("insert_list")
-    for row in insert_list:
-        arcpy.AddMessage(row)
+    # arcpy.AddMessage("insert_list")
+    # for row in insert_list:
+    #     arcpy.AddMessage(row)
 
-    sys.exit()
+    # sys.exit()
 
     if update_list:
         guf.addMsgAndPrint(f"{len(update_list)} row(s) will be updated.")
