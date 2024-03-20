@@ -93,7 +93,7 @@ from osgeo import ogr
 # values dictionary gets sent to report_template.jinja errors_template.jinja
 val = {}
 
-version_string = "GeMS_ValidateDatabase.py, version of 11/28/2023"
+version_string = "GeMS_ValidateDatabase.py, version of 3/28/2023"
 val["version_string"] = version_string
 val["datetime"] = time.asctime(time.localtime(time.time()))
 
@@ -465,7 +465,7 @@ def check_map_units(db_dict, level, all_map_units, fds_map_units):
     ]
 
     unused = [
-        "missing map unit(s) in DMU",
+        "unused map unit(s) in DMU",
         "3.9 MapUnits in DMU that are not found anywhere else",
         f"UnusedUnits{level}",
     ]
