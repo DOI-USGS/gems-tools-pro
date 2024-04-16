@@ -37,7 +37,7 @@ import GeMS_utilityFunctions as guf
 
 
 versionString = "GeMS_GeolexCheck.py, 1/10/24"
-rawurl = "https://raw.githubusercontent.com/DO/I-USGS/gems-tools-pro/master/Scripts/GeMS_GeolexCheck.py"
+rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/master/Scripts/GeMS_GeolexCheck.py"
 guf.checkVersion(versionString, rawurl, "gems-tools-pro")
 
 
