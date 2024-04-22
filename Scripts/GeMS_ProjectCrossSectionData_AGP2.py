@@ -425,30 +425,28 @@ if id_field is None or id_exists == False:
     arcpy.management.CalculateField(copy_xs_path, id_field, "'01'", "PYTHON3")
 
 # check for Z and M values
-desc = arcpy.da.Describe(xs_path)
-hasZ = desc["hasZ"]
-hasM = desc["hasM"]
+# desc = arcpy.da.Describe(xs_path)
+# hasZ = desc["hasZ"]
+# hasM = desc["hasM"]
 
-if hasZ and hasM:
-    zm_line = copy_xs_path
-    guf.addMsgAndPrint(f"cross section in {zm_line} already has M and Z values")
-else:
-    # add Z values
-    guf.addMsgAndPrint(
-        f"getting elevation values for cross section in CS{token}_{xs_name}"
-    )
-    z_line = os.path.join(scratch_fd, f"CS{token}_z")
-    arcpy.InterpolateShape_3d(dem, copy_xs_path, z_line)
+# if hasZ and hasM:
+#     zm_line = copy_xs_path
+#     guf.addMsgAndPrint(f"cross section in {zm_line} already has M and Z values")
+# else:
+# add Z values
+guf.addMsgAndPrint(f"getting elevation values for cross section in CS{token}_{xs_name}")
+z_line = os.path.join(scratch_fd, f"CS{token}_z")
+arcpy.InterpolateShape_3d(dem, copy_xs_path, z_line)
 
-    # add M values
-    guf.addMsgAndPrint(f"measuring {os.path.basename(z_line)}")
-    zm_line = os.path.join(scratch_fd, f"CS{token}_zm")
-    arcpy.CreateRoutes_lr(z_line, id_field, zm_line, "LENGTH", "#", "#", startQuadrant)
+# add M values
+guf.addMsgAndPrint(f"measuring {os.path.basename(z_line)}")
+zm_line = os.path.join(scratch_fd, f"CS{token}_zm")
+arcpy.CreateRoutes_lr(z_line, id_field, zm_line, "LENGTH", "#", "#", startQuadrant)
 
-    guf.addMsgAndPrint(
-        f"""Z and M attributed version of cross section line CS{token} 
-                       has been saved to {os.path.basename(zm_line)}"""
-    )
+guf.addMsgAndPrint(
+    f"""Z and M attributed version of cross section line CS{token} 
+                    has been saved to {os.path.basename(zm_line)}"""
+)
 
 # get lists of feature classes to be projected
 line_fcs = []
