@@ -560,7 +560,17 @@ def check_map_units(db_dict, level, all_map_units, fds_map_units):
             fds_map_units,
             mu_warnings,
         )
-
+  
+def sort_mapunit_errors(rule):
+    """Sort problematic MapUnit values that are returned by Rules 2.4, 2.5, 3.8, and 3.9 alphabetically in ValidationErrors.html"""
+     # Remove the headers from rulex_y value to put the HTML for each error into a list
+    htmlList = rule[3:]
+    # Sort htmlList by mapunit value alphabetically and case-insensitively
+    sorted_values = sorted(htmlList, key=lambda line: line.split('value">')[-1].split('</span>')[0].lower())
+    # Splice the sorted lines back into the original list
+    rule[3:] = sorted_values
+    # Return the modified list
+    return rule
 
 def glossary_check(db_dict, level, all_gloss_terms):
     """Rule 2.6 Certain field values within required elements have entries in Glossary table
@@ -1701,6 +1711,10 @@ def main(argv):
         val["rule2_4"], all_map_units, fds_map_units = check_map_units(
             db_dict, 2, all_map_units, fds_map_units
         )
+
+        # sort results alphabetically    
+        val["rule2_4"] = sort_mapunit_errors(val["rule2_4"])
+        
     else:
         val["rule2_4"] = ["DMU cannot be found. Rule not checked"]
 
@@ -1709,13 +1723,17 @@ def main(argv):
     ap("2.5 No duplicate MapUnit values in DescriptionOfMapUnits table")
     dmu_map_units_duplicates = [
         "duplicated MapUnit(s) in DMU",
-        "Duplicated MapUnit values in DescriptionOfMapUnits",
+        "2.5 Duplicated MapUnit values in DescriptionOfMapUnits",
         "DuplicatedMU",
     ]
     if "DescriptionOfMapUnits" in db_dict:
         dmu_path = db_dict["DescriptionOfMapUnits"]["catalogPath"]
         dmu_map_units_duplicates.extend(guf.get_duplicates(dmu_path, "MapUnit"))
         val["rule2_5"] = dmu_map_units_duplicates
+
+        # sort results alphabetically    
+        val["rule2_5"] = sort_mapunit_errors(val["rule2_5"])
+        
     else:
         val["rule2_5"] = ["DMU cannot be found. Rule not checked"]
 
@@ -1864,6 +1882,11 @@ def main(argv):
             fds_map_units,
             val["mu_warnings"],
         ) = check_map_units(db_dict, 3, all_map_units, fds_map_units)
+
+        # sort results alphabetically    
+        val["rule3_8"] = sort_mapunit_errors(val["rule3_8"])
+        val["rule3_9"] = sort_mapunit_errors(val["rule3_9"])
+
     else:
         error_list = ["DMU cannot be found. Rule not checked"]
         val["rule3_8"] = error_list
