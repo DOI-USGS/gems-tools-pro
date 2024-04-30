@@ -2,7 +2,6 @@
 [![Wiki](https://img.shields.io/badge/-wiki-orange)](https://github.com/DOI-USGS/gems-tools-pro/wiki) 
 [![Discuss](https://img.shields.io/badge/-discuss-orange)](https://github.com/DOI-USGS/gems-tools-pro/discussions) 
 [![HTMLdoc](https://img.shields.io/badge/-jupyter_notebooks-orange)](https://github.com/DOI-USGS/gems-tools-pro/tree/notebooks) 
-[![ArcMap](https://img.shields.io/badge/-tools_for_arcmap-orange)](https://github.com/DOI-USGS/gems-tools-arcmap) 
 [![HTMLdoc](https://img.shields.io/badge/-online_gems_documentation-brihtgreen)](https://scgeology.github.io/GeMS/index.html)
 [![gems on USGS](https://img.shields.io/badge/-NGMDB_GeMS-brightgreen)](https://ngmdb.usgs.gov/Info/standards/GeMS/)
 
