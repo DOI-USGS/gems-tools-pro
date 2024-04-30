@@ -5,7 +5,7 @@
 [![HTMLdoc](https://img.shields.io/badge/-online_gems_documentation-brihtgreen)](https://scgeology.github.io/GeMS/index.html)
 [![gems on USGS](https://img.shields.io/badge/-NGMDB_GeMS-brightgreen)](https://ngmdb.usgs.gov/Info/standards/GeMS/)
 
-<img width="200" align="right" src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/1c/USGS_logo_green.svg/500px-USGS_logo_green.svg.png"/>
+<img width="250" align="right" src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/1c/USGS_logo_green.svg/500px-USGS_logo_green.svg.png"/>
 
 # GeMS Tools for ArcGIS Pro
 
