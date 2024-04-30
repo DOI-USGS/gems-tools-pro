@@ -24,7 +24,7 @@ import GeMS_utilityFunctions as guf
 import subprocess
 from pathlib import Path
 
-version_string = "GeMS_SubmissionTree.py, version of 20 March 2023"
+version_string = "GeMS_SubmissionTree.py, version of 3/30/2024 "
 rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/master/Scripts/GeMS_SubmissionTree.py"
 guf.checkVersion(version_string, rawurl, "gems-tools-pro")
 
@@ -34,7 +34,9 @@ sub_readme = [
     "  fullname_transmittalletter.docx\n",
     "  fullname_Validation.html\n",
     "  fullname_ValidationErrors.html\n",
-    "  fullname_namescheck.xls",
+    "  fullname_namescheck.xls\n\n",
+    "See: Requirements for submitting GeMS-compliant map databases to the USGS/AASG National Geologic Map Database (NGMDB)\n",
+    "https://ngmdb.usgs.gov/Info/standards/GeMS/docs/GeMS-Submittal-Requirements.pdf for more information.",
 ]
 
 map_readme = [
@@ -46,18 +48,22 @@ map_readme = [
     "    mapXYZ.pdf publication pamphlet\n",
     "  Optional:\n",
     "    Folder of the map data in an open source format, e.g.,\n",
-    "    fullname-geopaackage, fullname-spatialite, etc.",
+    "    fullname-geopaackage, fullname-spatialite, etc.\n\n",
+    "See: Requirements for submitting GeMS-compliant map databases to the USGS/AASG National Geologic Map Database (NGMDB)\n",
+    "https://ngmdb.usgs.gov/Info/standards/GeMS/docs/GeMS-Submittal-Requirements.pdf for more information.",
 ]
 
 db_readme = [
     "Add the following files to this folder:\n",
     "  Required:\n",
     "    .gdb file geodatabase\n",
-    "    .mapx (preferred) or .mxd \n",
+    "    .mapx (preferred), .aprx, or .mxd \n",
     "  As-needed:\n",
     "    mapXYZ.pdf publication pamphlet\n",
     "  Optional:\n",
-    "    files for viewing the data with free software, e.g., QGIS project, KML files, etc.",
+    "    files for viewing the data with free software, e.g., QGIS project, KML files, etc.\n\n",
+    "See: Requirements for submitting GeMS-compliant map databases to the USGS/AASG National Geologic Map Database (NGMDB)\n",
+    "https://ngmdb.usgs.gov/Info/standards/GeMS/docs/GeMS-Submittal-Requirements.pdf for more information.",
 ]
 
 resources_readme = [
@@ -69,23 +75,32 @@ resources_readme = [
     "    Figures as editable graphics files, e.g., PDF, AI, EPS, etc.\n"
     "    Tables as editable Excel, CSV, etc.\n",
     "  Optional:\n",
-    "    Formatted DMU or LMU document",
+    "    Formatted DMU or LMU document\n\n",
+    "See: Requirements for submitting GeMS-compliant map databases to the USGS/AASG National Geologic Map Database (NGMDB)\n",
+    "https://ngmdb.usgs.gov/Info/standards/GeMS/docs/GeMS-Submittal-Requirements.pdf for more information.",
 ]
 
-# shp_readme = [
-#     "Run the Translate to Shapefiles tool from the GeMS Toolbox and put the results here.\n",
-#     "  Shapefile for each feature class\n",
-#     "  .dbf for each nonspatial table\n",
-#     "  text file (CSV) for each table with contents over 254 characters in length\n",
-#     "  README-like text file describin file and field names",
-# ]
+basedata_readme = [
+    "Add basedata only if they were compiled as a custom product that was used to interpret the geologic \n"
+    "map and are not easily available elsewhere; from their own publication landing page, for example.\n\n",
+    "See: Requirements for submitting GeMS-compliant map databases to the USGS/AASG National Geologic Map Database (NGMDB)\n",
+    "https://ngmdb.usgs.gov/Info/standards/GeMS/docs/GeMS-Submittal-Requirements.pdf for more information.",
+]
+
+bd_resources_readme = [
+    "This is an optional folder if visualization of the basedata requires a special style, fonts, readme, etc.\n"
+    "Not required even if basedata are included.\n\n",
+    "See: Requirements for submitting GeMS-compliant map databases to the USGS/AASG National Geologic Map Database (NGMDB)\n",
+    "https://ngmdb.usgs.gov/Info/standards/GeMS/docs/GeMS-Submittal-Requirements.pdf for more information.",
+]
 
 readme_dict = {
     "fullname-submittal": sub_readme,
     "fullname-submittal/fullname": map_readme,
     "fullname-submittal/fullname/fullname-database": db_readme,
+    "fullname-submittal/fullname/fullname-database/basedata": basedata_readme,
+    "fullname-submittal/fullname/fullname-database/basedata/resources": bd_resources_readme,
     "fullname-submittal/fullname/fullname-database/resources": resources_readme,
-    # "fullname-submittal/fullname/fullname-shapefile": shp_readme,
 }
 
 
