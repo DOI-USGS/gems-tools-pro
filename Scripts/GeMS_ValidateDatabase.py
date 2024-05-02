@@ -962,7 +962,7 @@ def rule3_10(db_dict):
                             <span class="field">{id_fld}</span> 
                             <span class="value>{k}</span>: 
                             <span class="value">{old_key}</span> 
-                            includes non-numeric character span class="value">{c}</span>. Please check!
+                            includes non-numeric character <span class="value">{c}</span>. Please check!
                             """
                         )
     else:
