@@ -71,7 +71,7 @@ startDict = {
         ["Age", "String", "NullsOK", defaultLength],
         ["Description", "String", "NullsOK", memoLength],
         ["HierarchyKey", "String", "NoNulls", defaultLength],
-        ["ParagraphStyle", "String", "NoNulls", defaultLength],
+        ["ParagraphStyle", "String", "NullsOK", defaultLength],
         ["Label", "String", "NullsOK", 30],
         ["Symbol", "String", "NullsOK", defaultLength],
         ["AreaFillRGB", "String", "NullsOK", defaultLength],
