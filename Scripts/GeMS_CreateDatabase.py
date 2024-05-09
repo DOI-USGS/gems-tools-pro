@@ -27,12 +27,12 @@ from GeMS_Definition import (
     tableDict,
     GeoMaterialConfidenceValues,
     DefaultExIDConfidenceValues,
-    IDLength,
+    ParagraphStyleValues,
 )
 from GeMS_utilityFunctions import *
 import copy
 
-versionString = "GeMS_CreateDatabase.py, version of 10/5/23"
+versionString = "GeMS_CreateDatabase.py, version of 5/8/24"
 rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/master/Scripts/GeMS_CreateDatabase.py"
 checkVersion(versionString, rawurl, "gems-tools-pro")
 
@@ -374,6 +374,23 @@ def main(thisDB, coordSystem, nCrossSections):
                     addMsgAndPrint(arcpy.GetMessages(2))
         except:
             addMsgAndPrint(arcpy.GetMessages())
+
+        if table == "DescriptionOfMapUnits":
+            # ParagraphStyleValues domain
+            arcpy.AddMessage("    Creating domain ParagraphStyleValues")
+            arcpy.CreateDomain_management(
+                thisDB, "ParagraphStyleValues", "", "TEXT", "CODED", "DUPLICATE"
+            )
+            for val in ParagraphStyleValues:
+                arcpy.AddCodedValueToDomain_management(
+                    thisDB, "ParagraphStyleValues", val, val
+                )
+
+            arcpy.AssignDomainToField_management(
+                thisDB + "/DescriptionOfMapUnits",
+                "ParagraphStyle",
+                "ParagraphStyleValues",
+            )
 
     ### GeoMaterials
     addMsgAndPrint("  Setting up GeoMaterialsDict table and domains...")

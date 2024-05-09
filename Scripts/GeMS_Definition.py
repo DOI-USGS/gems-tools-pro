@@ -395,6 +395,25 @@ DefaultExIDConfidenceValues = [
     ],
 ]
 
+ParagraphStyleValues = [
+    "DMU Headnote - 1 Line",
+    "DMU Headnote - More Than 1 Line",
+    "DMU Headnote Paragraph",
+    "DMU Headnote - More Than 1 Line",
+    "DMU Unit 1 (1st after heading)",
+    "DMU Unit 1",
+    "DMU Unit 2",
+    "DMU Unit 3",
+    "DMU Unit 4",
+    "DMU Unit 5",
+    "DMU-Heading1",
+    "DMU-Heading2",
+    "DMU-Heading3",
+    "DMU-Heading4",
+    "DMU-Heading5",
+    "Run-inHead",
+]
+
 
 enumeratedValueDomainFieldList = [
     "Type",
