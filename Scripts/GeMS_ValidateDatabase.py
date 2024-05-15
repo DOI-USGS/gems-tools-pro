@@ -93,7 +93,7 @@ from osgeo import ogr
 # values dictionary gets sent to report_template.jinja errors_template.jinja
 val = {}
 
-version_string = "GeMS_ValidateDatabase.py, version of 3/28/2024"
+version_string = "GeMS_ValidateDatabase.py, version of 5/15/2024"
 val["version_string"] = version_string
 val["datetime"] = time.asctime(time.localtime(time.time()))
 
@@ -201,8 +201,24 @@ def rule2_1(db_dict, is_gpkg):
     # first look for GeologicMap feature dataset
     if not is_gpkg:
         gmaps = [k for k, v in db_dict.items() if v["gems_equivalent"] == "GeologicMap"]
+
         if not gmaps:
-            errors.append(f'Feature dataset <span class="table">GeologicMap</span>')
+            # check first for the unlikely situation of a feature class or table being named with GeologicMap
+            # which results in empty "gems_equivalent" from db_object_dict()
+            fc_gmap = False
+            for n in [k for k in db_dict.keys() if "GeologicMap" in k]:
+                d_type = db_dict[n]["dataType"]
+                d_type = guf.camel_to_space(d_type).lower()
+
+                if not d_type == "FeatureDataset":
+                    errors.append(
+                        f"'GeologicMap' found in a {d_type} name. 'GeologicMap' is a GeMS-reserved term that can "
+                        "only be used in feature dataset names"
+                    )
+                    fc_gmap = True
+            if not fc_gmap:
+                errors.append(f'Feature dataset <span class="table">GeologicMap</span>')
+
         else:
             # check the spatial reference of each 'GeologicMap' feature dataset
             for gmap in gmaps:
@@ -1684,9 +1700,21 @@ def main(argv):
         ap("No MapUnitPolys and ContactAndFaults pairs on which to check topology")
     else:
         # returns (level_2_errors, level_3_errors
-        topo_results = check_topology(db_dict, workdir, is_gpkg, rule2_1_results[1])
-        level_2_errors = topo_results[0]
-        level_3_errors = topo_results[1]
+        # arcpy.AddMessage(val["rule2_1"])
+        gmap_missing = False
+        for message in val["rule2_1"]:
+            if message == 'Feature dataset <span class="table">GeologicMap</span>':
+                gmap_missing = True
+
+        if gmap_missing:
+            level_2_errors = [
+                'Feature dataset <span class="table">GeologicMap</span> is missing. Topology not checked'
+            ]
+            level_3_errors = level_2_errors
+        else:
+            topo_results = check_topology(db_dict, workdir, is_gpkg, rule2_1_results[1])
+            level_2_errors = topo_results[0]
+            level_3_errors = topo_results[1]
 
     val["rule2_3"] = level_2_errors
 
