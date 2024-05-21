@@ -65,6 +65,8 @@ child_nodes = [
     (6, "metainfo"),
 ]
 
+ap = guf.addMsgAndPrint
+
 
 class CollateFGDCMetadata:
     def __init__(
@@ -86,12 +88,15 @@ class CollateFGDCMetadata:
         self.arc_md = arc_md
         self.template = template
         self.temp_directive = temp_directive
+        self.definitions = definitions
+        self.history = history
+        self.sources = sources
 
         self.table_defs = None
         self.field_defs = None
         if definitions:
-            self.table_defs = self._table_defs_from_csv(definitions)
-            self.field_defs = self._field_defs_from_csv(definitions)
+            self.table_defs = self._table_defs_from_csv()
+            self.field_defs = self._field_defs_from_csv()
 
         self.history = history
         self.sources = sources
@@ -145,8 +150,15 @@ class CollateFGDCMetadata:
             # choices 1, 4, 5, 7 include DataSources
             self._add_datasources()
 
-        if self.table_defs or self.field_defs:
+        if (
+            self.table_defs
+            and self.table in self.table_defs
+            or self.field_defs
+            and self.table in self.field_defs
+        ):
             self._add_csv_metadata()
+
+        self._add_domains()
 
         self._ESRI_fields()
 
@@ -361,19 +373,25 @@ class CollateFGDCMetadata:
             )
 
         # collect the fields for this table
+        # self.field_defs is a dictionary of {table: a list of one or more lists of properties for all fields described
+        #   for that table in csv definitions}
         field_list = None
-        for field in self.db_dict[self.table].fields:
+        for field in self.db_dict[self.table]["fields"]:
             fname = field.name
+
             # look for a field definition for this field in field_defs
             # priority goes to a field in this specific table
-
             if self.table in self.field_defs:
                 field_list = [n for n in self.field_defs[self.table] if n[0] == fname]
+
             # backup looking for a definition that can be in __any_table__
             if not field_list:
-                field_list = [
-                    n for n in self.field_defs["__any_table__"] if n[0] == fname
-                ]
+                if "__any_table__" in self.field_defs:
+                    field_list = [
+                        n
+                        for n in self.field_defs["__any_table__"]
+                        if n and n[0] == fname
+                    ]
 
             if field_list:
                 field = field_list[0]
@@ -417,6 +435,7 @@ class CollateFGDCMetadata:
 
     def _add_domains(self):
         """Fills in domain information"""
+        ap("add domains")
         # get the detailed node for this table
         detailed = self.dom.xpath(
             f"eainfo/detailed/enttyp/enttypl[text()='{self.table}']/parent::*/parent::*"
@@ -436,13 +455,13 @@ class CollateFGDCMetadata:
                 # priority goes to a field in this specific table
                 # finding a field properties list that is longer than 4 means
                 # there is domain information
-                field_w_dom is None
+                field_w_dom = None
                 if self.table_defs:
                     if self.table in self.field_defs:
                         field_w_dom = [
                             n
                             for n in self.field_defs[self.table]
-                            if n[0] == fname and len(n) > 4
+                            if n[0] == fname and len(n) > 3
                         ]
                 # backup looking for a definition that can be in __any_table__
                 if not field_w_dom:
@@ -450,11 +469,12 @@ class CollateFGDCMetadata:
                         field_w_dom = [
                             n
                             for n in self.field_defs["__any_table__"]
-                            if n[0] == fname and len(n) > 4
+                            if n[0] == fname and len(n) > 3
                         ]
 
                 # if field_w_dom then we have domain information
                 if field_w_dom:
+                    # print(field_w_dom)
                     # but first determine if there is an attrdomv node that will be overwritten
                     if attr.find("attrdomv") is not None:
                         arcpy.AddWarning(
@@ -476,27 +496,27 @@ class CollateFGDCMetadata:
                         self.log_list.append(end)
 
                     # add the domain information
-                    field = field_w_dom[0]
-                    d_type = field_w_dom[4]
+                    field = field_w_dom[0][0]
+                    d_type = field_w_dom[0][3]
 
                     # there is not necessarily a 'domain_values' entry
                     if len(field) > 4:
-                        d_vals = field[5]
+                        d_vals = field_w_dom[0][4]
                     else:
                         d_vals = None
 
                     tuples = None
                     if d_type == "rdom":
-                        attrdomv = attr.SubElement(attr, "attrdomv")
-                        rdom = etree.SubElement(attrdomv, "rdom")
+                        attrdomv = etree.SubElement(attr, "attrdomv")
+                        # rdom = etree.SubElement(attrdomv, "rdom")
                         if d_vals:
                             nodes = ("rdommin", "rdomax", "attrunit", "attrmres")
                             vals = d_vals.split(",")
                             tuples = [(nodes[i], vals[i]) for i in range(len(vals))]
-                            self._domain_nodes(rdom, d_type, tuples)
+                            self._domain_nodes(attrdomv, d_type, tuples)
 
                     if d_type == "codsetd":
-                        attrdomv = attr.SubElement(attr, "attrdomv")
+                        attrdomv = etree.SubElement(attr, "attrdomv")
                         codesetd = etree.SubElement(attrdomv, "codesetd")
                         if d_vals:
                             nodes = ("codesetn", "codesets")
@@ -505,7 +525,7 @@ class CollateFGDCMetadata:
                             self._domain_nodes(codesetd, d_type, tuples)
 
                     if d_type == "udom":
-                        attrdomv = attr.SubElement(attr, "attrdomv")
+                        attrdomv = etree.SubElement(attr, "attrdomv")
                         udom = etree.SubElement(attrdomv, "udom")
                         if d_vals:
                             udom.text = d_vals
@@ -513,18 +533,25 @@ class CollateFGDCMetadata:
                             udom.text = "Unrepresentable domain"
 
                     if d_type == "edom":
-                        # delete the single childless attrdomv so that we can add multiple with
+                        arcpy.AddMessage(
+                            f"found domain values for {self.table} {field}"
+                        )
+                        print(f"found domain values for {self.table} {field}")
+                        # delete the single childless attrdomv so that we can add multiple
                         # children in a loop
-                        attr.remove(attrdomv)
+                        if attr.find("attrdomv") is not None:
+                            attr.remove(attr.find("attrdomv"))
+
                         if d_vals:
+                            print(f"d_vals {d_vals}")
                             nodes = ("edomv", "edomvd", "edmovds")
                             edoms = d_vals.split("|")
                             for edom in edoms:
                                 vals = edom.split(",")
                                 tuples = [(nodes[i], vals[i]) for i in range(len(vals))]
                                 attrdomv = etree.SubElement(attr, "attrdomv")
-                                edom = etree.SubElement(attrdomv, "edom")
-                                self._domain_nodes(edom, d_type, tuples)
+                                # edom = etree.SubElement(attrdomv, "edom")
+                                self._domain_nodes(attrdomv, d_type, tuples)
 
                 # if this field is in the list of gems-defined enumerated domain fields
                 elif fname.lower() in [
@@ -532,9 +559,10 @@ class CollateFGDCMetadata:
                 ] or fname.lower() in [
                     guf.camel_to_snake(n).lower() for n in gems_edom
                 ]:
-                    # delete the single childless attrdomv so that we can add multiple with
+                    # delete the single childless attrdomv so that we can add multiple
                     # children in a loop
-                    attr.remove(attrdomv)
+                    if attr.find("attrdomv") is not None:
+                        attr.remove(attr.find("attrdomv"))
 
                     # collect a unique set of all the values in this field
                     with arcpy.da.SearchCursor(
@@ -566,9 +594,10 @@ class CollateFGDCMetadata:
                         etree.SubElement(edom, "edomvds").text = val_source
 
                 else:
-                    udom = etree.SubElement(
-                        attrdomv, "udom"
-                    ).text = "Unrepresentable domain"
+                    attrdomv = etree.SubElement(attr, "attrdomv")
+                    udom = etree.SubElement(attrdomv, "udom").text = (
+                        "Unrepresentable domain"
+                    )
 
     def _def_and_source(self, parent, def_xpath, source_xpath, text_list):
         # whether missing or blank add node and/or definition and definition source text
@@ -585,9 +614,10 @@ class CollateFGDCMetadata:
 
         # now we know we can find a def_xpath node, check the text
         def_node = parent.find(def_xpath)
-        if def_node.text is None:
+        if text_list[0]:
             def_node.text = text_list[0]
-            # and update the definition source regardless
+        # and update the definition source regardless
+        if text_list[1]:
             parent.find(source_xpath).text = text_list[1]
 
     def _term_dict(self, table, fields, sources_dict=None):
@@ -667,21 +697,16 @@ class CollateFGDCMetadata:
 
     def _table_defs_from_csv(self):
         # read the csv of definitions
+        table_defs = {}
         with open(self.definitions, mode="r") as file:
-            defs_csv = list(csv.reader(file))
-
-        # check for header line
-        if defs_csv[0] == ["table", "field", "definition", "definition_source"]:
-            i = 1
-        else:
-            i = 0
-
-        # csv definitions file can hold definitions for both tables and fields
-        # parse the csv into two dictionaries
-        # table name: [definition, definition source]
-        table_defs = {
-            row[0]: [row[2], row[3]] for row in defs_csv[i:] if row[0] and not row[1]
-        }
+            defs_csv = list(csv.reader(file, skipinitialspace=True))
+            table_defs = {
+                row[0]: [row[2], row[3]]
+                for row in defs_csv
+                if len(row) > 1
+                and not row[0].lower() in ("table", "any table")
+                and not row[1]
+            }
 
         return table_defs
 
@@ -689,28 +714,31 @@ class CollateFGDCMetadata:
         # read the csv of definitions. Each line has:
         # table, field, definition, definition_source, domain_type, domain_values
         # if table is blank in CSV, that field is defined the same everywhere it is found
-        with open(self.definitions, mode="r") as file:
-            defs_csv = list(csv.reader(file))
-
-        # fields are different
-        # table name:[[field1 name, definition, definition source, domain_type, domain_values],
-        #             [field2 name, definition, definition source, domain_type, domain_values], etc.]
-        fields = [row for row in defs_csv[i:] if row[1]]
         field_defs = {}
-        for field in fields:
-            if not field[0] or field[0].isspace() or field[0] == "#":
-                table = "__any_table__"
-            else:
-                table = field[0]
+        with open(self.definitions, mode="r") as file:
+            defs_csv = list(csv.reader(file, skipinitialspace=True))
 
-            if table in field_defs:
-                field_defs[table].append([field[1:]])
-            else:
-                field_defs[table] = [[field[1:]]]
+            # TABLE, FIELD, DEFINITION, DEFINITION SOURCE, DOMAIN TYPE, DOMAIN VALUE
+            fields = [
+                row
+                for row in defs_csv
+                if row and not row[0].startswith("#") and not row[0].lower() == "table"
+            ]
+
+            for field in fields:
+                if field[0].lower() == "any table":
+                    table = "__any_table__"
+                else:
+                    table = field[0]
+
+                if table in field_defs:
+                    field_defs[table].append(field[1:])
+                else:
+                    field_defs[table] = [field[1:]]
 
         return field_defs
 
-    def _domain_nodes(parent, d_type, tuples):
+    def _domain_nodes(self, parent, d_type, tuples):
         child = etree.SubElement(parent, d_type)
         for t in tuples:
             etree.SubElement(child, t[0]).text = t[1]
