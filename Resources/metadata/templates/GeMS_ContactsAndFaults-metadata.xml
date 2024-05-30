@@ -23,16 +23,6 @@
     </posacc>
     <lineage></lineage>
   </dataqual>
-  <spdoinfo>
-    <direct>Vector</direct>
-    <ptvctinf>
-      <sdtsterm>
-        <sdtstype>String</sdtstype>
-        <ptvctcnt>0</ptvctcnt>
-      </sdtsterm>
-    </ptvctinf>
-  </spdoinfo>
-  <spref></spref>
   <eainfo>
     <detailed>
       <enttyp>

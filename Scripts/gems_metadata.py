@@ -7,16 +7,19 @@ import csv
 from lxml import etree
 import tempfile
 from pathlib import Path
+import subprocess
+import time
 import sys
 
 toolbox_folder = Path(__file__).parent.parent
 scripts_folder = toolbox_folder / "Scripts"
 metadata_folder = toolbox_folder / "Resources" / "metadata"
-templates_folder = metadata_folder / "metadata"
+# templates_folder = metadata_folder / "templates"
 
 sys.path.append(scripts_folder)
 import GeMS_utilityFunctions as guf
 import GeMS_Definition as gdef
+import spatial_utils as su
 
 
 def print_time(func):
@@ -65,6 +68,10 @@ child_nodes = [
     (6, "metainfo"),
 ]
 
+gems_full_ref = """GeMS (Geologic Map Schema)--a standard format for the digital publication of geologic maps", available at http://ngmdb.usgs.gov/Info/standards/GeMS/"""
+
+gems = "GeMS"
+
 ap = guf.addMsgAndPrint
 
 
@@ -80,7 +87,6 @@ class CollateFGDCMetadata:
         definitions=None,
         history=3,
         sources=1,
-        # glossary=None,
     ):
         self.table = table
         self.db_dict = gdb_dict
@@ -98,12 +104,10 @@ class CollateFGDCMetadata:
             self.table_defs = self._table_defs_from_csv()
             self.field_defs = self._field_defs_from_csv()
 
-        self.history = history
-        self.sources = sources
-        # self.glossary = glossary
         self.dom = None
         self.is_db = False
         self.log_list = []
+        self.mp_errors = None
 
         parts = Path(gdb_dict[table]["catalogPath"]).parts
         gdb_folder = parts[0]
@@ -141,6 +145,20 @@ class CollateFGDCMetadata:
             # this will set self.dom to a mostly empty dom built from scratch
             self._md_from_scratch()
 
+        if self.db_dict[self.table].get("spatialReference"):
+            # add spref info, not exported from ArcGIS Pro into FGDC CSDGM
+            # ESRI BUG-000124294 https://support.esri.com/en-us/bug/in-arcgis-pro-when-an-extensible-markup-language-xml-fi-bug-000124294
+            self._add_spref()
+
+        # exit early if _export_embedded is True.
+        # at this point metadata will have everything verbatim from the embedded metadata plus
+        # spdom, spdoinfo, and spref - things that should be calculated each time from inherent spatial properties
+        # note that spdom is only calculated if the values are empty or there is an error in the embedded metadata
+        # if they have been filled out and are valid, they will be exported.
+        if self.embedded_only:
+            self._mp_upgrade()
+            return self.dom, self.mp_errors
+
         if self.template:
             # lineage/srcinfo will be removed if sources in (1, 2, 4, 8)
             # lineage/procstep will be removed if history in (1, 3)
@@ -161,13 +179,6 @@ class CollateFGDCMetadata:
         self._add_domains()
 
         self._ESRI_fields()
-
-        # any other tables to exclude from domain descriptions?
-        # if (
-        #     not self.db_dict[self.table]["concat_type"]
-        #     == "Annotation Polygon FeatureClass"
-        # ):
-        #     self._add_domains()
 
         return self.dom
 
@@ -198,10 +209,10 @@ class CollateFGDCMetadata:
                     lineage.remove(procstep)
 
         # add all top-level child nodes in case they are not exported
-        for child in child_nodes:
-            if self.dom.find(child[1]) is None:
-                el = etree.Element(child[1])
-                self.dom.insert(child[0], el)
+        # for child in child_nodes:
+        #     if self.dom.find(child[1]) is None:
+        #         el = etree.Element(child[1])
+        #         self.dom.insert(child[0], el)
 
         # if this is a table and has a detailed node
         # find the attr nodes and add the required children
@@ -213,8 +224,8 @@ class CollateFGDCMetadata:
         #             self._extend_branch(attr, n)
 
     def _md_from_scratch(self):
-        # write out the top-level children and the eainfo/detailed node from the actual
-        # list of fields in the table
+        """write out the top-level children and the eainfo/detailed node from the actual
+        list of fields in the table"""
 
         # make all the metadata first-level children
         metadata = etree.Element("metadata")
@@ -234,10 +245,26 @@ class CollateFGDCMetadata:
             attr = etree.SubElement(detailed, "attr")
             attrl = etree.SubElement(attr, "attrl")
             attrl.text = field.name
-            # for n in ("attrdef", "attrdefs"):
-            #     etree.SubElement(attr, n)
 
         self.dom = etree.ElementTree(metadata).getroot()
+
+    def _add_spref(self):
+        """Create a spref - spatial reference information node for the resource
+        based on slightly modified versions of spatial_utils.py and xml_utils.py
+        from the USGS Metadata Wizard library"""
+        d = self.db_dict
+        wksp = d[self.table]["workspace"]
+        db_path = wksp.connectionProperties.database
+        try:
+            spref_node = su.get_spref(db_path, self.table)
+        except Exception as e:
+            arcpy.AddWarning(
+                f"""Could not determine the coordinate system of {self.table}.
+            Check in ArcCatalog that it is valid"""
+            )
+            arcpy.AddWarning(e)
+            print(e)
+        self.dom.insert(3, spref_node)
 
     def _add_template_metadata(self):
         template_tree = etree.parse(self.template)
@@ -310,7 +337,9 @@ class CollateFGDCMetadata:
                             pass
 
         # add any remaining nodes from the template
-        for el in template_tree.iter():
+        for el in [
+            n for n in template_tree.iter() if not n.tag in ("spref", "spdinfo")
+        ]:
             el_path = template_tree.getelementpath(el)
             el_text = template_tree.xpath(el_path)[0].text
 
@@ -434,35 +463,36 @@ class CollateFGDCMetadata:
                     )
 
     def _add_domains(self):
-        """Fills in domain information"""
-        ap("add domains")
+        """Fills in domain (field values) information"""
         # get the detailed node for this table
         detailed = self.dom.xpath(
             f"eainfo/detailed/enttyp/enttypl[text()='{self.table}']/parent::*/parent::*"
         )[0]
 
-        # collect the fields for this table
+        # collect the fields for this table from the database dictionary
         for f in self.db_dict[self.table]["fields"]:
+            # f is an arcpy field object
             fname = f.name
 
             # find the attribute node for this field
             attrs = detailed.xpath(f"attr/attrlabl[text()='{fname}']/parent::*")
 
             # although this is a for loop, it should only run through once
+            # constrained by fname above
             for attr in attrs:
-                # look for a field definition for this field in field_defs
+                # look for a domain values for this field in field_defs
                 # field_defs is built from csv definitions file
                 # priority goes to a field in this specific table
                 # finding a field properties list that is longer than 4 means
                 # there is domain information
                 field_w_dom = None
-                if self.table_defs:
-                    if self.table in self.field_defs:
-                        field_w_dom = [
-                            n
-                            for n in self.field_defs[self.table]
-                            if n[0] == fname and len(n) > 3
-                        ]
+
+                if self.field_defs.get(self.table):
+                    field_w_dom = [
+                        n
+                        for n in self.field_defs[self.table]
+                        if n[0] == fname and len(n) > 3
+                    ]
                 # backup looking for a definition that can be in __any_table__
                 if not field_w_dom:
                     if self.field_defs:
@@ -472,9 +502,8 @@ class CollateFGDCMetadata:
                             if n[0] == fname and len(n) > 3
                         ]
 
-                # if field_w_dom then we have domain information
+                # if field_w_dom, then we have domain information
                 if field_w_dom:
-                    # print(field_w_dom)
                     # but first determine if there is an attrdomv node that will be overwritten
                     if attr.find("attrdomv") is not None:
                         arcpy.AddWarning(
@@ -492,7 +521,7 @@ class CollateFGDCMetadata:
                             for child in attrdomv:
                                 self.log_list.append(f"{child.tag}: {child.text}")
                             attr.remove(attrdomv)
-                        end = "Compare with final values in output metadata."
+                        end = "Compare with final values in output metadata.\n"
                         self.log_list.append(end)
 
                     # add the domain information
@@ -500,7 +529,7 @@ class CollateFGDCMetadata:
                     d_type = field_w_dom[0][3]
 
                     # there is not necessarily a 'domain_values' entry
-                    if len(field) > 4:
+                    if len(field_w_dom[0]) > 4:
                         d_vals = field_w_dom[0][4]
                     else:
                         d_vals = None
@@ -510,9 +539,11 @@ class CollateFGDCMetadata:
                         attrdomv = etree.SubElement(attr, "attrdomv")
                         # rdom = etree.SubElement(attrdomv, "rdom")
                         if d_vals:
-                            nodes = ("rdommin", "rdomax", "attrunit", "attrmres")
+                            nodes = ("rdommin", "rdommax", "attrunit", "attrmres")
                             vals = d_vals.split(",")
-                            tuples = [(nodes[i], vals[i]) for i in range(len(vals))]
+                            tuples = [
+                                (nodes[i], vals[i].strip()) for i in range(len(vals))
+                            ]
                             self._domain_nodes(attrdomv, d_type, tuples)
 
                     if d_type == "codsetd":
@@ -544,13 +575,15 @@ class CollateFGDCMetadata:
 
                         if d_vals:
                             print(f"d_vals {d_vals}")
-                            nodes = ("edomv", "edomvd", "edmovds")
+                            nodes = ("edomv", "edomvd", "edomvds")
                             edoms = d_vals.split("|")
                             for edom in edoms:
-                                vals = edom.split(",")
-                                tuples = [(nodes[i], vals[i]) for i in range(len(vals))]
                                 attrdomv = etree.SubElement(attr, "attrdomv")
-                                # edom = etree.SubElement(attrdomv, "edom")
+                                vals = edom.split(",")
+                                tuples = [
+                                    (nodes[i], vals[i].strip())
+                                    for i in range(len(vals))
+                                ]
                                 self._domain_nodes(attrdomv, d_type, tuples)
 
                 # if this field is in the list of gems-defined enumerated domain fields
@@ -570,6 +603,7 @@ class CollateFGDCMetadata:
                     ) as cursor:
                         fld_vals = set([row[0] for row in cursor if not row[0] is None])
 
+                    # iterate through the values
                     for val in fld_vals:
                         attrdomv = etree.SubElement(attr, "attrdomv")
                         edom = etree.SubElement(attrdomv, "edom")
@@ -621,35 +655,49 @@ class CollateFGDCMetadata:
             parent.find(source_xpath).text = text_list[1]
 
     def _term_dict(self, table, fields, sources_dict=None):
-        """sources_dict needs to be built first"""
+        """sources_dict needs to be built first
+        returns:
+        sources - {Source: DataSources_ID as str}
+        geomaterial = {GeoMaterial: [Definition, "GeMS"]} as list
+        map units - {Unit: [(1st choice) Name (2nd choice) FullName, DescriptionSourceID] as list}
+        glossary - {Term: [Definition, DefinitionSourceID] as list}
+        """
         # always supply field to be the dictionary key as fields[0]
         # and the 'ID' field as fields[-1]
         if table in self.db_dict:
             table_path = self.db_dict[table]["catalogPath"]
             data_dict = {}
-            cursor = arcpy.da.SearchCursor(table_path, fields)
-            for row in cursor:
-                if table == "DataSources":
-                    if not row[1] is None:
-                        data_dict[row[0]] = row[1]
-                # elif table == "GeoMaterialDict":
-                #     data_dict[row[0]] = [row[1]]
-                #     data_dict[row[0]].append(gems)
-                if table == "DescriptionOfMapUnits":
-                    # if there is a MapUnit value
-                    if row[0]:
-                        if not row[2] is None:
-                            # if there is a FullName, that is the value of the mapunit key
-                            data_dict[row[0]] = [row[2]]
+            with arcpy.da.SearchCursor(table_path, fields) as cursor:
+                for row in cursor:
+                    if table == "DataSources":
+                        if not row[1] is None:
+                            data_dict[row[0]] = row[1]
+
+                    if table == "GeoMaterialDict":
+                        data_dict[row[0]] = [row[1], gems]
+
+                    if table == "DescriptionOfMapUnits":
+                        # if there is a MapUnit value
+                        if row[0]:
+                            if not row[2] is None:
+                                # if there is a FullName, that is the value of the mapunit key
+                                data_dict[row[0]] = [row[2]]
+                            else:
+                                if not row[1] is None:
+                                    # otherwise use the Name
+                                    data_dict[row[0]] = [row[1]]
+                            # append the SourceID
+                            data_dict[row[0]].append(
+                                self._catch_m2m(sources_dict, row[-1])
+                            )
                         else:
-                            if not row[1] is None:
-                                # otherwise use the Name
-                                data_dict[row[0]] = [row[1]]
-                        # append the SourceID
-                        data_dict[row[0]].append(self._catch_m2m(sources_dict, row[-1]))
-                    else:
-                        data_dict[row[0]] = list(row[1:-1])
-                        data_dict[row[0]].append(self._catch_m2m(sources_dict, row[-1]))
+                            data_dict[row[0]] = list(row[1:-1])
+                            data_dict[row[0]].append(
+                                self._catch_m2m(sources_dict, row[-1])
+                            )
+
+                    if table == "Glossary":
+                        data_dict[row[0]] = [row[1], row[2]]
 
             return data_dict
         else:
@@ -759,20 +807,48 @@ class CollateFGDCMetadata:
             else:
                 node = etree.SubElement(node, nibble)
 
-    def _add_data_dictionary_metadata(self):
-        # Add metadata from the data dictionary tables as needed
-        pass
+    def _mp_upgrade(self):
+        """mp.exe fixes a number of structural issues through the 'upgrade' option
+        https://geology.usgs.gov/tools/metadata/tools/doc/upgrade.html"""
 
-    def export_to_xml(self, output_file_path):
-        tree = et.ElementTree(self.metadata_tree)
-        tree.write(output_file_path)
+        mp_path = metadata_folder / "mp.exe"
+        config_path = metadata_folder / "mp_config"
+        tree = etree.ElementTree(self.dom)
 
+        # save self.dom in a temporary directory
+        with tempfile.TemporaryDirectory() as tempdirname:
+            dom_xml = Path(tempdirname) / "dom_out.xml"
+            with open(dom_xml, "wb") as f:
+                tree.write(f, encoding="utf-8", xml_declaration=True, pretty_print=True)
 
-# # Example Usage
-# template_path = "template.xml"
-# csv_path = "metadata.csv"
-# data_dict = {"data_source": "source_table", "domain_values": "domain_table"}
+            # send temporary file through mp.exe and collect the output
+            err_out = Path(tempdirname) / "errors.txt"
+            x_out = Path(tempdirname) / "xml_out.xml"
+            mp_args = [
+                str(mp_path),
+                str(dom_xml),
+                "-c",
+                str(config_path),
+                "-x",
+                str(x_out),
+            ]
 
-# metadata_builder = FGDCMetadataBuilder(template_path, csv_path, data_dict)
-# metadata_builder.build_metadata()
-# metadata_builder.export_to_xml("output_metadata.xml")
+            subprocess.call(mp_args)
+
+            # now that our xml has been upgraded, check the output just written for errors
+            # call mp again
+            mp_args = [
+                str(mp_path),
+                str(x_out),
+                "-e",
+                str(err_out),
+            ]
+
+            subprocess.call(mp_args)
+
+            # parse the mp-upgraded xml into self.dom
+            self.dom = etree.parse(str(x_out)).getroot()
+
+            # read the errors into a variable
+            with open(err_out, "r") as f:
+                self.mp_errors = f.read()
