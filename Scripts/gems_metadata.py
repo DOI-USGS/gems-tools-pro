@@ -180,7 +180,8 @@ class CollateFGDCMetadata:
 
         self._ESRI_fields()
 
-        return self.dom
+        self._mp_upgrade()
+        return self.dom, self.mp_errors
 
     def _export_embedded(self):
         table_path = self.db_dict[self.table]["catalogPath"]
