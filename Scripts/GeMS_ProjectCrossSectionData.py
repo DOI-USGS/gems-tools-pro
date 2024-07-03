@@ -35,7 +35,7 @@ import arcpy, sys, os.path, math
 from GeMS_Definition import tableDict
 from GeMS_utilityFunctions import *
 
-versionString = "GeMS_ProjectCrossSectionData.py, version of 8/21/23"
+versionString = "GeMS_ProjectCrossSectionData.py, version of 7/3/24"
 rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/master/Scripts/GeMS_ProjectCrossSectionData.py"
 checkVersion(versionString, rawurl, "gems-tools-pro")
 
@@ -218,7 +218,7 @@ def locateEventTable(
 
     if not desc.hasZ:
         addMsgAndPrint("      adding Z values")
-        arcpy.da.AddSurfaceInformation(pts, dem, zType, "LINEAR")
+        arcpy.sa.AddSurfaceInformation(pts, dem, zType, "LINEAR")
 
     ## working around bug in LocateFeaturesAlongRoutes
     # add special field for duplicate detection
@@ -367,7 +367,7 @@ else:
     # Add Z values
     addMsgAndPrint("    getting elevation values for " + shortName(tempXsLine))
     Zline = arcpy.CreateScratchName("xx", outFdsTag + "_Z", "FeatureClass", scratch)
-    arcpy.da.InterpolateShape(dem, tempXsLine, Zline)
+    arcpy.sa.InterpolateShape(dem, tempXsLine, Zline)
     # Add M values
     addMsgAndPrint("    measuring " + shortName(Zline))
     ZMline = arcpy.CreateScratchName("xx", outFdsTag + "_ZM", "FeatureClass", scratch)
