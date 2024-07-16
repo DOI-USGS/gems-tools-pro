@@ -98,16 +98,16 @@ class CollateFGDCMetadata:
         self.history = history
         self.sources = sources
 
-        self.table_defs = None
-        self.field_defs = None
+        self.table_defs = {}
+        self.field_defs = {}
         if definitions:
             self.table_defs = self._table_defs_from_csv()
             self.field_defs = self._field_defs_from_csv()
 
-        self.dom = None
+        # self.dom = None
         self.is_db = False
         self.log_list = []
-        self.mp_errors = None
+        # self.mp_errors = None
 
         parts = Path(gdb_dict[table]["catalogPath"]).parts
         gdb_folder = parts[0]
@@ -135,6 +135,11 @@ class CollateFGDCMetadata:
             ),
         }
 
+        #
+        md = self.build_metadata()
+        self.dom = md[0]
+        self.errors = md[1]
+
     def build_metadata(self):
         if self.embedded_only or self.arc_md:
             # this will set self.dom to the dom of the exported metadata
@@ -153,8 +158,10 @@ class CollateFGDCMetadata:
         # exit early if _export_embedded is True.
         # at this point metadata will have everything verbatim from the embedded metadata plus
         # spdom, spdoinfo, and spref - things that should be calculated each time from inherent spatial properties
-        # note that spdom is only calculated if the values are empty or there is an error in the embedded metadata
-        # if they have been filled out and are valid, they will be exported.
+        # note that spdom is only calculated by ArcGIS when metadata are exported if the values are empty or there
+        # is an error in the embedded metadata.
+        # If they have been filled out and are valid, they will be exported, though they might not be relevant to or
+        # correct for the data.
         if self.embedded_only:
             self._mp_upgrade()
             return self.dom, self.mp_errors
@@ -181,6 +188,7 @@ class CollateFGDCMetadata:
         self._ESRI_fields()
 
         self._mp_upgrade()
+
         return self.dom, self.mp_errors
 
     def _export_embedded(self):
@@ -205,7 +213,7 @@ class CollateFGDCMetadata:
                 for srcinfo in lineage.findall("srcinfo"):
                     lineage.remove(srcinfo)
 
-            if self.history in (1, 2):
+            if self.history in (1, 3):
                 for procstep in lineage.findall("procstep"):
                     lineage.remove(procstep)
 
@@ -339,13 +347,18 @@ class CollateFGDCMetadata:
 
         # add any remaining nodes from the template
         for el in [
-            n for n in template_tree.iter() if not n.tag in ("spref", "spdinfo")
+            n
+            for n in template_tree.iter()
+            if not any(
+                s in template_tree.getelementpath(n) for s in ("spref", "spdoinfo")
+            )
         ]:
             el_path = template_tree.getelementpath(el)
             el_text = template_tree.xpath(el_path)[0].text
 
             # check for printable text at the end of the template node xpath
             if el_text and el_text != "None" and el_text.isprintable():
+                print(el_path)
                 # make sure the same node exists in the self.dom
                 self._extend_branch(self.dom, el_path)
                 node = self.dom.xpath(el_path)[0]
@@ -358,6 +371,8 @@ class CollateFGDCMetadata:
                     else:
                         # otherwise, append the template text to the end of the existing text
                         node.text = f"{node.text}\n{el_text}"
+                else:
+                    node.text = el_text
 
         # NOTE - xpath for finding the parent of nodes with mulitple tags
         # attrdomv = attr.xpath("attrdomv/*[self::udom or self::rdom or self::codesetd]/parent::*")
