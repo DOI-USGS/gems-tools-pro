@@ -306,11 +306,12 @@ within the list of errors#}
     <tr>
       <th>MapUnit</th>
       {% if val["fds_units"] %}
+      {% set sorted_units = val["all_units"]|sort %}
       {% for k in val["fds_units"] %}
       <th>{{k}}</th>
       {% endfor %}
     </tr>
-    {% for mu in val["all_units"] %}
+    {% for mu in sorted_units %}
     <tr>
       <td>{{mu}}</td>
       {% for v in val["fds_units"].values() %}
@@ -325,6 +326,7 @@ within the list of errors#}
     {% endif %}
   </table>
 </div>
+
 {% endif %}
 {% if val["non_spatial"] %}
 <div class="report"></div>
