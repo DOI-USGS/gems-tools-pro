@@ -92,7 +92,10 @@ class CollateFGDCMetadata:
         self.db_dict = gdb_dict
         self.embedded_only = embedded_only
         self.arc_md = arc_md
-        self.template = template
+        if template:
+            self.template_tree = etree.parse(template)
+        else:
+            self.template_tree = None
         self.temp_directive = temp_directive
         self.definitions = definitions
         self.history = history
@@ -135,7 +138,6 @@ class CollateFGDCMetadata:
             ),
         }
 
-        #
         md = self.build_metadata()
         self.dom = md[0]
         self.errors = md[1]
@@ -166,14 +168,12 @@ class CollateFGDCMetadata:
             self._mp_upgrade()
             return self.dom, self.mp_errors
 
-        if self.template:
-            # lineage/srcinfo will be removed if sources in (1, 2, 4, 8)
-            # lineage/procstep will be removed if history in (1, 3)
-            self._add_template_metadata()
+        self._history_wizard()
 
-        if self.sources in (1, 4, 5, 7):
-            # choices 1, 4, 5, 7 include DataSources
-            self._add_datasources()
+        self._sources_wizard()
+
+        if self.template_tree:
+            self._add_template_metadata()
 
         if (
             self.table_defs
@@ -217,21 +217,6 @@ class CollateFGDCMetadata:
                 for procstep in lineage.findall("procstep"):
                     lineage.remove(procstep)
 
-        # add all top-level child nodes in case they are not exported
-        # for child in child_nodes:
-        #     if self.dom.find(child[1]) is None:
-        #         el = etree.Element(child[1])
-        #         self.dom.insert(child[0], el)
-
-        # if this is a table and has a detailed node
-        # find the attr nodes and add the required children
-        # detailed = self.dom.find("eainfo/detailed")
-        # if not detailed is None:
-        #     attrs = detailed.findall("attr")
-        #     for attr in attrs:
-        #         for n in ("attrdef", "attrdefs"):
-        #             self._extend_branch(attr, n)
-
     def _md_from_scratch(self):
         """write out the top-level children and the eainfo/detailed node from the actual
         list of fields in the table"""
@@ -268,48 +253,116 @@ class CollateFGDCMetadata:
             spref_node = su.get_spref(db_path, self.table)
         except Exception as e:
             arcpy.AddWarning(
-                f"""Could not determine the coordinate system of {self.table}.
+                f"""Could not determine the coordinate system of {self.table}
             Check in ArcCatalog that it is valid"""
             )
             arcpy.AddWarning(e)
             print(e)
         self.dom.insert(3, spref_node)
 
+    def _history_wizard(self):
+        # this is the first function that touches self.template_tree
+        # there are two history choices where all process steps in embedded are to be removed
+        if self.history in (1, 3):
+            for procstep in self.dom.xpath("dataqual/lineage/procstep"):
+                procstep.getparent().remove(procstep)
+
+        # choice 2 is embedded history only, so remove any template process steps so that
+        # they do not get added in _add_template_metadata
+        if self.history == 2:
+            if self.template_tree:
+                for procstep in self.template_tree.xpath("dataqual/lineage/procstep"):
+                    procstep.getparent().remove(procstep)
+
+        # choice 4 is collate both the template and the embedded metadata process steps
+        # Considered sorting a list of both sets of procsteps but that means dealing with
+        # missing dates, inconsistent dates, duplicate dates (sort on what next?) - too much!
+        # we'll just add the template procsteps in the same order in which they appear in the
+        # template at the end of the list of self.dom procsteps
+        if self.history in (3, 4):
+            if (
+                self.template_tree
+            ):  # there better be a template because that's what choice 4 implies!
+                # save the process steps in a list
+                template_procsteps = self.template_tree.xpath(
+                    "dataqual/lineage/procstep"
+                )
+                # and delete them from the template so they don't get added in _add_template_metadata
+                for procstep in self.template_tree.xpath("dataqual/lineage/procstep"):
+                    procstep.getparent().remove(procstep)
+
+            # find or create the lineage element
+            if self.dom.xpath("dataqual/lineage"):
+                lineage = self.dom.xpath("dataqual/lineage")[0]
+            else:
+                lineage = etree.SubElement(self.dom.xpath("dataqual")[0], "lineage")
+
+            # iterate through template_procsteps, add one at a time with .append
+            # appending will always put template procsteps under any existing embedded
+            # procsteps
+            for procstep in template_procsteps:
+                lineage.append(procstep)
+
+    def _sources_wizard(self):
+        # there are four sources choices where all srcinfo elements in embedded are to be removed
+        if self.sources in (1, 3, 5, 8):
+            for srcinfo in self.dom.xpath("dataqual/lineage/srcinfo"):
+                srcinfo.getparent().remove(srcinfo)
+
+        # there are four sources choices where any template srcinfo elements are to be removed
+        if self.sources in (1, 2, 4, 8):
+            if self.template_tree:
+                for srcinfo in self.template_tree.xpath("dataqual/lineage/srcinfo"):
+                    srcinfo.getparent().remove(srcinfo)
+
+        # there are two choices where we want the existing embedded sources to follow sources from DataSources.
+        # The easiest way to add subelements is to append after existing elements
+        # so, remove the embedded sources and we will append them after the DataSources have been added.
+        if self.sources in (4, 7):
+            dom_sources = self.dom.xpath("dataqual/lineage/srcinfo")
+            for srcinfo in self.dom.xpath("dataqual/lineage/srcinfo"):
+                srcinfo.getparent().remove(srcinfo)
+
+        if self.sources in (1, 4, 5, 7):
+            # choices 1, 4, 5, 7 include DataSources
+            self._add_datasources()
+
+        if self.sources in (4, 7):
+            # find or create the lineage element
+            # there could still be a chance once does not exist yet
+            if self.dom.xpath("dataqual/lineage"):
+                lineage = self.dom.xpath("dataqual/lineage")[0]
+            else:
+                lineage = etree.SubElement(self.dom.xpath("dataqual")[0], "lineage")
+
+            if dom_sources:
+                for srcinfo in dom_sources:
+                    lineage.append(srcinfo)
+
+        if self.sources in (3, 5, 6, 7):
+            # find or create the lineage element
+            # there could still be a chance once does not exist yet
+            if self.dom.xpath("dataqual/lineage"):
+                lineage = self.dom.xpath("dataqual/lineage")[0]
+            else:
+                lineage = etree.SubElement(self.dom.xpath("dataqual")[0], "lineage")
+
+            if self.template_tree:
+                template_sources = self.template_tree.xpath("dataqual/lineage/srcinfo")
+                for srcinfo in self.template_tree.xpath("dataqual/lineage/srcinfo"):
+                    srcinfo.getparent().remove(srcinfo)
+
+                for srcinfo in template_sources:
+                    lineage.append(srcinfo)
+
     def _add_template_metadata(self):
-        template_tree = etree.parse(self.template)
-        # remove nodes specified by source and history choices
-        # first check for lineage node
-        if self.dom.xpath("dataqual/lineage"):
-            temp_lineage = template_tree.xpath("dataqual/lineage")[0]
-            # make a copy of the sources nodes
-            # for choices 5, 6, and 7 they will be added back but with
-            # other sources (from either embedded or DataSources)
-            # and the entire list will be sorted
-            if self.sources in (5, 6, 7):
-                self.temp_sources = template_tree.xpath("dataqual/lineage/srcinfo")
-
-            # make a copy of the process steps for history choice 4
-            # for same reason as above
-            if self.history == 4:
-                self.temp_history = template_tree.xpath("dataqual/lineage/procstep")
-
-            # if template sources and history are NOT to be added,
-            # remove those nodes from the template dom
-            if self.sources in (1, 2, 4, 8):
-                for srcinfo in temp_lineage.findall("srcinfo"):
-                    temp_lineage.remove(srcinfo)
-
-            if self.history in (1, 2):
-                for procstep in temp_lineage.findall("procstep"):
-                    temp_lineage.remove(procstep)
-
         # the number and order of entities in the template file may not be the
-        # same as in the table we are writing metadata for.
+        # same as in the table for which we are writing metadata.
         # copy and then delete that information from the template
         # the dictionary will be used below when writing out the detailed node
         # detailed_dict[attribute label/field name] = etree Element (attr node with all children)
         temp_detailed_dict = {}
-        template_detailed = template_tree.find("eainfo/detailed")
+        template_detailed = self.template_tree.find("eainfo/detailed")
         if template_detailed is not None:
             for attr in template_detailed.findall("attr"):
                 label = attr.find("attrlabl").text
@@ -348,17 +401,16 @@ class CollateFGDCMetadata:
         # add any remaining nodes from the template
         for el in [
             n
-            for n in template_tree.iter()
+            for n in self.template_tree.iter()
             if not any(
-                s in template_tree.getelementpath(n) for s in ("spref", "spdoinfo")
+                s in self.template_tree.getelementpath(n) for s in ("spref", "spdoinfo")
             )
         ]:
-            el_path = template_tree.getelementpath(el)
-            el_text = template_tree.xpath(el_path)[0].text
+            el_path = self.template_tree.getelementpath(el)
+            el_text = self.template_tree.xpath(el_path)[0].text
 
             # check for printable text at the end of the template node xpath
             if el_text and el_text != "None" and el_text.isprintable():
-                print(el_path)
                 # make sure the same node exists in the self.dom
                 self._extend_branch(self.dom, el_path)
                 node = self.dom.xpath(el_path)[0]
