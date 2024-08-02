@@ -145,7 +145,7 @@ if __name__ == "__main__":
     parent_dir = arcpy.GetParameterAsText(0)
     postal_code = arcpy.GetParameterAsText(1)
     year = arcpy.GetParameterAsText(2)
-    mapped_area = arcpy.GetParameterAsText(3)
+    mapped_area = arcpy.GetParameterAsText(3).replace(' ','_')
 
     if arcpy.GetParameterAsText(4) != "#":
         version = arcpy.GetParameterAsText(4)
