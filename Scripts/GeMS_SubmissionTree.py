@@ -24,7 +24,7 @@ import GeMS_utilityFunctions as guf
 import subprocess
 from pathlib import Path
 
-version_string = "GeMS_SubmissionTree.py, version of 4/30/2024 "
+version_string = "GeMS_SubmissionTree.py, version of 8/6/2024 "
 rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/master/Scripts/GeMS_SubmissionTree.py"
 guf.checkVersion(version_string, rawurl, "gems-tools-pro")
 
@@ -146,12 +146,14 @@ if __name__ == "__main__":
     postal_code = arcpy.GetParameterAsText(1)
     year = arcpy.GetParameterAsText(2)
     mapped_area = arcpy.GetParameterAsText(3)
+    mapped_area = mapped_area.replace(" ", "_")
 
     if arcpy.GetParameterAsText(4) != "#":
         version = arcpy.GetParameterAsText(4)
     else:
         version = ""
 
+    version = version.replace(" ", "_")
     basedata = guf.convert_bool(arcpy.GetParameterAsText(5))
 
     make_tree(parent_dir, postal_code, year, mapped_area, version, basedata)

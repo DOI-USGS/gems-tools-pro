@@ -21,18 +21,18 @@ if not %argC%==3 (
 	)
 
 set parent=%~1
-set fullname=%2
+set fullname=%~2
 set basedata=%3
 	
 REM top-level submittal folder and fullname child folder
-mkdir "%parent%/%fullname%-submittal/%fullname%"
+mkdir "%parent%/%fullname%-submittal/%fullname%
 
 REM database folder
 mkdir "%parent%/%fullname%-submittal/%fullname%/%fullname%-database
 mkdir "%parent%/%fullname%-submittal/%fullname%/%fullname%-database/resources
 
 REM Include a basedata folder?
-if "%basedata%"=="y" (
+if "%basedata%"=="y" 
 	mkdir "%parent%/%fullname%-submittal/%fullname%/%fullname%-database/basedata
 	mkdir "%parent%/%fullname%-submittal/%fullname%/%fullname%-database/basedata/resources
 	)
