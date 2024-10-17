@@ -1131,7 +1131,9 @@ def rule3_12(db_dict, gdb_path):
     ds = ogr.Open(gdb_path)
     all_ids = [None]
     set_ids = []
-    for k in db_dict:
+    for k in [
+        t for t, v in db_dict.items() if "fields" in v and not t == "GeoMaterialDict"
+    ]:
         idf = f"{k}_ID"
         sql = f"SELECT {idf} from {k}"
         res = ds.ExecuteSQL(sql)
