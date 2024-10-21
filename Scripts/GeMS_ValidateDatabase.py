@@ -82,7 +82,6 @@ import GeMS_Definition as gdef
 import topology as tp
 import requests
 from jinja2 import Environment, FileSystemLoader
-from osgeo import ogr
 
 # for debugging
 # from importlib import reload
@@ -1128,63 +1127,25 @@ def rule3_12(db_dict, gdb_path):
         "3.12 Duplicated _ID Values. Missing value indicates an empty string, i.e., one or more space or tabs",
         "duplicate_ids",
     ]
-    ds = ogr.Open(gdb_path)
     all_ids = [None]
     set_ids = []
-    for k in [
-        t for t, v in db_dict.items() if "fields" in v and not t == "GeoMaterialDict"
-    ]:
+    for k in [t for t, v in db_dict.items() if "fields" in v]:
         idf = f"{k}_ID"
-        sql = f"SELECT {idf} from {k}"
-        res = ds.ExecuteSQL(sql)
-        if res:
-            for row in res:
-                i = row.GetField(0)
-                if not i in all_ids:
-                    all_ids.append(i)
-                else:
-                    to_html = f"""
-                        <span class="table">{k}</span>, 
-                        <span class="field">{idf}</span>, 
-                        <span class="value">{i}</span>
-                        """
-                    set_ids.append(to_html)
+        if idf in [f.name for f in db_dict[k]["fields"]]:
+            with arcpy.da.SearchCursor(db_dict[k]["catalogPath"], idf) as cursor:
+                for row in cursor:
+                    if not row[0] in all_ids:
+                        all_ids.append(row[0])
+                    else:
+                        to_html = f"""
+                            <span class="table">{k}</span>, 
+                            <span class="field">{idf}</span>, 
+                            <span class="value">{row[0]}</span>
+                            """
+                        set_ids.append(to_html)
+
     if set_ids:
         duplicate_ids.extend((list(set(set_ids))))
-
-    # db_tables = [
-    #     k
-    #     for k, v in db_dict.items()
-    #     if any(v["concat_type"].endswith(n) for n in ("Table", "Feature Class"))
-    #     and not k == "GeoMaterialDict"
-    #     and not "Annotation" in v["concat_type"]
-    # ]
-    # for table in db_tables:
-    #     for f in [f.name for f in db_dict[table]["fields"]]:
-    #         if f == f"{table}_ID":
-    #             id_tables.append(table)
-
-    # all_ids = []
-    # for table in id_tables:
-    #     table_path = db_dict[table]["catalogPath"]
-    #     # need a tuple here because duplicated keys added to a dictionary
-    #     # are ignored. need to look for duplicate (_ID Value: table) pairs.
-    #     # that is, we won't use the values() method here like in other functions
-    #     table_ids = [
-    #         (r[0], table)
-    #         for r in arcpy.da.SearchCursor(table_path, f"{table}_ID")
-    #         if r[0]
-    #     ]
-    #     all_ids.extend(table_ids)
-    #     dup_ids = list(set([id for id in all_ids if all_ids.count(id) > 1]))
-
-    # if dup_ids:
-    #     to_html = [
-    #         f'<span class="value">{d[0]}</span> in table <span class="table">{d[1]}</span>'
-    #         for d in dup_ids
-    #         if not guf.is_bad_null(d[0])
-    #     ]
-    #     duplicate_ids.extend(to_html)
 
     return duplicate_ids
 
