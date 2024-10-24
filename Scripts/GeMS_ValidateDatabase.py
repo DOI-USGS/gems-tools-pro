@@ -92,7 +92,7 @@ from jinja2 import Environment, FileSystemLoader
 # values dictionary gets sent to report_template.jinja errors_template.jinja
 val = {}
 
-version_string = "GeMS_ValidateDatabase.py, version of 5/15/2024"
+version_string = "GeMS_ValidateDatabase.py, version of 10/24/2024"
 val["version_string"] = version_string
 val["datetime"] = time.asctime(time.localtime(time.time()))
 

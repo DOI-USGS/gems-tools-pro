@@ -32,7 +32,7 @@ import arcpy
 import GeMS_utilityFunctions as guf
 import docx
 
-versionString = "GeMS_DocxToDMU.py, version of 5/8/24"
+versionString = "GeMS_DocxToDMU.py, version of 10/24/24"
 rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/master/Scripts/GeMS_DOCXToDMU.py"
 guf.checkVersion(versionString, rawurl, "gems-tools-pro")
 
