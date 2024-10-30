@@ -20,6 +20,9 @@
 - [Getting Help](#getting-help)
 - [Collaborate](#collaborate)
 - [Known Issues](#known-issues)
+- [Acknowledgements](#acknowledgements)
+- [License](#license)
+- [Disclaimer](#disclaimer)
 
 ## About
 This repository contains an ArcGIS toolbox of Python 3 geoprocessing tools for creating, manipulating, and validating [GeMS](https://ngmdb.usgs.gov/Info/standards/GeMS/)-style geologic map databases for use in ArcGIS Pro. Additional resources; vocabularies, symbology, links to other projects, etc.; are available at the [NGMDB GeMS site](https://ngmdb.usgs.gov/Info/standards/GeMS/#reso).
