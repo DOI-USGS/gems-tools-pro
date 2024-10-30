@@ -41,7 +41,7 @@ This method requires you to have `git` installed on your computer. If you know y
   * click Add Item
   * choose Add Folder, and navigate to the folder.
 
-The documentation for these tools may not be complete or may be poorly formatted for display in either the ArcGIS Pro help popup (hover your cursor over the ? icon when looking at the tool parameter form) or metadata view (right-click on the tool from the Catalog pane and choose View Metadata), but, for the most part, the Python 3 versions produce the same results as the older Python 2.7 versions.
+The documentation for these tools may not be complete or may be poorly formatted for display in either the ArcGIS Pro help popup (hover your cursor over the ? icon when looking at the tool parameter form) or metadata view (right-click on the tool from the Catalog pane and choose View Metadata).
 
 ## Getting help
 * Each tool comes with documentation inside the parameter form.
@@ -57,10 +57,8 @@ Suggestions for improvements and edited files submitted by [email](gems@usgs.gov
 [https://guides.github.com/](https://guides.github.com/)
 
 ## Known issues
-* Despite the suffix "_AGP2" on most script files, the tools have been tested with ArcGIS Pro 3.0
 * "Project Map Data to Cross Section" does not always produce the correct apparent dip direction. The dip magnitude is correct, but it may be in the wrong direction.
 * "MapOutline" stumbles over some choices of datum.
-* "DMU to .docx" requires the [python-docx](https://python-docx.readthedocs.io/en/latest/) third party package. **Do not try to install this package into your default arcgispro-py3 python environment**. Instead, install it into a [clone](https://pro.arcgis.com/en/pro-app/latest/arcpy/get-started/work-with-python-environments.htm#ESRI_SECTION1_175473E6EB0D46E0B195996EAE768C1D). Remember to activate this environment before running the tool.
 * Issue 11 describes a problem found when using the Fix Strings tools but may occur elsewhere as well; trying to update rows with an update cursor may throw an error if there is an attribute rule on the field with a message similar to:
 
 ```
