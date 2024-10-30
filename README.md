@@ -13,7 +13,7 @@
 
 This repository contains an ArcGIS toolbox of Python 3 geoprocessing tools for creating, manipulating, and validating [GeMS](https://ngmdb.usgs.gov/Info/standards/GeMS/)-style geologic map databases for use in ArcGIS Pro. Additional resources; vocabularies, symbology, links to other projects, etc.; are available at the [NGMDB GeMS site](https://ngmdb.usgs.gov/Info/standards/GeMS/#reso).
 
-If you are looking for tools that work in ArcMap using Python 2.7, go to [gems-tools-arcmap](https://github.com/DOI-USGS/gems-tools-arcmap)
+If you are looking for tools that work in ArcMap using Python 2.7, go to [gems-tools-arcmap](https://github.com/DOI-USGS/gems-tools-arcmap). Due to the planned retirement for [ArcMap](https://www.esri.com/about/newsroom/arcuser/moving-from-arcmap-to-arcgis-pro-after-mature-support/), this repo is no longer being updated and the tools are considered deprecated.
 
 ## Installation
 There are two ways you can get the toolbox. You can download a zip file with the contents of this repository every time there is a new release or you can clone the repository using `git` and pull the latest changes as necessary with a simple terminal command.
