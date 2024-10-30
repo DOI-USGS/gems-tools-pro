@@ -11,12 +11,15 @@
 
 # GeMS Tools for ArcGIS Pro
 ## Contents
-- [About](#-about)
-- [What's new](#-whats-new)
-- [Installation](#-installation)
-- [Getting Help](#-getting-help)
-- [Collaborate](#-collaborate)
-- [Known Issues](#-known-issues)
+- [About](#about)
+- [What's new](#whats-new)
+- [Installation](#installation)
+    -[Download](#download)
+    -[Clone][#or-clone)
+    -[Configure](#configure)
+- [Getting Help](#getting-help)
+- [Collaborate](#collaborate)
+- [Known Issues](#known-issues)
 
 ## About
 This repository contains an ArcGIS toolbox of Python 3 geoprocessing tools for creating, manipulating, and validating [GeMS](https://ngmdb.usgs.gov/Info/standards/GeMS/)-style geologic map databases for use in ArcGIS Pro. Additional resources; vocabularies, symbology, links to other projects, etc.; are available at the [NGMDB GeMS site](https://ngmdb.usgs.gov/Info/standards/GeMS/#reso).
