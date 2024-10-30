@@ -10,7 +10,6 @@
 
 
 # GeMS Tools for ArcGIS Pro
-## Contents
 - [About](#about)
 - [What's new](#whats-new)
 - [Installation](#installation)
