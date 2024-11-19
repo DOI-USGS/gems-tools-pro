@@ -29,6 +29,7 @@ This repository contains an ArcGIS toolbox of Python 3 geoprocessing tools for c
 If you are looking for tools that work in ArcMap using Python 2.7, go to [gems-tools-arcmap](https://github.com/DOI-USGS/gems-tools-arcmap). Due to the planned retirement for [ArcMap](https://www.esri.com/about/newsroom/arcuser/moving-from-arcmap-to-arcgis-pro-after-mature-support/), that repo is no longer being updated and the tools there are considered deprecated.
 
 ## What's new
+- 11/19/2024, added a new Jupyter Notebook to the [notebooks](https://github.com/DOI-USGS/gems-tools-pro/tree/notebooks) branch. [Populate AreaFillRGB in the DMU table](https://github.com/DOI-USGS/gems-tools-pro/blob/notebooks/Populate%20AreaFillRGB.ipynb) leads you through the process of discovering the color values of the polygon fill symbols used to symbolize map unit polygons, convert the values if necessary to RGB, and update `AreaFillRGB` in the DescriptionOfMapUnits table.
 - Version 3.0.0 is in development. It is based on the newer [ArcGIS toolbox](https://pro.arcgis.com/en/pro-app/latest/help/projects/connect-to-a-toolbox.htm#ESRI_SECTION1_3E9B0E3576C34CA18B2CDA3AB61ED7CD) file format (.atbx extension) and will require ArcGIS 2.9 or above.
 - The new toolbox will include a Metadata toolset with four new tools for working with metadata:
   - Clear Metadata - deletes all embedded metadata from a file geodatabase object
