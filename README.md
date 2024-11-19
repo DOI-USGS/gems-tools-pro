@@ -10,10 +10,31 @@
 
 
 # GeMS Tools for ArcGIS Pro
+- [About](#about)
+- [What's new](#whats-new)
+- [Installation](#installation)
+    - [Download](#download)
+    - [Clone](#or-clone)
+    - [Configure](#configure)
+- [Getting Help](#getting-help)
+- [Collaborate](#collaborate)
+- [Known Issues](#known-issues)
+- [Acknowledgements](#acknowledgements)
+- [License](#license)
+- [Disclaimer](#disclaimer)
 
+## About
 This repository contains an ArcGIS toolbox of Python 3 geoprocessing tools for creating, manipulating, and validating [GeMS](https://ngmdb.usgs.gov/Info/standards/GeMS/)-style geologic map databases for use in ArcGIS Pro. Additional resources; vocabularies, symbology, links to other projects, etc.; are available at the [NGMDB GeMS site](https://ngmdb.usgs.gov/Info/standards/GeMS/#reso).
 
-If you are looking for tools that work in ArcMap using Python 2.7, go to [gems-tools-arcmap](https://github.com/DOI-USGS/gems-tools-arcmap)
+If you are looking for tools that work in ArcMap using Python 2.7, go to [gems-tools-arcmap](https://github.com/DOI-USGS/gems-tools-arcmap). Due to the planned retirement for [ArcMap](https://www.esri.com/about/newsroom/arcuser/moving-from-arcmap-to-arcgis-pro-after-mature-support/), that repo is no longer being updated and the tools there are considered deprecated.
+
+## What's new
+- Version 3.0.0 is in development. It is based on the newer [ArcGIS toolbox](https://pro.arcgis.com/en/pro-app/latest/help/projects/connect-to-a-toolbox.htm#ESRI_SECTION1_3E9B0E3576C34CA18B2CDA3AB61ED7CD) file format (.atbx extension) and will require ArcGIS 2.9 or above.
+- The new toolbox will include a Metadata toolset with four new tools for working with metadata:
+  - Clear Metadata - deletes all embedded metadata from a file geodatabase object
+  - Collate Metadata Sources - collates metadata from multiple sources to produce a single metadata XML file. It is similar to the existing Build Metadata tool but offers a few more options about how to deal with the various sources and can also write a record for each geodatabase item in addition to the single database-level record. It is also being written to work with geopackages. A folder of default GeMS-standardized XML metadata templates (that can be copied and customized) and a CSV file of custom table and field definitions and domain descriptions will replace the current method of saving most metadata template language in string variables and python dictionaries.
+  - Export Metadata - replaces the Export metadata button in the Catalog tab > Metadata group in that it exports a spatial reference element along with the embedded metadata
+  - Import Metadata - Imports metadata from either one file per geodatabase item or from a single database-level file that contains entity-attribute information about all geodatabase items. Because [upgrading metadata](https://pro.arcgis.com/en/pro-app/latest/help/metadata/upgrade-metadata-to-the-arcgis-format.htm) translates FGDC metadata to the ArcGIS schema, changing many element names and inserting new ones, there is the option with Import Metadata to embed without upgrading so that a completely unaltered version of the intended FGDC metadata is saved with the item. 
 
 ## Installation
 There are two ways you can get the toolbox. You can download a zip file with the contents of this repository every time there is a new release or you can clone the repository using `git` and pull the latest changes as necessary with a simple terminal command.
@@ -41,7 +62,7 @@ This method requires you to have `git` installed on your computer. If you know y
   * click Add Item
   * choose Add Folder, and navigate to the folder.
 
-The documentation for these tools may not be complete or may be poorly formatted for display in either the ArcGIS Pro help popup (hover your cursor over the ? icon when looking at the tool parameter form) or metadata view (right-click on the tool from the Catalog pane and choose View Metadata), but, for the most part, the Python 3 versions produce the same results as the older Python 2.7 versions.
+The documentation for these tools may not be complete or may be poorly formatted for display in either the ArcGIS Pro help popup (hover your cursor over the ? icon when looking at the tool parameter form) or metadata view (right-click on the tool from the Catalog pane and choose View Metadata).
 
 ## Getting help
 * Each tool comes with documentation inside the parameter form.
@@ -57,10 +78,8 @@ Suggestions for improvements and edited files submitted by [email](gems@usgs.gov
 [https://guides.github.com/](https://guides.github.com/)
 
 ## Known issues
-* Despite the suffix "_AGP2" on most script files, the tools have been tested with ArcGIS Pro 3.0
 * "Project Map Data to Cross Section" does not always produce the correct apparent dip direction. The dip magnitude is correct, but it may be in the wrong direction.
 * "MapOutline" stumbles over some choices of datum.
-* "DMU to .docx" requires the [python-docx](https://python-docx.readthedocs.io/en/latest/) third party package. **Do not try to install this package into your default arcgispro-py3 python environment**. Instead, install it into a [clone](https://pro.arcgis.com/en/pro-app/latest/arcpy/get-started/work-with-python-environments.htm#ESRI_SECTION1_175473E6EB0D46E0B195996EAE768C1D). Remember to activate this environment before running the tool.
 * Issue 11 describes a problem found when using the Fix Strings tools but may occur elsewhere as well; trying to update rows with an update cursor may throw an error if there is an attribute rule on the field with a message similar to:
 
 ```
