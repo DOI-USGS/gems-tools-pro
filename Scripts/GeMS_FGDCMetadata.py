@@ -427,7 +427,7 @@ def add_attributes(fc_name, detailed_node):
 
         # look for fields that have range domains
         elif key in gDef.rangeDomainDict:
-            arcpy.AddMessage("        Range value domain definition found")
+            arcpy.AddMessage(f"        Range value domain definition found for {key}")
             attrdomv = etree.Element("attrdomv")
             rdom = etree.Element("rdom")
             for n, i in [["rdommin", 0], ["rdommax", 1], ["attrunit", 2]]:
@@ -642,6 +642,7 @@ if my_defs_path.is_file():
 
     try:
         gDef.rangeDomainDict.update(myDef.myRangeDomainDict)
+        arcpy.AddMessage(gDef.rangeDomainDict)
     except:
         pass
 else:
