@@ -322,6 +322,13 @@ def add_attributes(fc_name, detailed_node):
     # check for attrdefs = annotation class and set all attrdefs to ESRI
     # and unrepresentable domain
 
+    try:
+        gDef.enumeratedValueDomainFieldList.extend(
+            myDef.myEnumeratedValueDomainFieldList
+        )
+    except:
+        pass
+
     # check for whether this is an annotation feature class
     describe = obj_dict[fc_name]
 
@@ -408,7 +415,7 @@ def add_attributes(fc_name, detailed_node):
             attr.append(n)
 
         # UNREPRESENTABLE DOMAINS
-        # value might be found in unrepresentableDomainDict
+        # value might be found in
         if key in gDef.unrepresentableDomainDict:
             attrdomv = etree.Element("attrdomv")
             udom = etree.Element("udom")
@@ -421,7 +428,7 @@ def add_attributes(fc_name, detailed_node):
         # arcpy.AddMessage("        Author-defined unrepresentable value domain")
         # attrdomv = etree.Element('attrdomv')
         # udom = etree.Element('udom')
-        # udom.text = myUnrepresentableDomainDict[key]
+        # udom.text = myUnrepresentableDomainDict[key]s
         # attrdomv.append(udom)
         # attr.append(attrdomv)
 
@@ -439,6 +446,7 @@ def add_attributes(fc_name, detailed_node):
 
         # look for fields that have enumerated domains
         elif key in gDef.enumeratedValueDomainFieldList:
+            arcpy.AddMessage(key)
             # collect a unique set of all the values of this attribute
             with arcpy.da.SearchCursor(
                 obj_dict[fc_name]["catalogPath"], field
