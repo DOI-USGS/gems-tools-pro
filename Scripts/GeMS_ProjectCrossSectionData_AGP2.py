@@ -127,34 +127,19 @@ def isAxial(ptType):
     return m
 
 
-def obliq(theta1, theta2):
-    obl = abs(theta1 - theta2)
-    if obl > 180:
-        obl = obl - 180
-    if obl > 90:
-        obl = 180 - obl
-    return obl
+def obliq(b1, b2):
+    # from old Cross Section tool
+    return 180 - abs(abs(b1 - b2) - 180)
 
 
-def azimuthDifference(a, b):
-    # a, b are two azimuths in clockwise geographic notation
-    # azDiff is in range -180..180
-    # if azDiff < 0, a is counterclockwise of b
-    # if azDiff > 0, a is clockwise of b
-    azDiff = a - b
-    if azDiff > 180:
-        azDiff = azDiff - 360
-    if azDiff < -180:
-        azDiff = azDiff + 360
-    return azDiff
-
-
-def plotAzimuth(inclinationDirection, thetaXS, apparentInclination):
-    azDiff = azimuthDifference(thetaXS, inclinationDirection)
-    if azDiff >= -90 and azDiff <= 90:
-        return 270 + apparentInclination
+def symbol_rotation(inclination_direction, local_xs_azi, app_inc_VE):
+    # results in a rotation angle that can be used with geographic rotation
+    # of symbols in cross-section view.
+    azDiff = obliq(local_xs_azi, inclination_direction)
+    if azDiff >= 0 and azDiff <= 90:
+        return 90 + app_inc_VE
     else:
-        return 270 - apparentInclination
+        return 270 - app_inc_VE
 
 
 def apparentPlunge(azi, inc, thetaXS):
@@ -167,14 +152,28 @@ def apparentPlunge(azi, inc, thetaXS):
     return appInc, obliquity
 
 
-def apparentDip(azi, inc, thetaXS):
-    obliquity = obliq(azi, thetaXS)
-    appInc = math.degrees(
+def apparentDip(azi, inc, cs_azi):
+    # From older Cross Section tool,
+    alpha = obliq(azi, cs_azi)
+    complement = 180 - alpha
+    if alpha < complement:
+        obliquity = alpha
+    else:
+        obliquity = complement
+
+    # appIncVE for debugging
+    # APPARENT PLUNGE - change 'math.sin' of last term to math.cos, eg
+    # appInc = math.degrees(math.atan(vertEx * math.tan(math.radians(inc)) *
+    # math.cos(math.radians(obliquity)))
+    appIncVE = math.degrees(
         math.atan(
             vert_ex * math.tan(math.radians(inc)) * math.sin(math.radians(obliquity))
         )
     )
-    return appInc, obliquity
+    appInc = math.degrees(
+        math.atan(math.tan(math.radians(inc)) * math.sin(math.radians(obliquity)))
+    )
+    return appInc, appIncVE, obliquity
 
 
 #  copied from NCGMP09v1.1_CreateDatabase_Arc10.0.py, version of 20 September 2012
@@ -669,7 +668,13 @@ for fc_path in point_fcs:
         guf.addMsgAndPrint("checking for Azimuth and Inclination fields")
         if "Azimuth" in flds and "Inclination" in flds:
             isOrientationData = True
-            for n in ("ApparentInclination", "Obliquity", "MapAzimuth"):
+            for n in (
+                "DipDirection",
+                "ApparentInclination",
+                "ApparentInclinationVE",
+                "Obliquity",
+                "PlotRotation",
+            ):
                 arcpy.management.AddField(loc_points, n, "FLOAT")
                 flds.append(n)
         else:
@@ -734,23 +739,28 @@ for fc_path in point_fcs:
             vals[n("LocalCSAzimuth")] = csAzi
             vals[n("DistanceFromSection")] = in_row[n("Distance")]
             if isOrientationData:
-                vals[n("MapAzimuth")] = in_row[n("Azimuth")]
+                # vals[n("MapAzimuth")] = in_row[n("Azimuth")]
                 if isAxial(in_row[n("Type")]):
                     appInc, oblique = apparentPlunge(
                         in_row[n("Azimuth")], in_row[n("Inclination")], csAzi
                     )
-                    inclinationDirection = in_row[n("Azimuth")]
+                    dip_direction = in_row[n("Azimuth")]
                 else:
-                    appInc, oblique = apparentDip(
+                    appInc, appIncVE, oblique = apparentDip(
                         in_row[n("Azimuth")], in_row[n("Inclination")], csAzi
                     )
-                    inclinationDirection = in_row[n("Azimuth")] + 90
-                    if inclinationDirection > 360:
-                        inclinationDirection = inclinationDirection - 360
-                plotAzi = plotAzimuth(inclinationDirection, csAzi, appInc)
+                    dip_direction = in_row[n("Azimuth")] + 90
+                    # inclination_direction = bearing_sum(in_row[n("Azimuth")], 90)
+                    if dip_direction > 360:
+                        dip_direction = dip_direction - 360
+                # plotAzi = plotAzimuth(inclinationDirection, csAzi, appInc)
+                plotAzi = symbol_rotation(dip_direction, csAzi, appIncVE)
+
                 rowObliquity = round(oblique, 2)
+                vals[n("DipDirection")] = round(dip_direction, 2)
                 vals[n("ApparentInclination")] = round(appInc, 2)
-                vals[n("Azimuth")] = round(plotAzi, 2)
+                vals[n("ApparentInclinationVE")] = round(appIncVE, 2)
+                vals[n("PlotRotation")] = round(plotAzi, 2)
                 vals[n("Obliquity")] = rowObliquity
 
             # {out_name}_ID is last item
