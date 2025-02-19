@@ -92,7 +92,7 @@ from jinja2 import Environment, FileSystemLoader
 # values dictionary gets sent to report_template.jinja errors_template.jinja
 val = {}
 
-version_string = "GeMS_ValidateDatabase.py, version of 10/24/2024"
+version_string = "GeMS_ValidateDatabase.py, version of 02/19/2025"
 val["version_string"] = version_string
 val["datetime"] = time.asctime(time.localtime(time.time()))
 
@@ -299,7 +299,8 @@ def check_fields(db_dict, level, schema_extensions):
             for k, v in db_dict.items()
             if not v["gems_equivalent"] in req_tables
             and not v["gems_equivalent"] == ""
-            and not v["dataType"] in ("Topology", "Annotation", "FeatureDataset")
+            and not v["dataType"]
+            in ("Topology", "Annotation", "FeatureDataset", "Workspace")
         ]
         header = "3.1 Missing or mis-defined fields"
 
@@ -602,6 +603,7 @@ def glossary_check(db_dict, level, all_gloss_terms):
                 "RasterBand",
                 "RasterDataset",
                 "RelationshipClass",
+                "Workspace",
             )
             and not k == "GeoMaterialDict"
             and v["gems_equivalent"] not in req
@@ -677,6 +679,7 @@ def glossary_check(db_dict, level, all_gloss_terms):
                         "Topology",
                         "RasterBand",
                         "RasterDataset",
+                        "Workspace",
                     )
                     and not k == "GeoMaterialDict"
                 ]
@@ -758,10 +761,11 @@ def sources_check(db_dict, level, all_sources):
                 "Topology",
                 "RasterBand",
                 "RasterDataset",
+                "Workspace",
             )
             and not k in gdef.rule2_1_elements
         ]
-        # tables = [t for t in tables if not t in gdef.rule2_1_elements]
+
         missing_header = "3.6 Missing DataSources entries with the table and field in which they are found"
 
     missing_source_ids = [
@@ -773,13 +777,10 @@ def sources_check(db_dict, level, all_sources):
     gems_sources = list(set(values(db_dict, "DataSources", "DataSources_ID", "list")))
     missing = []
     for table in tables:
-        # special case where DescriptionSourceID in DMU can be null:
-        # if there is no MapUnit
-        if table == "DescriptionOfMapUnits":
-            where = "MapUnit IS NOT NULL"
-        else:
-            where = None
+        where = None
 
+        if not "fields" in db_dict[table]:
+            arcpy.AddMessage(f"fields not in {table}")
         ds_fields = [
             f.name
             for f in db_dict[table]["fields"]
@@ -790,7 +791,7 @@ def sources_check(db_dict, level, all_sources):
 
             for val in d_sources.values():
                 if val:
-                    # if "|" in val:
+                    # parse pipe-delimited source ids
                     for el in val.split("|"):
                         if not el.strip() in all_sources:
                             all_sources.append(el.strip())
@@ -817,7 +818,7 @@ def rule3_3(db_dict):
         k
         for k, v in db_dict.items()
         if not v["gems_equivalent"] == ""
-        and not v["dataType"] == "FeatureDataset"
+        and not v["dataType"] in ("FeatureDataset", "Workspace")
         and not v["gems_equivalent"] == "GeoMaterialDict"
     ]
 
