@@ -1,47 +1,47 @@
 # -*- coding: utf-8 -*-
 """Validate Database
 
-Audits a geodatabase for conformance with the GeMS schema and reports compliance 
-as "may be LEVEL 1 COMPLIANT", "is LEVEL 2 COMPLIANT", or "is LEVEL 3 COMPLIANT". 
-It also runs mp (metadata parser) to check for formal errors in geodatabase-level 
-FGDC metadata. 
+Audits a geodatabase for conformance with the GeMS schema and reports compliance
+as "may be LEVEL 1 COMPLIANT", "is LEVEL 2 COMPLIANT", or "is LEVEL 3 COMPLIANT".
+It also runs mp (metadata parser) to check for formal errors in geodatabase-level
+FGDC metadata.
 
 Usage:
-    Use parameter form in ArcGIS Pro or at command line with the arguments below. 
+    Use parameter form in ArcGIS Pro or at command line with the arguments below.
     Use '' or '#' for optional arguments that are not required.
-    
+
 Args:
     gdb_path (str) : Path to database. Required.
-    workdir (str) : Path to output directory. Optional but if not supplied, a 
+    workdir (str) : Path to output directory. Optional but if not supplied, a
       folder called 'validate' will be created in the parent folder of the database.
     metadata_file (str) : Path to metadata file to validate. Optional.
-    arc_md (bool or str) : True or false whether the embedded metadata of the file 
+    arc_md (bool or str) : True or false whether the embedded metadata of the file
       geodatabase as a whole (feature datasets, feature classes, tables, etc. will be
-      ignored) are to be validated. If left blank and metadata_file is blank, no 
+      ignored) are to be validated. If left blank and metadata_file is blank, no
       metadata will be validated. Optional. False by default.
     use_idfield (bool or str) : True or false whether errors in the report should
       be identified by values in the <TableName _ID> field, not the OBJECTID field.
-      Useful in the case of validating a copy of an enterprise database that has 
-      been exported (which overwrites OBJECTIDs) to a file geodatabase but errors 
+      Useful in the case of validating a copy of an enterprise database that has
+      been exported (which overwrites OBJECTIDs) to a file geodatabase but errors
       will be corrected in the enterprise database. For those tables that do not have
       a <TableName_ID> field or where the value is null, the OBJECTID will be reported.
       Optional. False by default.
-    skip_topology (bool or str) : True or false whether checking topology should be 
+    skip_topology (bool or str) : True or false whether checking topology should be
       skipped. Optional. False by default.
     refresh_gmd (bool or str) : True or false whether the GeoMaterialDict
       table in the database should be re-written to the latest required version.
       Optional. False by default.
-    delete_extra (bool or str) : True or false whether to delete unused rows in 
+    delete_extra (bool or str) : True or false whether to delete unused rows in
       DataSources and Glossary. Optional. False by default.
     compact_db (bool or str) : True or false whether to compact the file geodatabase.
       Not applicable to geopackages. Optional. False by default.
-    open_report (bool or str) : True or false whether to open the html validation file 
+    open_report (bool or str) : True or false whether to open the html validation file
       upone completion. Optional. False by default.
-    
-      
+
+
 Returns:
-    <gdb name>-Validation.html (file) : Reports level of 
-      compliance, lists errors and warnings. Written to workdir. 
+    <gdb name>-Validation.html (file) : Reports level of
+      compliance, lists errors and warnings. Written to workdir.
     <gdb name>-ValidationErrors.html (file) : Detailed list of errors and warnings
       by table, field, ObjectID, etc. Written to workdir.
     <gdb name>_Validation.gdb (file gdb)
@@ -76,15 +76,25 @@ import os
 import sys
 import time
 import copy
+from lxml import etree
 from pathlib import Path
 import GeMS_utilityFunctions as guf
 import GeMS_Definition as gdef
 import topology as tp
-import requests
 from jinja2 import Environment, FileSystemLoader
 
+scripts_dir = Path.cwd()
+sys.path.append(scripts_dir)
+import metadata_utilities as mu
+
+toolbox_folder = Path(__file__).parent.parent
+resources_path = toolbox_folder / "Resources"
+metadata_folder = toolbox_folder / "Resources" / "metadata"
+
 # for debugging
-# from importlib import reload
+from importlib import reload
+
+reload(mu)
 # reload(guf)
 # reload(tp)
 # reload(gdef)
@@ -97,10 +107,6 @@ val["version_string"] = version_string
 val["datetime"] = time.asctime(time.localtime(time.time()))
 
 rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/master/Scripts/GeMS_ValidateDatabase.py"
-
-scripts_dir = Path.cwd()
-toolbox_dir = scripts_dir.parent
-resources_path = toolbox_dir / "Resources"
 
 ap = guf.addMsgAndPrint
 
@@ -1199,47 +1205,30 @@ def rule3_13(db_dict):
     return zero_length_strings, leading_trailing_spaces
 
 
-def validate_online(metadata_file, workdir):
+def validate_w_mp(metadata_file, workdir):
     """validate the xml metadata against the USGS metadata validation service API"""
-
+    md_root = etree.parse(metadata_file).getroot()
     metadata_name = metadata_file.stem
-    # metadata_dir = metadata_file.parent
     metadata_errors = workdir / f"{metadata_name}_errors.txt"
 
-    # send the temp file to the API
-    url = r"https://www1.usgs.gov/mp/service.php"
-    try:
-        with open(metadata_file, "rb") as f:
-            r = requests.post(url, files={"input_file": f})
-            r.raise_for_status()
-    except requests.exceptions.RequestException as err:
-        ap(err)
-        return err
-
-    if r.ok:
-        links = r.json()["output"]["link"]
-        errors = requests.get(links["error_txt"])
+    errors = mu.mp_upgrade(md_root)[1]
+    if errors:
         with open(metadata_errors, "wt") as f:
-            for line in errors.iter_lines():
-                if not b"appears in unexpected order within" in line:
-                    f.write(f"{line.decode('utf-8')}\n")
-
-        summary = r.json()["summary"]
-        if "No errors" in summary:
-            message = f"""
-                The database-level FGDC metadata are <a href="{metadata_errors.name}">formally correct</a> 
-                although the metadata record should be reviewed to verify that it is meaningful.<br>
-                """
-            ap("The metadata for this record are formally correct.")
-        else:
-            message = f'The metadata record for this database has <a href="{str(metadata_errors.name)}">formal errors</a>. Please fix!<br>'
-            ap(f"The metadata record for this database has errors. Please fix!")
+            for line in errors.split("\n"):
+                if not "appears in unexpected order within" in line:
+                    f.write(f"{line}\n")
     else:
-        message = (
-            "There was a problem with the connection to the metadata validation service:<br>"
-            + r.reason
-        )
-        ap(message)
+        errors = ""
+
+    if "No errors" in errors:
+        message = f"""
+            The database-level FGDC metadata are <a href="{metadata_errors.name}">formally correct</a> 
+            although the metadata record should be reviewed to verify that it is meaningful.<br>
+            """
+        ap("The metadata for this record are formally correct.")
+    else:
+        message = f'The metadata record for this database has <a href="{str(metadata_errors.name)}">formal errors</a>. Please fix!<br>'
+        ap(f"The metadata record for this database has errors. Please fix!")
 
     return message
 
@@ -1619,7 +1608,7 @@ def main(argv):
     #         gdb_ver = ""
 
     # level 2 compliance
-    ap("\u200B")
+    ap("\u200b")
     ap("Looking at level 2 compliance")
     # check 2.1
     ap(
@@ -1767,7 +1756,7 @@ def main(argv):
     else:
         val["rule2_9"] = ["DataSources cannot be found. Rule not checked"]
 
-    ap("\u200B")
+    ap("\u200b")
     ap("Looking at level 3 compliance")
     # rule 3.1
     # Table and field definitions conform to GeMS schema
@@ -1909,7 +1898,7 @@ def main(argv):
 
     if metadata_file:
         if Path(metadata_file).exists:
-            md_summary = validate_online(metadata_file, workdir)
+            md_summary = validate_w_mp(metadata_file, workdir)
         else:
             md_summary = f"{metadata_file} does not exist."
     else:
@@ -1920,7 +1909,7 @@ def main(argv):
     val["metadata_summary"] = md_summary
     val["level"] = determine_level(val)
 
-    ap("\u200B")
+    ap("\u200b")
     ap("Inventorying database:")
     # other stuff
     # find extensions to schema
@@ -1948,7 +1937,7 @@ def main(argv):
 
     ### Compact DB option
     if compact_db == "true":
-        ap("\u200B")
+        ap("\u200b")
         ap(f"Compacting {gdb_name}")
         arcpy.Compact_management(gdb_path)
     else:
