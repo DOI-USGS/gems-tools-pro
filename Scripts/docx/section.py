@@ -4,7 +4,10 @@
 
 from __future__ import absolute_import, division, print_function, unicode_literals
 
-from collections import Sequence
+try:
+    from collections import Sequence
+except:
+    from collections.abc import Sequence
 
 from docx.blkcntnr import BlockItemContainer
 from docx.enum.section import WD_HEADER_FOOTER
@@ -81,7 +84,7 @@ class Section(object):
         The content of this footer definition is ignored unless the document setting
         :attr:`~.Settings.odd_and_even_pages_header_footer` is set True.
         """
-        return _Footer(self._sectPr, self._document_part,  WD_HEADER_FOOTER.EVEN_PAGE)
+        return _Footer(self._sectPr, self._document_part, WD_HEADER_FOOTER.EVEN_PAGE)
 
     @property
     def even_page_header(self):
@@ -394,7 +397,8 @@ class _Footer(_BaseHeaderFooter):
         """|_Footer| proxy on prior sectPr element or None if this is first section."""
         preceding_sectPr = self._sectPr.preceding_sectPr
         return (
-            None if preceding_sectPr is None
+            None
+            if preceding_sectPr is None
             else _Footer(preceding_sectPr, self._document_part, self._hdrftr_index)
         )
 
@@ -437,6 +441,7 @@ class _Header(_BaseHeaderFooter):
         """|_Header| proxy on prior sectPr element or None if this is first section."""
         preceding_sectPr = self._sectPr.preceding_sectPr
         return (
-            None if preceding_sectPr is None
+            None
+            if preceding_sectPr is None
             else _Header(preceding_sectPr, self._document_part, self._hdrftr_index)
         )
