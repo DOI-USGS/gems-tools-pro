@@ -1,0 +1,92 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<metadata>
+  <idinfo>
+    <citation>
+      <citeinfo>
+        <title>Feature class [[OBJECT]], part of [[DB NAME]]</title>
+      </citeinfo>
+    </citation>
+    <descript>
+      <supplinf>Feature class [[OBJECT]] is part of [[DB NAME]], a composite dataset that conforms to [[GEMS]]. [[FEATURE DATASET]]. This file was partially automated by the use of [[SCRIPT]].</supplinf>
+    </descript>
+  </idinfo>
+  <dataqual>
+    <attracc>
+      <attraccr>Confidence that a feature exists and confidence that a feature is correctly identified are described in per-feature attributes ExistenceConfidence and IdentityConfidence.</attraccr>
+    </attracc>
+    <posacc>
+      <horizpa>
+        <horizpar>Estimated accuracy of horizontal location is given on a per-feature basis by attribute LocationConfidenceMeters. Values are expected to be correct within a factor of 2. A LocationConfidenceMeters value of -9 or -9999 indicates that no value has been assigned.</horizpar>
+      </horizpa>
+    </posacc>
+    <lineage>
+    </lineage>
+  </dataqual>
+  <eainfo>
+    <detailed>
+      <enttyp>
+        <enttypl>DataSourcePolys</enttypl>
+        <enttypd>Polygons that delineate data sources for all parts of the map.</enttypd>
+        <enttypds>GeMS (Geologic Map Schema) - a standard format for the digital publication of geologic maps, available at http://ngmdb.usgs.gov/Info/standards/GeMS/</enttypds>
+      </enttyp>
+      <attr>
+        <attrlabl>DataSourceID</attrlabl>
+        <attrdef>Source of data; foreign key to table DataSources.</attrdef>
+        <attrdefs>GeMS (Geologic Map Schema) - a standard format for the digital publication of geologic maps, available at http://ngmdb.usgs.gov/Info/standards/GeMS/</attrdefs>
+      </attr>
+      <attr>
+        <attrlabl>DataSourcePolys_ID</attrlabl>
+        <attrdef>Primary key for this table.</attrdef>
+        <attrdefs>GeMS (Geologic Map Schema) - a standard format for the digital publication of geologic maps, available at http://ngmdb.usgs.gov/Info/standards/GeMS/</attrdefs>
+        <attrdomv>
+          <udom>Arbitrary string. Values should be unique within this database.</udom>
+        </attrdomv>
+      </attr>
+      <attr>
+        <attrlabl>Notes</attrlabl>
+        <attrdef>Additional information specific to a particular feature or table entry.</attrdef>
+        <attrdefs>GeMS (Geologic Map Schema) - a standard format for the digital publication of geologic maps, available at http://ngmdb.usgs.gov/Info/standards/GeMS/</attrdefs>
+        <attrdomv>
+          <udom>Unrepresentable domain. Free text. Values of &lt;null&gt; or #null indicate no entry.</udom>
+        </attrdomv>
+      </attr>
+      <attr>
+        <attrlabl>OBJECTID</attrlabl>
+        <attrdef>Internal feature number.</attrdef>
+        <attrdefs>Esri</attrdefs>
+        <attrdomv>
+          <udom>Unrepresentable domain.</udom>
+        </attrdomv>
+      </attr>
+      <attr>
+        <attrlabl>Shape</attrlabl>
+        <attrdef>Feature geometry.</attrdef>
+        <attrdefs>Esri</attrdefs>
+        <attrdomv>
+          <udom>Unrepresentable domain.</udom>
+        </attrdomv>
+      </attr>
+      <attr>
+        <attrlabl>Shape_Area</attrlabl>
+        <attrdef>Area of feature in internal units squared.</attrdef>
+        <attrdefs>Esri</attrdefs>
+        <attrdomv>
+          <udom>Unrepresentable domain.</udom>
+        </attrdomv>
+      </attr>
+      <attr>
+        <attrlabl>Shape_Length</attrlabl>
+        <attrdef>Length of feature in internal units.</attrdef>
+        <attrdefs>Esri</attrdefs>
+        <attrdomv>
+          <udom>Unrepresentable domain.</udom>
+        </attrdomv>
+      </attr>
+    </detailed>
+  </eainfo>
+  <metainfo>
+    <metstdn>FGDC Content Standard for Digital Geospatial Metadata</metstdn>
+    <metstdv>FGDC-STD-001-1998</metstdv>
+    <mettc>local time</mettc>
+  </metainfo>
+</metadata>

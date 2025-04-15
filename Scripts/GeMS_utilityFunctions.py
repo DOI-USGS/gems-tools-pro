@@ -1,6 +1,9 @@
 # utility functions for scripts that work with GeMS geodatabase schema
 
-import arcpy, os.path, time, glob
+import arcpy
+import os
+import time
+from pathlib import Path
 import GeMS_Definition as gdef
 
 
@@ -8,12 +11,25 @@ editPrefixes = ("xxx", "edit_", "errors_", "ed_")
 debug = False
 import requests
 
-# from importlib import reload
-# reload(gdef)
+## CONSTANT LISTS, DICTIONARIES, AND STRINGS
+DTYPE_ORDER = [
+    "feature dataset",
+    "feature class",
+    "table",
+    "topology",
+    "raster dataset",
+]
+
+GEMS_FULL_REF = """GeMS (Geologic Map Schema)--a standard format for the digital publication of geologic maps", available at http://ngmdb.usgs.gov/Info/standards/GeMS/"""
+
+GEMS = "GeMS"
+
+EA_OVERVIEW = """
+In a GeMS-compliant database: all feature classes ending in ContactsAndFaults share a topologic relationship with an identically-prefixed MapUnitPolys feature class, all values in fields ending in Type, Method, and Confidence are defined in the Glossary table, all values in fields ending in MapUnit are defined in the DescriptionOfMapUnits table, all values in fields ending in SourceID are defined in the DataSources table, and all values in GeoMaterial fields are defined within the GeoMaterialDict table; a GeMS-controlled vocabulary. Other feature classes and non-spatial tables are required on an as-needed basis and others are optional. Extensions to the schema are acceptable. For more information see GeMS (Geologic Map Schema)--a standard format for the digital publication of geologic maps", available at http://ngmdb.usgs.gov/Info/standards/GeMS/.
+"""
+
 
 # I. General utilities
-
-
 def eval_bool(boo):
     # converts boolean-like strings to Type boolean
     if boo in [True, "True", "true", "Yes", "yes", "Y", "y", 1]:
@@ -52,6 +68,125 @@ def get_duplicates(table_path, field):
     return dups
 
 
+def pluralize(i, s):
+    """Add 's', 'es', 'ies' as appropriate to a plural noun"""
+    if int(i) > 1:
+        if s.endswith("ss"):
+            return f"{s}es"
+
+        if s.endswith("y"):
+            return f"{s[:-1]}ies"
+
+        return f"{s}s"
+    else:
+        return s
+
+
+def contents(db_dict):
+    """Create a string that summarizes the contents of the database.
+    Lists the numbers of different data types of objects but no names"""
+
+    # Remove the entry for the database itself
+    db_dict = {k: v for k, v in db_dict.items() if not v["dataType"] == "Workspace"}
+    d_types = [
+        camel_to_space(v["datasetType"]).lower()
+        for v in db_dict.values()
+        if "datasetType" in v
+    ]
+    type_d = {d_type: d_types.count(d_type) for d_type in set(d_types)}
+    obj_list = []
+    for n in DTYPE_ORDER:
+        if n in type_d:
+            t = f"{type_d[n]} {pluralize(type_d[n], n)}"
+            obj_list.append(t)
+    for n in type_d:
+        if not n in DTYPE_ORDER:
+            t = f"{type_d[n]} {pluralize(type_d[n], n)}"
+            obj_list.append(t)
+
+    if len(obj_list) == 1:
+        return obj_list[0]
+    elif len(obj_list) == 2:
+        return f"{obj_list[0]} and {obj_list[1]}"
+    else:
+        return f"{', '.join(obj_list[:-1])}, and {obj_list[-1]}"
+
+
+def verbose_contents(db_dict, db_name):
+    """Create a string that enumerates the objects in the database
+    Lists feature datasets, their children, and then all objects
+    outside of feature datasets. When table is included, lists everything
+    BUT the table - for use in metadata file describing that table so it is
+    not listed redundantly"""
+
+    # Remove the entry for the database itself
+    db_dict = {k: v for k, v in db_dict.items() if not v["dataType"] == "Workspace"}
+
+    # filter on Feature Datasets
+    fds = {k: v for k, v in db_dict.items() if v["dataType"] == "FeatureDataset"}
+    verbose = []
+    if fds:
+        # list the feature datasets
+        fds = {k: fds[k] for k in sorted(fds.keys())}
+        if len(fds) == 1:
+            verbose = f"{db_name} contains one feature dataset: {list(fds.keys())[0]}."
+        elif len(fds) == 2:
+            verbose = f"{db_name} contains two feature datasets:  {list(fds.keys())[0]}  {list(fds.keys())[1]}."
+        else:
+            verbose = f"{db_name} contains {convertToWords(len(fds)).lower()} feature datasets: {', '.join(list(fds.keys())[:-1])}, and {list(fds.keys())[-1]}."
+        verbose = [verbose]
+
+        # list the contents of the feature datasets
+        all_fds = []
+        for k, v in fds.items():
+            if v["children"]:
+                this_fd = f"Feature dataset {k} contains"
+                fd_items = []
+                for child in sorted(v["children"], key=lambda x: x["baseName"]):
+                    type_str = f"{child['concat_type'].lower()} {child['baseName']}"
+                    fd_items.append(type_str)
+                if len(fd_items) == 1:
+                    this_fd = f"{this_fd} one object: {fd_items[0]}."
+                elif len(fd_items) == 2:
+                    this_fd = f"{this_fd} two objects: {fd_items[0]} and {fd_items[1]}."
+                else:
+                    this_fd = f"{this_fd} {convertToWords(len(fd_items)).lower()} objects: {', '.join(fd_items[:-1])}, and {fd_items[-1]}."
+                all_fds.append(this_fd)
+
+        verbose.extend(all_fds)
+
+    # look for stand-alone objects. These are objects that have no "feature_dataset" value
+    # and are not also feature datasets
+    alones = {
+        k: v
+        for k, v in db_dict.items()
+        if not v["feature_dataset"] and not v["dataType"] == "FeatureDataset"
+    }
+
+    if alones:
+        alones = {k: alones[k] for k in sorted(alones.keys())}
+        if fds:
+            begin_str = f"The database also contains"
+        else:
+            begin_str = f"{db_name} contains"
+
+        db_items = []
+        for k in sorted(alones.keys()):
+            type_str = f"{alones[k]['concat_type'].lower()} {k}"
+            db_items.append(type_str)
+
+        if len(db_items) == 1:
+            db_contents = f"{begin_str} one stand-alone object: {db_items[0]}."
+        elif len(db_items) == 2:
+            db_contents = f"{begin_str } two stand-alone objects: {db_items[0]} and {db_items[1]}."
+        else:
+            db_contents = f"{begin_str} {convertToWords(len(db_items)).lower()} stand-alone objects: {', '.join(db_items[:-1])}, and {db_items[-1]}."
+
+    verbose.append(db_contents)
+
+    return " ".join(verbose)
+
+
 # tests for null string values and <Null> numeric values
 # Does not test for numeric nulls -9, -9999, etc.
 def stringIsGeMSNull(val):
@@ -65,18 +200,18 @@ def stringIsGeMSNull(val):
 
 def addMsgAndPrint(msg, severity=0):
     # prints msg to screen and adds msg to the geoprocessor (in case this is run as a tool)
-    # print msg
+    print(msg)
 
+    # noinspection PyBroadException
     try:
-        for string in msg.split("\n"):
-            # Add appropriate geoprocessing message
-            if severity == 0:
-                arcpy.AddMessage(string)
-            elif severity == 1:
-                arcpy.AddWarning(string)
-            elif severity == 2:
-                arcpy.AddError(string)
-    except:
+        # Add appropriate geoprocessing message
+        if severity == 0:
+            arcpy.AddMessage(msg)
+        elif severity == 1:
+            arcpy.AddWarning(msg)
+        elif severity == 2:
+            arcpy.AddError(msg)
+    except Exception:
         pass
 
 
@@ -101,9 +236,10 @@ def fieldNameList(aTable):
 
 def writeLogfile(gdb, msg):
     timeUser = "[" + time.asctime() + "][" + os.environ["USERNAME"] + "] "
-    logfileName = os.path.join(gdb, "00log.txt")
+    logfileName = Path(gdb) / "00log.txt"
     try:
-        logfile = open(os.path.join(gdb, logfileName), "a")
+        log_path = Path(gdb) / logfileName
+        logfile = open(log_path, "a")
         logfile.write(timeUser + msg + "\n")
         logfile.close()
     except:
@@ -115,8 +251,8 @@ def getSaveName(fc):
     # fc is entire pathname
     # builds new, unused name in form oldNameNNN
     oldWS = arcpy.env.workspace
-    arcpy.env.workspace = os.path.dirname(fc)
-    shortFc = os.path.basename(fc)
+    arcpy.env.workspace = Path(fc).parent
+    shortFc = Path(fc).stem
     pfcs = arcpy.ListFeatureClasses(shortFc + "*")
     if debug:
         addMsgAndPrint(str(pfcs))
@@ -147,9 +283,8 @@ typeTransDict = {
     "Date": "DATE",
 }
 
+
 # II. Functions that presume extensions to naming scheme
-
-
 ## getCaf needs to be recoded to use a prefix value
 def getCaf(inFds, prefix=""):
     arcpy.env.workspace = inFds
@@ -178,7 +313,7 @@ def getCaf(inFds, prefix=""):
         addMsgAndPrint("    " + inFds)
         addMsgAndPrint("    " + str(cafs2))
         raise arcpy.ExecuteError
-    return os.path.join(inFds, cafs2[0])
+    return Path(inFds) / cafs2[0]
 
 
 def getMup(fds):
@@ -187,16 +322,14 @@ def getMup(fds):
 
 
 def getNameToken(fds):
-    if os.path.basename(fds) == "CorrelationOfMapUnits":
+    if Path(fds).stem == "CorrelationOfMapUnits":
         return "CMU"
     else:
-        caf = os.path.basename(getCaf(fds))
+        caf = Path(getCaf(fds))
         return caf.replace("ContactsAndFaults", "")
 
 
 # III. Functions that presume Type (vocabulary) values
-
-
 def isFault(lType):
     if lType.upper().find("FAULT") > -1:
         return True
@@ -254,7 +387,7 @@ def isPlanar(orientationType):
 
 
 def editSessionActive(gdb):
-    if glob.glob(os.path.join(gdb, "*.ed.lock")):
+    if Path(gdb).glob("*.ed.lock"):
         edit_session = True
     else:
         edit_session = False
@@ -310,14 +443,21 @@ def gdb_object_dict(gdb_path):
     # trying to modify the children dictionary in-place wasn't producing expected results
     # we'll build a new dictionary with modified names
     if gdb_path.endswith(".gpkg"):
-        new_dict = {}
+        dict_1 = {}
         for child in children:
             if "." in child:
                 new_name = child.split(".")[1]
-                new_dict[new_name] = children[child]
+                dict_1[new_name] = children[child]
     else:
-        new_dict = children
-    # new_dict = children
+        dict_1 = children
+
+    # remove anything we don't want that came through
+    dict_2 = {k: v for k, v in dict_1.items() if not v["dataType"] == "RasterBand"}
+
+    # add an entry for the database itself
+    db_name = Path(gdb_path).stem
+    # leave out "children" because they are serialized in the dictionary
+    dict_2[db_name] = {k: v for k, v in desc.items() if not k == "children"}
 
     # adding an entry for 'concatenated type' that will concatenate
     # featureType, shapeType, and dataType. eg
@@ -325,15 +465,16 @@ def gdb_object_dict(gdb_path):
     # Simple Polyline FeatureClass
     # Annotation Polygon FeatureClass
     # this will go into Entity_Type_Definition
-    for k, v in new_dict.items():
+    for k, v in dict_2.items():
         if "dataType" in v:
             d_type = camel_to_space(v["dataType"])
-        if v["dataType"] == "Table":
-            v["concat_type"] = "Nonspatial Table"
-        elif v["dataType"] == "FeatureClass":
-            v["concat_type"] = f"{v['featureType']} {v['shapeType']} {d_type}"
-        else:
-            v["concat_type"] = d_type
+            match v["dataType"]:
+                case "Table":
+                    v["concat_type"] = "Non-spatial Table"
+                case "FeatureClass":
+                    v["concat_type"] = f"{v['featureType']} {v['shapeType']} {d_type}"
+                case _:
+                    v["concat_type"] = d_type
 
         # for objects that are based on a GeMS object but have a
         # prefix or suffix, record the name of the required GeMS object
@@ -372,7 +513,10 @@ def gdb_object_dict(gdb_path):
             if "mapunitoverlaypolys" in k.lower():
                 v["gems_equivalent"] = "MapUnitOverlayPolys"
 
-    return new_dict
+            if v["dataType"] == "Workspace":
+                v["gems_equivalent"] = "GeMS Database"
+
+    return dict_2
 
 
 def camel_to_snake(s):
@@ -406,6 +550,97 @@ def fix_null(x):
 def not_empty(x):
     # will converting x to string ever return an unexpected value?
     if x != None and str(x).strip() != "":
+        return True
+    else:
+        return False
+
+        return None
+
+
+def convertToWords(n):
+    """Convert integer numbers to numerals"""
+    if n == 0:
+        return "Zero"
+
+    # Words for numbers 0 to 19
+    units = [
+        "",
+        "One",
+        "Two",
+        "Three",
+        "Four",
+        "Five",
+        "Six",
+        "Seven",
+        "Eight",
+        "Nine",
+        "Ten",
+        "Eleven",
+        "Twelve",
+        "Thirteen",
+        "Fourteen",
+        "Fifteen",
+        "Sixteen",
+        "Seventeen",
+        "Eighteen",
+        "Nineteen",
+    ]
+
+    # Words for numbers multiple of 10
+    tens = [
+        "",
+        "",
+        "Twenty",
+        "Thirty",
+        "Forty",
+        "Fifty",
+        "Sixty",
+        "Seventy",
+        "Eighty",
+        "Ninety",
+    ]
+
+    multiplier = ["", "Thousand", "Million", "Billion"]
+
+    res = ""
+    group = 0
+
+    # Process number in group of 1000s
+    while n > 0:
+        if n % 1000 != 0:
+
+            value = n % 1000
+            temp = ""
+
+            # Handle 3 digit number
+            if value >= 100:
+                temp = units[value // 100] + " Hundred "
+                value %= 100
+
+            # Handle 2 digit number
+            if value >= 20:
+                temp += tens[value // 10] + " "
+                value %= 10
+
+            # Handle unit number
+            if value > 0:
+                temp += units[value] + " "
+
+            # Add the multiplier according to the group
+            temp += multiplier[group] + " "
+
+            # Add the result of this group to overall result
+            res = temp + res
+        n //= 1000
+        group += 1
+
+    # Remove trailing space
+    return res.strip()
+
+
+def is_db(db_dict, name):
+    """Is the object in the dictionary a database or not"""
+    if db_dict[name]["dataType"] == "Workspace":
         return True
     else:
         return False

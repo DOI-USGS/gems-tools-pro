@@ -17,7 +17,7 @@ import spatial_utils as su
 
 toolbox_folder = Path(__file__).parent.parent
 scripts_folder = toolbox_folder / "Scripts"
-resources_folder = toolbox_folder / "Resources"
+metadata_folder = toolbox_folder / "Resources" / "metadata"
 
 ## CONSTANT LISTS, DICTIONARIES, AND STRINGS
 KW_DICT = {
@@ -664,8 +664,8 @@ def mp_upgrade(dom):
     """'Upgrade' the metadata with mp.exe. Fixes a number of structural issues.
     https://geology.usgs.gov/tools/metadata/tools/doc/upgrade.html"""
 
-    mp_path = resources_folder / "mp.exe"
-    config_path = resources_folder / "mp_config"
+    mp_path = metadata_folder / "mp.exe"
+    config_path = metadata_folder / "mp_config"
     tree = etree.ElementTree(dom)
 
     # save self.dom in a temporary directory

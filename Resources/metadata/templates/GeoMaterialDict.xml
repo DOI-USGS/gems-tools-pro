@@ -1,0 +1,107 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<metadata>
+  <idinfo>
+    <citation>
+      <citeinfo>
+        <title>GeoMaterialDict - [[OBJECT]], part of [[DB NAME]]</title>
+      </citeinfo>
+    </citation>
+    <descript>
+      <supplinf>GeoMaterialDict - [[OBJECT]] is part of [[DB NAME]], a composite dataset that conforms to [[GEMS]]. [[FEATURE DATASET]]. This file was partially automated by the use of [[SCRIPT]].</supplinf>
+    </descript>
+  </idinfo>
+  <dataqual>
+    <attracc>
+      <attraccr>Confidence that a feature exists and confidence that a feature is correctly identified are described in per-feature attributes ExistenceConfidence and IdentityConfidence.</attraccr>
+    </attracc>
+    <posacc>
+      <horizpa>
+        <horizpar>Estimated accuracy of horizontal location is given on a per-feature basis by attribute LocationConfidenceMeters. Values are expected to be correct within a factor of 2. A LocationConfidenceMeters value of -9 or -9999 indicates that no value has been assigned.</horizpar>
+      </horizpa>
+    </posacc>
+    <lineage>
+    </lineage>
+  </dataqual>
+  <eainfo>
+    <detailed>
+      <enttyp>
+        <enttypl>GeoMaterialDict</enttypl>
+        <enttypd>Non-spatial table that provides values of GeoMaterial, placed in a hierarchy, and their definitions. For further information, see Appendix A in GeMS documentation, available at http://ngmdb.usgs.gov/Info/standards/GeMS.</enttypd>
+        <enttypds>GeMS (Geologic Map Schema) - a standard format for the digital publication of geologic maps, available at http://ngmdb.usgs.gov/Info/standards/GeMS/</enttypds>
+      </enttyp>
+      <attr>
+        <attrlabl>Definition</attrlabl>
+        <attrdef>Plain-language definition of value in Term.</attrdef>
+        <attrdefs>GeMS (Geologic Map Schema) - a standard format for the digital publication of geologic maps, available at http://ngmdb.usgs.gov/Info/standards/GeMS/</attrdefs>
+        <attrdomv>
+          <codesetd>
+            <codesetn>GeoMaterial Dictionary, see table GeoMaterialDict</codesetn>
+            <codesets>GeMS (Geologic Map Schema) - a standard format for the digital publication of geologic maps, available at http://ngmdb.usgs.gov/Info/standards/GeMS/</codesets>
+          </codesetd>
+        </attrdomv>
+      </attr>
+      <attr>
+        <attrlabl>GeoMaterial</attrlabl>
+        <attrdef>Controlled-vocabulary classification of earth materials that is based on general lithologic and genetic character. Terms are defined in Appendix A of GeMS documentation, available at http://ngmdb.usgs.gov/Info/standards/GeMS.</attrdef>
+        <attrdefs>GeMS (Geologic Map Schema) - a standard format for the digital publication of geologic maps, available at http://ngmdb.usgs.gov/Info/standards/GeMS/</attrdefs>
+        <attrdomv>
+          <codesetd>
+            <codesetn>GeoMaterial Dictionary, see table GeoMaterialDict</codesetn>
+            <codesets>GeMS (Geologic Map Schema) - a standard format for the digital publication of geologic maps, available at http://ngmdb.usgs.gov/Info/standards/GeMS/</codesets>
+          </codesetd>
+        </attrdomv>
+      </attr>
+      <attr>
+        <attrlabl>HierarchyKey</attrlabl>
+        <attrdef>String that records hierarchical structure. Has form nn-nn-nn, nnn-nnn, or similar. Numeric, left-padded with zeros, delimited with any non-alphanumeric character such as dots, dashes, slashes, etc. Each HierarchyKey fragment of each row MUST be the same length to allow text-based sorting of table entries.</attrdef>
+        <attrdefs>GeMS (Geologic Map Schema) - a standard format for the digital publication of geologic maps, available at http://ngmdb.usgs.gov/Info/standards/GeMS/</attrdefs>
+        <attrdomv>
+          <udom>Unrepresentable domain.</udom>
+        </attrdomv>
+      </attr>
+      <attr>
+        <attrlabl>IndentedName</attrlabl>
+        <attrdef>Name with addition of leading spaces to help show rank within a hierarchical list.</attrdef>
+        <attrdefs>GeMS (Geologic Map Schema) - a standard format for the digital publication of geologic maps, available at http://ngmdb.usgs.gov/Info/standards/GeMS/</attrdefs>
+        <attrdomv>
+          <codesetd>
+            <codesetn>GeoMaterial Dictionary, see table GeoMaterialDict</codesetn>
+            <codesets>GeMS (Geologic Map Schema) - a standard format for the digital publication of geologic maps, available at http://ngmdb.usgs.gov/Info/standards/GeMS/</codesets>
+          </codesetd>
+        </attrdomv>
+      </attr>
+      <attr>
+        <attrlabl>OBJECTID</attrlabl>
+        <attrdef>Internal feature number.</attrdef>
+        <attrdefs>Esri</attrdefs>
+        <attrdomv>
+          <udom>Unrepresentable domain.</udom>
+        </attrdomv>
+      </attr>
+    </detailed>
+    <overview>
+      <eaover>Any value found in a GeoMaterial field in any table within the database should be defined here.</eaover>
+    </overview>
+  </eainfo>
+  <metainfo>
+    <metc>
+      <cntinfo>
+        <cntorgp>
+          <cntorg>U.S. Geological Survey, National Cooperative Geologic Mapping Program</cntorg>
+        </cntorgp>
+        <cntaddr>
+          <addrtype>mailing and physical</addrtype>
+          <address>12201 Sunrise Valley Drive</address>
+          <city>Reston</city>
+          <state>VA</state>
+          <postal>20192</postal>
+          <country>USA</country>
+        </cntaddr>
+        <cntemail>gems@usgs.gov</cntemail>
+      </cntinfo>
+    </metc>
+    <metstdn>FGDC Content Standard for Digital Geospatial Metadata</metstdn>
+    <metstdv>FGDC-STD-001-1998</metstdv>
+    <mettc>local time</mettc>
+  </metainfo>
+</metadata>

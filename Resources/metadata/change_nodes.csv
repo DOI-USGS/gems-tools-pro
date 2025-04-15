@@ -1,0 +1,7 @@
+node_path, value
+metadata.dataqual.attracc.attraccr, Confidence that a feature exists and confidence that a feature is correctly identified are described in per-feature attributes ExistenceConfidence and IdentityConfidence.
+metadata.dataqual.posacc.horizpa.horizpar, Estimated accuracy of horizontal location is given on a per-feature basis by attribute LocationConfidenceMeters. Values are expected to be correct within a factor of 2.  A LocationConfidenceMeters value of -9 or -9999 indicates that no value has been assigned.
+metadata.idinfo.accconst, None
+metadata.idinfo.useconst, None
+metadata.eainfo.overview.eaover, [[VERBOSE CONTENTS]]
+metadata.eainfo.overview.eadetcit, [[GeMS]]

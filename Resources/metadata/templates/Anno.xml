@@ -1,0 +1,186 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<metadata>
+  <idinfo>
+    <citation>
+      <citeinfo>
+        <title>Annotation feature class [[OBJECT]], part of [[DB NAME]]</title>
+        <geoform>vector digital data</geoform>
+      </citeinfo>
+    </citation>
+  </idinfo>
+  <spdoinfo>
+    <direct>Vector</direct>
+    <ptvctinf>
+      <sdtsterm>
+        <sdtstype>GT-polygon composed of chains</sdtstype>
+        <ptvctcnt>10</ptvctcnt>
+      </sdtsterm>
+    </ptvctinf>
+  </spdoinfo>
+  <eainfo>
+    <detailed>
+      <enttyp>
+        <enttypl>Anno</enttypl>
+      </enttyp>
+      <attr>
+        <attrlabl>Angle</attrlabl>
+        <attrdef>Rotates the text angle</attrdef>
+        <attrdefs>Esri</attrdefs>
+      </attr>
+      <attr>
+        <attrlabl>AnnotationClassID</attrlabl>
+        <attrdef>The annotation class to which the annotation belongs</attrdef>
+        <attrdefs>Esri</attrdefs>
+      </attr>
+      <attr>
+        <attrlabl>Bold</attrlabl>
+        <attrdef>Whether the text is in bold: true or false</attrdef>
+        <attrdefs>Esri</attrdefs>
+      </attr>
+      <attr>
+        <attrlabl>CharacterSpacing</attrlabl>
+        <attrdef>Adjusts the spacing between characters</attrdef>
+        <attrdefs>Esri</attrdefs>
+      </attr>
+      <attr>
+        <attrlabl>CharacterWidth</attrlabl>
+        <attrdef>Adjusts the character width</attrdef>
+        <attrdefs>Esri</attrdefs>
+      </attr>
+      <attr>
+        <attrlabl>Element</attrlabl>
+        <attrdef>BLOB field that stores symbology and text geometry</attrdef>
+        <attrdefs>Esri</attrdefs>
+      </attr>
+      <attr>
+        <attrlabl>FeatureGlobalID</attrlabl>
+        <attrdef>Contains the ObjectID or the GlobalID of the feature from which the annotation was derived.</attrdef>
+        <attrdefs>Esri</attrdefs>
+      </attr>
+      <attr>
+        <attrlabl>FeatureID</attrlabl>
+        <attrdef>Contains the ObjectID or the GlobalID of the feature from which the annotation was derived.</attrdef>
+        <attrdefs>Esri</attrdefs>
+      </attr>
+      <attr>
+        <attrlabl>FlipAngle</attrlabl>
+        <attrdef>Adjusts the angle at which point rotated text is flipped in place</attrdef>
+        <attrdefs>Esri</attrdefs>
+      </attr>
+      <attr>
+        <attrlabl>FontLeading</attrlabl>
+        <attrdef>Adjusts the spacing between lines</attrdef>
+        <attrdefs>Esri</attrdefs>
+      </attr>
+      <attr>
+        <attrlabl>FontName</attrlabl>
+        <attrdef>
+        </attrdef>
+        <attrdefs>Esri</attrdefs>
+      </attr>
+      <attr>
+        <attrlabl>FontSize</attrlabl>
+        <attrdef>The name of the font, for example, Arial</attrdef>
+        <attrdefs>Esri</attrdefs>
+      </attr>
+      <attr>
+        <attrlabl>HorizontalAlignment</attrlabl>
+        <attrdef>The horizontal alignment of the text: left, right, center, or full</attrdef>
+        <attrdefs>Esri</attrdefs>
+      </attr>
+      <attr>
+        <attrlabl>Italic</attrlabl>
+        <attrdef>Whether the text is in italics: true or false</attrdef>
+        <attrdefs>Esri</attrdefs>
+      </attr>
+      <attr>
+        <attrlabl>OBJECTID</attrlabl>
+        <attrdef>Internal feature number.</attrdef>
+        <attrdefs>Esri</attrdefs>
+        <attrdomv>
+          <udom>Sequential unique whole numbers that are automatically generated.</udom>
+        </attrdomv>
+      </attr>
+      <attr>
+        <attrlabl>Override</attrlabl>
+        <attrdef>Directs ArcGIS Pro to override one or more annotation attribute values</attrdef>
+        <attrdefs>Esri</attrdefs>
+      </attr>
+      <attr>
+        <attrlabl>SHAPE</attrlabl>
+        <attrdef>Feature geometry.</attrdef>
+        <attrdefs>Esri</attrdefs>
+        <attrdomv>
+          <udom>Coordinates defining the features.</udom>
+        </attrdomv>
+      </attr>
+      <attr>
+        <attrlabl>SHAPE_Area</attrlabl>
+        <attrdef>Area of feature in internal units squared.</attrdef>
+        <attrdefs>Esri</attrdefs>
+        <attrdomv>
+          <udom>Positive real numbers that are automatically generated.</udom>
+        </attrdomv>
+      </attr>
+      <attr>
+        <attrlabl>SHAPE_Length</attrlabl>
+        <attrdef>Length of feature in internal units.</attrdef>
+        <attrdefs>Esri</attrdefs>
+        <attrdomv>
+          <udom>Positive real numbers that are automatically generated.</udom>
+        </attrdomv>
+      </attr>
+      <attr>
+        <attrlabl>Status</attrlabl>
+        <attrdef>Whether the feature is placed or unplaced</attrdef>
+        <attrdefs>Esri</attrdefs>
+      </attr>
+      <attr>
+        <attrlabl>SymbolID</attrlabl>
+        <attrdef>The symbol in the symbol table</attrdef>
+        <attrdefs>Esri</attrdefs>
+      </attr>
+      <attr>
+        <attrlabl>TextString</attrlabl>
+        <attrdef>The text string for the feature</attrdef>
+        <attrdefs>Esri</attrdefs>
+      </attr>
+      <attr>
+        <attrlabl>Underline</attrlabl>
+        <attrdef>Whether the text is underlined: true or false</attrdef>
+        <attrdefs>Esri</attrdefs>
+      </attr>
+      <attr>
+        <attrlabl>VerticalAlignment</attrlabl>
+        <attrdef>The vertical alignment of the text: top, center, baseline, or bottom</attrdef>
+        <attrdefs>Esri</attrdefs>
+      </attr>
+      <attr>
+        <attrlabl>WordSpacing</attrlabl>
+        <attrdef>Adjusts the spacing between words</attrdef>
+        <attrdefs>Esri</attrdefs>
+      </attr>
+      <attr>
+        <attrlabl>XOffset</attrlabl>
+        <attrdef>Shifts the text position right or left</attrdef>
+        <attrdefs>Esri</attrdefs>
+      </attr>
+      <attr>
+        <attrlabl>YOffset</attrlabl>
+        <attrdef>Shifts the text position up or down</attrdef>
+        <attrdefs>Esri</attrdefs>
+      </attr>
+      <attr>
+        <attrlabl>ZOrder</attrlabl>
+        <attrdef>Unused at this time</attrdef>
+        <attrdefs>Esri</attrdefs>
+      </attr>
+    </detailed>
+  </eainfo>
+  <metainfo>
+    <metd>20250115</metd>
+    <metstdn>FGDC Content Standard for Digital Geospatial Metadata</metstdn>
+    <metstdv>FGDC-STD-001-1998</metstdv>
+    <mettc>local time</mettc>
+  </metainfo>
+</metadata>

@@ -444,7 +444,7 @@ class XMLRecord(object):
                 self.record = lxml.parse(self.fname)
                 self._root = self.record.getroot()
             else:
-                from pymdwizard.core import utils
+                #from pymdwizard.core import utils
 
                 try:
                     if utils.url_validator(contents):

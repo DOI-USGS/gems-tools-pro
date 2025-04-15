@@ -1,0 +1,36 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<metadata>
+  <idinfo>
+    <citation>
+      <citeinfo>
+        <title>Feature dataset [[OBJECT]], part of [[DB NAME]]</title>
+      </citeinfo>
+    </citation>
+    <descript>
+      <supplinf>Feature dataset [[OBJECT]] is part of [[DB NAME]], a composite dataset that conforms to [[GEMS]]. [[FEATURE DATASET]]. This file was partially automated by the use of [[SCRIPT]].</supplinf>
+    </descript>
+  </idinfo>
+  <dataqual>
+    <attracc>
+      <attraccr>Confidence that a feature exists and confidence that a feature is correctly identified are described in per-feature attributes ExistenceConfidence and IdentityConfidence.</attraccr>
+    </attracc>
+    <posacc>
+      <horizpa>
+        <horizpar>Estimated accuracy of horizontal location is given on a per-feature basis by attribute LocationConfidenceMeters. Values are expected to be correct within a factor of 2. A LocationConfidenceMeters value of -9 or -9999 indicates that no value has been assigned.</horizpar>
+      </horizpa>
+    </posacc>
+    <lineage>
+    </lineage>
+  </dataqual>
+  <eainfo>
+    <overview>
+      <eaover>CorrelationOfMapUnits is a feature dataset that encodes the Correlation of Map Units (CMU) diagram found on many geologic maps. Spatial reference frame is arbitrary; units may be page inches.</eaover>
+      <eadetcit>GeMS</eadetcit>
+    </overview>
+  </eainfo>
+  <metainfo>
+    <metstdn>FGDC Content Standard for Digital Geospatial Metadata</metstdn>
+    <metstdv>FGDC-STD-001-1998</metstdv>
+    <mettc>local time</mettc>
+  </metainfo>
+</metadata>

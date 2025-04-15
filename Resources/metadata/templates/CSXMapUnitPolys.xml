@@ -1,0 +1,130 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<metadata>
+  <idinfo>
+    <citation>
+      <citeinfo>
+        <title>Feature class CSAMapUnitPolys, part of Metadata Template</title>
+      </citeinfo>
+    </citation>
+    <descript>
+      <supplinf>Feature class CSAMapUnitPolys is part of GeMS.gdb, a composite dataset that conforms to "GeMS (Geologic Map Schema)--a standard format for the digital publication of geologic maps", available at http://ngmdb.usgs.gov/Info/standards/GeMS/.</supplinf>
+    </descript>
+  </idinfo>
+  <dataqual>
+    <attracc>
+      <attraccr>Confidence that a feature exists and confidence that a feature is correctly identified are described in per-feature attributes ExistenceConfidence and IdentityConfidence.</attraccr>
+    </attracc>
+    <posacc>
+      <horizpa>
+        <horizpar>Estimated accuracy of horizontal location is given on a per-feature basis by attribute LocationConfidenceMeters. Values are expected to be correct within a factor of 2. A LocationConfidenceMeters value of -9 or -9999 indicates that no value has been assigned.</horizpar>
+      </horizpa>
+    </posacc>
+    <lineage>
+    </lineage>
+  </dataqual>
+  <spdoinfo>
+    <direct>Vector</direct>
+    <ptvctinf>
+      <sdtsterm>
+        <sdtstype>GT-polygon composed of chains</sdtstype>
+        <ptvctcnt>0</ptvctcnt>
+      </sdtsterm>
+    </ptvctinf>
+  </spdoinfo>
+  <eainfo>
+    <detailed>
+      <enttyp>
+        <enttypl>CS[[X]]MapUnitPolys</enttypl>
+        <enttypd>Polygons that record the distribution of map units within the vertical plane defined by cross-section line [[X]]. Coordinates display features in cross-section view, i.e., units of the X-axis show length along the line of cross-section and units of the Y-axis show elevation.</enttypd>
+        <enttypds>GeMS (Geologic Map Schema) - a standard format for the digital publication of geologic maps, available at http://ngmdb.usgs.gov/Info/standards/GeMS/</enttypds>
+      </enttyp>
+      <attr>
+        <attrlabl>OBJECTID</attrlabl>
+        <attrdef>Internal feature number</attrdef>
+        <attrdefs>Esri</attrdefs>
+        <attrdomv>
+          <udom>Unrepresentable domain.</udom>
+        </attrdomv>
+      </attr>
+      <attr>
+        <attrlabl>Shape</attrlabl>
+        <attrdef>Internal geometry object</attrdef>
+        <attrdefs>Esri</attrdefs>
+        <attrdomv>
+          <udom>Unrepresentable domain.</udom>
+        </attrdomv>
+      </attr>
+      <attr>
+        <attrlabl>Shape_Length</attrlabl>
+        <attrdef>Internal feature length, double</attrdef>
+        <attrdefs>Esri</attrdefs>
+        <attrdomv>
+          <udom>Unrepresentable domain.</udom>
+        </attrdomv>
+      </attr>
+      <attr>
+        <attrlabl>Shape_Area</attrlabl>
+        <attrdef>Internal feature area, double</attrdef>
+        <attrdefs>Esri</attrdefs>
+        <attrdomv>
+          <udom>Unrepresentable domain.</udom>
+        </attrdomv>
+      </attr>
+      <attr>
+        <attrlabl>CS[[X]]MapUnitPolys_ID</attrlabl>
+        <attrdef>Primary key.</attrdef>
+        <attrdefs>GeMS (Geologic Map Schema) - a standard format for the digital publication of geologic maps, available at http://ngmdb.usgs.gov/Info/standards/GeMS/</attrdefs>
+        <attrdomv>
+          <udom>Arbitrary string. Values should be unique within this database.</udom>
+        </attrdomv>
+      </attr>
+      <attr>
+        <attrlabl>IdentityConfidence</attrlabl>
+        <attrdef>Confidence that feature is correctly identified.</attrdef>
+        <attrdefs>GeMS (Geologic Map Schema) - a standard format for the digital publication of geologic maps, available at http://ngmdb.usgs.gov/Info/standards/GeMS/</attrdefs>
+      </attr>
+      <attr>
+        <attrlabl>Label</attrlabl>
+        <attrdef>Plain-text equivalent of the desired annotation for a feature: for example "14 Ma", or "^c" which (when used with the FGDC GeoAge font) results in the geologic map-unit label TRc (with TR run together to make the Triassic symbol).</attrdef>
+        <attrdefs>GeMS (Geologic Map Schema) - a standard format for the digital publication of geologic maps, available at http://ngmdb.usgs.gov/Info/standards/GeMS/</attrdefs>
+        <attrdomv>
+          <udom>Unrepresentable domain.</udom>
+        </attrdomv>
+      </attr>
+      <attr>
+        <attrlabl>Symbol</attrlabl>
+        <attrdef>Reference to a point marker, line symbol, or area-fill symbol that is used on the map graphic to denote the feature: perhaps a star for a K-Ar age locality, or a heavy black line for a fault.</attrdef>
+        <attrdefs>GeMS (Geologic Map Schema) - a standard format for the digital publication of geologic maps, available at http://ngmdb.usgs.gov/Info/standards/GeMS/</attrdefs>
+        <attrdomv>
+          <udom>Unrepresentable domain.</udom>
+        </attrdomv>
+      </attr>
+      <attr>
+        <attrlabl>DataSourceID</attrlabl>
+        <attrdef>Source of data; foreign key to table DataSources.</attrdef>
+        <attrdefs>GeMS (Geologic Map Schema) - a standard format for the digital publication of geologic maps, available at http://ngmdb.usgs.gov/Info/standards/GeMS/</attrdefs>
+      </attr>
+      <attr>
+        <attrlabl>Notes</attrlabl>
+        <attrdef>Additional information specific to a particular feature or table entry.</attrdef>
+        <attrdefs>GeMS (Geologic Map Schema) - a standard format for the digital publication of geologic maps, available at http://ngmdb.usgs.gov/Info/standards/GeMS/</attrdefs>
+        <attrdomv>
+          <udom>Unrepresentable domain. Free text. Values of &lt;null&gt; or #null indicate no entry.</udom>
+        </attrdomv>
+      </attr>
+      <attr>
+        <attrlabl>MapUnitPolys_ID</attrlabl>
+        <attrdef>Primary key.</attrdef>
+        <attrdefs>GeMS (Geologic Map Schema) - a standard format for the digital publication of geologic maps, available at http://ngmdb.usgs.gov/Info/standards/GeMS/</attrdefs>
+        <attrdomv>
+          <udom>Arbitrary string. Values should be unique within this database.</udom>
+        </attrdomv>
+      </attr>
+    </detailed>
+  </eainfo>
+  <metainfo>
+    <metstdn>FGDC Content Standard for Digital Geospatial Metadata</metstdn>
+    <metstdv>FGDC-STD-001-1998</metstdv>
+    <mettc>local time</mettc>
+  </metainfo>
+</metadata>

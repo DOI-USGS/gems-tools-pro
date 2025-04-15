@@ -322,13 +322,6 @@ def add_attributes(fc_name, detailed_node):
     # check for attrdefs = annotation class and set all attrdefs to ESRI
     # and unrepresentable domain
 
-    try:
-        gDef.enumeratedValueDomainFieldList.extend(
-            myDef.myEnumeratedValueDomainFieldList
-        )
-    except:
-        pass
-
     # check for whether this is an annotation feature class
     describe = obj_dict[fc_name]
 
@@ -415,7 +408,7 @@ def add_attributes(fc_name, detailed_node):
             attr.append(n)
 
         # UNREPRESENTABLE DOMAINS
-        # value might be found in
+        # value might be found in unrepresentableDomainDict
         if key in gDef.unrepresentableDomainDict:
             attrdomv = etree.Element("attrdomv")
             udom = etree.Element("udom")
@@ -428,13 +421,13 @@ def add_attributes(fc_name, detailed_node):
         # arcpy.AddMessage("        Author-defined unrepresentable value domain")
         # attrdomv = etree.Element('attrdomv')
         # udom = etree.Element('udom')
-        # udom.text = myUnrepresentableDomainDict[key]s
+        # udom.text = myUnrepresentableDomainDict[key]
         # attrdomv.append(udom)
         # attr.append(attrdomv)
 
         # look for fields that have range domains
         elif key in gDef.rangeDomainDict:
-            arcpy.AddMessage(f"        Range value domain definition found for {key}")
+            arcpy.AddMessage("        Range value domain definition found")
             attrdomv = etree.Element("attrdomv")
             rdom = etree.Element("rdom")
             for n, i in [["rdommin", 0], ["rdommax", 1], ["attrunit", 2]]:
@@ -446,7 +439,6 @@ def add_attributes(fc_name, detailed_node):
 
         # look for fields that have enumerated domains
         elif key in gDef.enumeratedValueDomainFieldList:
-            arcpy.AddMessage(key)
             # collect a unique set of all the values of this attribute
             with arcpy.da.SearchCursor(
                 obj_dict[fc_name]["catalogPath"], field
@@ -650,7 +642,6 @@ if my_defs_path.is_file():
 
     try:
         gDef.rangeDomainDict.update(myDef.myRangeDomainDict)
-        arcpy.AddMessage(gDef.rangeDomainDict)
     except:
         pass
 else:

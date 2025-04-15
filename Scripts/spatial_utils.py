@@ -21,14 +21,14 @@ SCRIPT DEPENDENCIES
 ------------------------------------------------------------------------------
     This script is part of the pymdwizard package and is not intented to be
     used independently.  All pymdwizard package requirements are needed.
-    
+
     See imports section for external packages used in this script as well as
     inter-package dependencies
 
 
 U.S. GEOLOGICAL SURVEY DISCLAIMER
 ------------------------------------------------------------------------------
-This software has been approved for release by the U.S. Geological Survey 
+This software has been approved for release by the U.S. Geological Survey
 (USGS). Although the software has been subjected to rigorous review,
 the USGS reserves the right to update the software as needed pursuant to
 further analysis and review. No warranty, expressed or implied, is made by
@@ -445,7 +445,7 @@ def transform_point(xy, from_srs, to_srs):
     return results[0], results[1]
 
 
-def get_layer(fname, feature_class=None):
+def get_layer(fname, feature_class, dataset_type):
     """
     Type agnostic function for opening a file without specifying it's type
 
@@ -467,11 +467,21 @@ def get_layer(fname, feature_class=None):
         global dataset
         dataset = driver.Open(fname)
         return dataset.GetLayer()
+
     elif fname.endswith(".gdb"):
-        driver = ogr.GetDriverByName("OpenFileGDB")
-        global gdb
-        gdb = driver.Open(fname, 0)
-        return gdb.GetLayerByName(feature_class)
+        if not dataset_type == "RasterDataset":
+            driver = ogr.GetDriverByName("OpenFileGDB")
+            global gdb
+            gdb = driver.Open(fname, 0)
+            return gdb.GetLayerByName(feature_class)
+        else:
+            # GDAL 3.7 and up can read rasters in ESRI gdbs
+            # OpenEx will find the appropriate driver; OpenFileGDB
+            # the connection string is a bit complicated
+            connect_string = f'OpenFileGDB:"{fname}":{feature_class}'
+            # might need to return gdal.OpenEx(connect_string).GetLayer()
+            return gdal.OpenEx(connect_string)
+
     elif fname.endswith(".gpkg"):
         driver = ogr.GetDriverByName("GPKG")
         global db
@@ -485,7 +495,7 @@ def get_layer(fname, feature_class=None):
     return None
 
 
-def get_spref(fname, feature_class=None):
+def get_spref(fname, feature_class, dataset_type):
     """
     Returns the fgdc xml element with the spatial reference extracted from a
     dataset
@@ -501,8 +511,10 @@ def get_spref(fname, feature_class=None):
     Returns
     -------
     ogr spatial reference object
+
+    Edited 10/3/24
     """
-    layer = get_layer(fname, feature_class=feature_class)
+    layer = get_layer(fname, feature_class, dataset_type)
 
     params = get_params(layer)
 
@@ -602,7 +614,6 @@ def geodetic(params):
 
 
 def albers_conic_equal_area(params):
-
     """
     returns lxml nodes that contain projection parameters for fgdc
     Albers Conic Equal Area projection
