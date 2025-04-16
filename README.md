@@ -40,7 +40,7 @@ If you are looking for tools that work in ArcMap using Python 2.7, go to [gems-t
 - Jupyter Notebooks that were formerly on a `notebooks` branch have been promoted to their own folder within `/resources` on the main branch.
 - The latest cross-section tool that was formerly only on the `xs-update` branch as been merged into the toolbox within the `Create and Edit` toolset  
 
-Due to staffing changes at the USGS that will likely result in less consistent development of the tools and monitoring of issues for the foreseeable future, this beta-version is being released on a development branch in order to encourage testing and submittal of issues that could possibly be answered by the community or, at least, archived until commitments among the repo maintainers allow for more time for fixes.
+**Due to staffing changes at the USGS that will likely result in less consistent development of the tools and monitoring of issues for the foreseeable future, this beta-version is being released on a development branch in order to encourage testing and submittal of issues that could possibly be answered by the community or, at least, archived until commitments among the repo maintainers allow for more time for fixes.**
 
 
 ## Installation
