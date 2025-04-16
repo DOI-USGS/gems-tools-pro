@@ -35,9 +35,9 @@ for m in (gemsmd, guf, mu):
 toolbox_folder = Path(__file__).parent.parent
 templates_folder = toolbox_folder / "Resources" / "metadata" / "templates"
 
-# versionString = "GeMS_ImportTemplate.py, version of 7/25/24"
-# rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/master/Scripts/GeMS_CollateMetadataSources.py"
-# guf.checkVersion(versionString, rawurl, "gems-tools-pro")
+versionString = "GeMS_ImportTemplate.py, version of 5/152025"
+rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/Version3/Scripts/GeMS_CollateMetadataSources.py"
+guf.checkVersion(versionString, rawurl, "gems-tools-pro")
 
 nulls = ("#", "", None)
 
