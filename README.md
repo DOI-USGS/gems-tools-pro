@@ -29,7 +29,7 @@ This repository contains an ArcGIS toolbox of Python 3 geoprocessing tools for c
 If you are looking for tools that work in ArcMap using Python 2.7, go to [gems-tools-arcmap](https://github.com/DOI-USGS/gems-tools-arcmap). Due to the planned retirement for [ArcMap](https://www.esri.com/about/newsroom/arcuser/moving-from-arcmap-to-arcgis-pro-after-mature-support/), that repo is no longer being updated and the tools there are considered deprecated.
 
 ## What's new
-- 5/15/2025 A new version of the toolbox has been pushed to branch [Version-3](https://github.com/DOI-USGS/gems-tools-pro/Version-3). The main differences are:
+- 5/15/2025 A new version of the toolbox has been pushed to branch [Version-3](https://github.com/DOI-USGS/gems-tools-pro/tree/Version-3?tab=readme-ov-file). The main differences are:
   - A new `Metadata` toolset with four new tools for working with metadata
     - Clear Metadata - deletes all embedded metadata from a file geodatabase object
     - Collate Metadata Sources - collates metadata from multiple sources to produce a single metadata XML file. It is similar to the existing Build Metadata tool but offers a few more options about how to deal with the various sources and can also write a record for each geodatabase item in addition to the single database-level record. It is also being written to work with geopackages. A folder of default GeMS-standardized XML metadata templates (that can be copied and customized) and a CSV file of custom table and field definitions and domain descriptions will replace the current method of saving most metadata template language in string variables and python dictionaries.
