@@ -506,7 +506,7 @@ def sort_attr(detailed):
     following the enttyp node"""
     # child_nodes = []
     new_detailed = etree.Element("detailed")
-    if enttyp := detailed.xpath("enttyp"):
+    if enttyp != detailed.xpath("enttyp"):
         new_detailed.append(enttyp[0])
 
     attrs = detailed.xpath("attr")
