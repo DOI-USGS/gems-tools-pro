@@ -313,7 +313,7 @@ def getCaf(inFds, prefix=""):
         addMsgAndPrint("    " + inFds)
         addMsgAndPrint("    " + str(cafs2))
         raise arcpy.ExecuteError
-    return Path(inFds) / cafs2[0]
+    return str(Path(inFds) / cafs2[0])
 
 
 def getMup(fds):
@@ -322,11 +322,11 @@ def getMup(fds):
 
 
 def getNameToken(fds):
-    if Path(fds).stem == "CorrelationOfMapUnits":
+    caf = getCaf(fds)
+    if Path(caf).stem == "CorrelationOfMapUnits":
         return "CMU"
     else:
-        caf = Path(getCaf(fds))
-        return caf.replace("ContactsAndFaults", "")
+        return Path(caf).stem.replace("ContactsAndFaults", "")
 
 
 # III. Functions that presume Type (vocabulary) values
