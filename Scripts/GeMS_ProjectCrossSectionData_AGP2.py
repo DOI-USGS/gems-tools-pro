@@ -481,7 +481,7 @@ if project_all:
         v["catalogPath"] for v in fd_dict.values() if v["shapeType"] == "Point"
     ]
 else:
-    featureClassesToProject = fcToProject.split(";")
+    featureClassesToProject = fcToProject.replace("'","").split(";")
     for fc in featureClassesToProject:
         desc = arcpy.da.Describe(fc)
         fc_name = os.path.basename(fc)
