@@ -483,6 +483,7 @@ if project_all:
 else:
     featureClassesToProject = fcToProject.split(";")
     for fc in featureClassesToProject:
+        fc = fc.strip('\'"')
         desc = arcpy.da.Describe(fc)
         fc_name = os.path.basename(fc)
         if desc["shapeType"] == "Polyline":
