@@ -481,8 +481,9 @@ if project_all:
         v["catalogPath"] for v in fd_dict.values() if v["shapeType"] == "Point"
     ]
 else:
-    featureClassesToProject = fcToProject.replace("'","").split(";")
+    featureClassesToProject = fcToProject.split(";")
     for fc in featureClassesToProject:
+        fc = fc.strip('\'"')
         desc = arcpy.da.Describe(fc)
         fc_name = os.path.basename(fc)
         if desc["shapeType"] == "Polyline":
