@@ -42,15 +42,19 @@ sub_readme = [
 map_readme = [
     "Add the following files to this folder:\n",
     "  Required:\n",
-    "    mapXYZ-browse.(jpg, pdf, png, etc.) map graphic\n",
     "    mapXYZ-metadata.xml\n",
+    "    mapXYZ (pdf, jpg, etc.) -- this is the 'map graphic'\n",
+    "    (see explanation 'Graphic representation of the GeMS data' in the GeMS Requirements document at https://ngmdb.usgs.gov/Info/standards/GeMS/docs/GeMS-Submittal-Requirements.pdf)\n",
+
     "  As-needed:\n",
     "    mapXYZ.pdf publication pamphlet\n",
+    "    Readme.txt\n",
+    "    Changelog.txt\n",
     "  Optional:\n",
     "    Folder of the map data in an open source format, e.g.,\n",
     "    fullname-geopaackage, fullname-spatialite, etc.\n\n",
     "See: Requirements for submitting GeMS-compliant map databases to the USGS/AASG National Geologic Map Database (NGMDB)\n",
-    "https://ngmdb.usgs.gov/Info/standards/GeMS/docs/GeMS-Submittal-Requirements.pdf for more information.",
+    "https://ngmdb.usgs.gov/Info/standards/GeMS/docs/GeMS-Submittal-Requirements.pdf for more information.\n",
 ]
 
 db_readme = [
@@ -58,8 +62,6 @@ db_readme = [
     "  Required:\n",
     "    .gdb file geodatabase\n",
     "    .mapx (preferred), .aprx, or .mxd \n",
-    "  As-needed:\n",
-    "    mapXYZ.pdf publication pamphlet\n",
     "  Optional:\n",
     "    files for viewing the data with free software, e.g., QGIS project, KML files, etc.\n\n",
     "See: Requirements for submitting GeMS-compliant map databases to the USGS/AASG National Geologic Map Database (NGMDB)\n",
