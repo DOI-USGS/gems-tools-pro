@@ -137,7 +137,7 @@ def catch_m2m(dictionary, field_value):
             for src_id in src_ids:
                 src_id = src_id.strip()
                 if src_id in dictionary:
-                    defs.append(dictionary[src_id][0])
+                    defs.append(dictionary[src_id])
                 else:
                     defs.append(f"PROVIDE A DEFINITION FOR {src_id}")
             def_str = " | ".join(defs)
