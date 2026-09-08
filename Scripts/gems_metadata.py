@@ -204,7 +204,7 @@ class CollateTableMetadata:
         if self.db_dict[self.table]["dataType"] == "RasterDataset":
             self._add_raster_attr()
 
-        if self.table_defs or self.field_defs:
+        if (self.table_defs or self.field_defs) and "fields" in self.db_dict[self.table]:
             if any(n in self.table_defs for n in (self.table, "ANY_TABLE")) or any(
                 n in self.field_defs for n in (self.table, "ANY_TABLE")
             ):
