@@ -109,11 +109,40 @@ if save_mup:
     arcpy.AddMessage("Saving MapUnitPolys")
     arcpy.management.Copy(mup, guf.getSaveName(mup))
 
+
+# ### - TANNER ARRINGTON CHANGES - 6/30/2025 - ### #
+# ################################################ #
+        
+# ORIGINAL CODE DOES NOT TAKE INTO ACCOUNT NULL VALUES IN iSConcealed.
+# Either need to report null values, put null in the where clause, or both
+
 # make selection set without concealed lines
 fld = arcpy.AddFieldDelimiters(caf, "IsConcealed")
-where = f"LOWER({fld}) NOT IN ('y', 'yes')"
+
+# TA - original where clause below that does not consider null
+# where = f"LOWER({fld}) NOT IN ('y', 'yes')"
+
+# OPTION 1 - where clause that DOES consider null values, along with those that aren't yes.No reporting on nulls
+# where = f"LOWER({fld}) NOT IN ('y','yes') OR LOWER({fld}) IS NULL"
+
+# OPTION 2 - two separate where clauses; first, just select nulls and return a warning that they are being used in the make polys
+# then run the whole clause, with nulls and other values, to get full selection for the make polys.
+where1 = f"LOWER({fld}) IS NULL"
+where2 = f"LOWER({fld}) NOT IN ('y','yes') OR LOWER({fld}) IS NULL"
+
+arcpy.AddMessage("Looking for Null values in IsConcealed")
+contacts = arcpy.management.SelectLayerByAttribute(caf, where_clause=where1)
+nullCount = int(str(arcpy.management.GetCount(contacts)))
+if nullCount > 0:
+    arcpy.AddWarning(f"There are {nullCount} Null values in the isConcealed field. These were considered non-concealed lines and used to make polygons.")
+
 arcpy.AddMessage("Selecting all non-concealed lines")
-contacts = arcpy.management.SelectLayerByAttribute(caf, where_clause=where)
+contacts = arcpy.management.SelectLayerByAttribute(caf, where_clause=where2)
+arcpy.AddMessage(int(str(arcpy.management.GetCount(contacts))))
+
+# ############################## #
+# ### END TANNER SUGGESTIONS ### # 
+
 
 # make new polys
 new_polys = r"memory\mup"
@@ -132,7 +161,8 @@ if simple_mode:
 
     arcpy.AddMessage("Building new map unit polygons in memory")
     arcpy.management.FeatureToPolygon(contacts, new_polys, label_features=label_points)
-
+    arcpy.AddMessage(arcpy.management.GetCount(new_polys))
+    
     # truncate MapUnitPolys
     arcpy.AddMessage(f"Emptying {short_mup}")
     arcpy.management.TruncateTable(mup)
@@ -252,13 +282,30 @@ else:
     ]
 
     # look for multiple label points in the new polygons
-    mup_inter_labels = r"memory\mup_inter_labels"
-    arcpy.analysis.Intersect([mup, label_points], mup_inter_labels)
-    oids = [
-        row[0] for row in arcpy.da.SearchCursor(mup_inter_labels, f"FID_{short_mup}")
-    ]
-    dup_oids = set([x for x in oids if oids.count(x) > 1])
+    
+    # ### - TANNER ARRINGTON CHANGES - 6/30/2025 - ### #
+    # ################################################ #
+    
+    # There is a case where user does not have label points, and does not have existing MapUnitPolys.
+    # In this case, the tool fails while running reporting mode, because it tries to run the intersect below but
+    # there is no label_points defined, thus tool fails. 
+    # add this section inside a boolean against label_points 
+    
+    if label_points:
+        mup_inter_labels = r"memory\mup_inter_labels"
+        arcpy.analysis.Intersect([mup, label_points], mup_inter_labels)
+        oids = [
+            row[0] for row in arcpy.da.SearchCursor(mup_inter_labels, f"FID_{short_mup}")
+        ]
+        dup_oids = set([x for x in oids if oids.count(x) > 1])
+    else:
+        #create an empty set because dup_oids is referenced later in the script
+        dup_oids = ()
 
+    # ############################# #
+    # ### END TANNER SUGGESTION ### #
+    
+    
     # look for changed polygons
     inter_polys = r"memory\inter_polys"
     arcpy.analysis.Intersect([old_polys, mup], inter_polys)
@@ -295,6 +342,12 @@ else:
             if l.longName == "Make Polys - Report Layers":
                 active_map.removeLayer(l)
 
+
+        # ### - TANNER ARRINGTON CHANGES - 6/30/2025 - ### #
+        # ################################################ #
+        
+        # METHOD FOR ADDING AN EXISTING BLANK GROUP LAYER FILE 
+        """
         # find genericgroup.lyrx in the \Scripts folder
         this_py = Path(__file__)
         scripts = this_py.parent
@@ -303,6 +356,15 @@ else:
         # add it to the map and rename it
         group = active_map.addDataFromPath(str(group_lyr))
         group.name = "Make Polys - Report Layers"
+        """
+        
+        # METHOD FOR CREATING A NEW BLANK GROUP LAYER instead of accessing an existing layer file. 
+        group = active_map.createGroupLayer("Make Polys - Report Layers")
+        
+        # ############################## #
+        # ### - END TANNER CHANGES - ### #
+        
+        
 
         # add report layers
         # multiple label point polygons
