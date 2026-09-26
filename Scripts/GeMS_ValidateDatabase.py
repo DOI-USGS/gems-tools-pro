@@ -142,7 +142,7 @@ def compare_sr(obj1, obj2, db_dict):
     not error"""
     sr_warnings = []
     sr1 = db_dict[obj1]["spatialReference"].name
-    sr2 = db_dict[obj1]["spatialReference"].name
+    sr2 = db_dict[obj2]["spatialReference"].name
     if sr1 != sr2:
         sr_warnings = [f"{obj1} and {obj2} have different spatial references"]
     else:
@@ -1897,7 +1897,7 @@ def main(argv):
         src_md.exportMetadata(str(metadata_file), "FGDC_CSDGM")
 
     if metadata_file:
-        if Path(metadata_file).exists:
+        if Path(metadata_file).exists():
             md_summary = validate_w_mp(metadata_file, workdir)
         else:
             md_summary = f"{metadata_file} does not exist."
