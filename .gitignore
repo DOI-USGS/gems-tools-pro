@@ -1,5 +1,5 @@
 *.pyc
 mkdocs.yml
 site/
-Scripts/.vscode/
+.vscode
 code.json
