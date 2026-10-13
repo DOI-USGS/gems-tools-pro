@@ -234,10 +234,14 @@ def main(params):
                         arcpy.AddWarning(f"No template found for {obj_name}")
 
     # run through the database objects
+    # Generate a stand-alone metadata XML for every chosen object (the database
+    # entry itself is handled separately below). Collect each object's mp
+    # validation output so the error log can be written in one place, in a
+    # controlled order, afterward.
     md_dict = {}
+    obj_errors = {}
     arcpy.AddMessage(f"Generating metadata files:")
     for obj_name in [k for k in objects if not db_dict[k]["dataType"] == "Workspace"]:
-        # for obj_name in objects:
         # look for a template path in obj_temp_dict
         if obj_name in obj_temp_dict:
             temp_path = obj_temp_dict[obj_name]
@@ -261,53 +265,56 @@ def main(params):
         md = gemsmd.CollateTableMetadata(**params)
         md_dict[obj_name] = md.dom
 
-        if not database_md_bool:
-            out_xml = Path(output_dir) / f"{obj_name}-metadata.xml"
-            mu.write_xml(md.dom, out_xml)
+        # always write a stand-alone file for each chosen object
+        out_xml = Path(output_dir) / f"{obj_name}-metadata.xml"
+        mu.write_xml(md.dom, out_xml)
 
-            if error_log:
-                with open(error_path, "a") as f:
-                    f.write(f"mp validation report for {obj_name}\n")
-                    f.write(f"{md.mp_errors}\n")
+        # mp ran against an in-memory/temp file, so its report names that temp
+        # file. Rewrite the "Info: input file" line to name the file we just
+        # wrote to disk.
+        obj_errors[obj_name] = mu.relabel_mp_input(md.mp_errors, out_xml)
 
-    if database_md_bool or any(
-        k for k in objects if db_dict[k]["dataType"] == "Workspace"
-    ):
-        # work on a database-level metadata file
-        # Priority: a template named after the database wins over the generic
-        # DATABASE template. (initialize temp_path so it is always defined,
-        # even when no templates are in use)
-        temp_path = None
-        if temp_dict:
-            if db_name in temp_dict.keys():
-                temp_path = temp_dict[db_name]
-            elif "DATABASE" in temp_dict.keys():
-                temp_path = temp_dict["DATABASE"]
+    # Always generate a database-level record describing all chosen objects.
+    # Priority: a template named after the database wins over the generic
+    # DATABASE template. (initialize temp_path so it is always defined, even
+    # when no templates are in use)
+    temp_path = None
+    if temp_dict:
+        if db_name in temp_dict.keys():
+            temp_path = temp_dict[db_name]
+        elif "DATABASE" in temp_dict.keys():
+            temp_path = temp_dict["DATABASE"]
 
-        params = {
-            "db_path": gdb,
-            "db_dict": db_dict,
-            "arc_md": arc_md,
-            "md_dict": md_dict,
-            "temp_path": temp_path,
-            "temp_directive": temp_directive,
-            "history": history,
-            "sources": sources,
-        }
+    params = {
+        "db_path": gdb,
+        "db_dict": db_dict,
+        "arc_md": arc_md,
+        "md_dict": md_dict,
+        "temp_path": temp_path,
+        "temp_directive": temp_directive,
+        "history": history,
+        "sources": sources,
+    }
 
-        # Build a single database-level record
-        arcpy.AddMessage(
-            f"Generating a database-level metadata record for {Path(gdb).name} that describes all tables."
-        )
-        database_md = gemsmd.CollateDatabaseMetadata(**params)
+    arcpy.AddMessage(
+        f"Generating a database-level metadata record for {Path(gdb).name} that describes all tables."
+    )
+    database_md = gemsmd.CollateDatabaseMetadata(**params)
 
-        report_xml = Path(output_dir) / f"{db_name}-metadata.xml"
-        mu.write_xml(database_md.dom, report_xml)
+    report_xml = Path(output_dir) / f"{db_name}-metadata.xml"
+    mu.write_xml(database_md.dom, report_xml)
+    # rewrite the mp "Info: input file" line to name the final db file on disk
+    db_mp_errors = mu.relabel_mp_input(database_md.mp_errors, report_xml)
 
+    # If an error log was requested, write every record's mp validation report
+    # to it in one pass - the database record always first, then each object.
     if error_log:
         with open(error_path, "a") as f:
             f.write(f"mp validation report for {db_name}\n")
-            f.write(f"{database_md.mp_errors}\n\n")
+            f.write(f"{db_mp_errors}\n\n")
+            for obj_name in md_dict:
+                f.write(f"mp validation report for {obj_name}\n")
+                f.write(f"{obj_errors.get(obj_name)}\n\n")
 
 
 if __name__ == "__main__":

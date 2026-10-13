@@ -26,8 +26,8 @@
     <detailed>
       <enttyp>
         <enttypl>ANY TABLE</enttypl>
-        <enttypd>Attribute definitions for GeMS-defined fields found in any table</enttypd>
-        <enttypds>GeMS (Geologic Map Schema) - a standard format for the digital publication of geologic maps, available at http://ngmdb.usgs.gov/Info/standards/GeMS/</enttypds>
+        <enttypd>DEFINE THIS TABLE</enttypd>
+        <enttypds>PROVIDE A SOURCE FOR THE DEFINITION</enttypds>
       </enttyp>
       <attr>
         <attrlabl>_ID</attrlabl>

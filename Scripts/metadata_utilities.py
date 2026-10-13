@@ -948,6 +948,26 @@ def mp_upgrade(dom):
         return dom, errors
 
 
+def relabel_mp_input(errors, final_path):
+    """mp.exe runs against an in-memory/temporary file, so its error report
+    names that temp file on the "Info: input file" line. After the upgraded
+    XML is written to its real location, call this to rewrite that line so the
+    report names the final on-disk file instead.
+
+    errors: the error-report text returned by mp_upgrade.
+    final_path: the path the XML was actually written to.
+    Returns the error text with the input-file path replaced."""
+    if not errors:
+        return errors
+
+    # mp writes e.g.:  Info: input file "C:\...\xml_out.xml"
+    # replace whatever path follows "input file" on that line with final_path.
+    # Use a replacement function (not a template string) so backslashes in a
+    # Windows path are not interpreted as regex escapes.
+    pattern = re.compile(r'^(Info:\s*input file\s+).*$', re.MULTILINE)
+    return pattern.sub(lambda m: f'{m.group(1)}"{final_path}"', errors)
+
+
 def add_datasources(dom, db_dict, table, report_bool):
     """Translate rows from the DataSources table into dataqual/lineage/srcinfo nodes"""
 

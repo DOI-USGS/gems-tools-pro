@@ -156,15 +156,18 @@ class CollateTableMetadata:
             if not self.dom.xpath("spdoinfo"):
                 self._add_spdoinfo()
 
-        # only attempt to build a spatial reference node if the object has a spatial reference
-        # but feature datasets can't be interrogated by ogr, so filter those
-        if (
-            self.db_dict[self.table].get("spatialReference")
-            and not self.db_dict[self.table]["dataType"] == "FeatureDataset"
-        ):
-            # add spref info, not exported from ArcGIS Pro into FGDC CSDGM
-            # ESRI BUG-000124294 https://support.esri.com/en-us/bug/in-arcgis-pro-when-an-extensible-markup-language-xml-fi-bug-000124294
-            if not self.dom.xpath("spref"):
+        # add spref info, not exported from ArcGIS Pro into FGDC CSDGM
+        # ESRI BUG-000124294 https://support.esri.com/en-us/bug/in-arcgis-pro-when-an-extensible-markup-language-xml-fi-bug-000124294
+        if not self.dom.xpath("spref"):
+            if self.db_dict[self.table]["dataType"] == "FeatureDataset":
+                # Feature datasets cannot be interrogated for a coordinate
+                # system directly, but they share one with their member feature
+                # classes. Build the spref from the first member feature class
+                # that has a spatial reference, if any.
+                spref_source = self._first_fd_feature_class()
+                if spref_source:
+                    mu.add_spref(self.db_dict, spref_source, self.dom)
+            elif self.db_dict[self.table].get("spatialReference"):
                 mu.add_spref(self.db_dict, self.table, self.dom)
 
         # at this point metadata will have everything verbatim from the embedded metadata plus
@@ -293,6 +296,24 @@ class CollateTableMetadata:
             geoform = mu.extend_branch(self.dom, "idinfo/citation/citeinfo/geoform")
             geoform.text = geoform_text
 
+    def _first_fd_feature_class(self):
+        """Return the name of the first feature class belonging to this feature
+        dataset that carries a spatial reference, or None if there isn't one.
+
+        Member feature classes record their parent in db_dict[name]
+        ["feature_dataset"]. They are returned in db_dict order (the order
+        arcpy.da.Describe reports children), so "first" is the first such
+        feature class encountered."""
+        for name, props in self.db_dict.items():
+            if (
+                props.get("feature_dataset") == self.table
+                and props.get("dataType") == "FeatureClass"
+                and props.get("spatialReference")
+                and not props["spatialReference"].name.lower() == "unknown"
+            ):
+                return name
+        return None
+
     def _add_spdoinfo(self):
         """Create a spatial data information element for the object. If raster, use
         method here, if vector, use the MW spatial utilities methods"""
@@ -354,7 +375,7 @@ class CollateTableMetadata:
 
         # if temp_detailed is still empty, do one more search trying to match enttypl with the table's
         # gems_equivalant
-        if not temp_detailed:
+        if temp_detailed is None:
             gems_eq = self.db_dict[self.table]["gems_equivalent"]
             xpath_search = self.template_tree.xpath(
                 f"eainfo/detailed/enttyp/enttypl[text()='{gems_eq}']/parent::*/parent::*"
@@ -362,8 +383,20 @@ class CollateTableMetadata:
             if xpath_search:
                 temp_detailed = xpath_search[0]
 
+        # still nothing: fall back to the generic "ANY TABLE" detailed node if
+        # the template provides one. This makes a single combined template file
+        # behave like a standalone AnyTable.xml in a folder of templates - any
+        # table not described by its own name (or gems_equivalent) gets its
+        # field attribute definitions from the ANY TABLE section.
+        if temp_detailed is None:
+            xpath_search = self.template_tree.xpath(
+                "eainfo/detailed/enttyp/enttypl[text()='ANY TABLE']/parent::*/parent::*"
+            )
+            if xpath_search:
+                temp_detailed = xpath_search[0]
+
         # finally, make the dictionary and look for matches in the self.dom attributes
-        if temp_detailed:
+        if temp_detailed is not None:
             # apply entity definition and definition source. Regardless of template directive, this will replace
             # anything in the embedded
             # definition node
