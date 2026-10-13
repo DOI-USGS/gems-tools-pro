@@ -5,6 +5,7 @@ Methods shared by various metadata classes
 
 import arcpy
 from lxml import etree
+import copy
 import tempfile
 import csv
 from pathlib import Path
@@ -27,14 +28,27 @@ KW_DICT = {
     "theme": "idinfo/keywords/theme",
 }
 
-# not used right now
-XMANY_NODES = ["idinfo/ptcontac", "idinfo/crossref"]
+KW_LOOKUP = {
+    "place": "place",
+    "stratum": "strat",
+    "temporal": "temp",
+    "theme": "theme"
+}
 
-# the following xpaths are to complex, nested elements that will be copied
-# in whole from the template to the final xml if temp_directive = "replace"
-# but nothing will happen if it is "append"
-SINGLE_NODES = ["idinfo/status", "distinfo", "metainfo"]
+# Repeatable ("x-many") nodes. merge_xmany_nodes
+XMANY_NODES = [
+    "idinfo/crossref"
+]
 
+# Single (non-repeatable) nodes copied in whole from the template. These have
+# no valid "append" semantics (you cannot have a second status, distinfo,
+# metainfo, or idinfo/ptcontac), so the template ALWAYS supersedes the
+# embedded node regardless of temp_directive. In these cases, to avoid a template node
+# replacing the embedded node, do not include it in the template.
+SINGLE_NODES = ["idinfo/ptcontac", "idinfo/status", "distinfo", "metainfo"]
+
+# for the following expaths, when temp_directive = "replace", text in the template replaces that found in the embedded metadata
+# when it is "append" the text in the template will be appended to the end of the string in the embedded metadata
 TEXT_XPATHS = [
     "idinfo/citation/citeinfo/title",
     "idinfo/descript/abstract",
@@ -391,10 +405,13 @@ def tokens(node_text, db_dict, ver_string, obj=None):
     # because the template can be used by either single tables or databases.
     if obj:
         if db_dict[obj]["dataType"] == "Workspace":
+            db_name = obj
             if node_text.startswith("[[SINGLE]]"):
                 # return early
                 return "REMOVE NODE"
         else:
+            ws = db_dict[obj]["workspace"].connectionProperties.database
+            db_name = Path(ws).stem
             if node_text.startswith("[[DATABASE]]"):
                 # return early
                 return "REMOVE NODE"
@@ -404,11 +421,11 @@ def tokens(node_text, db_dict, ver_string, obj=None):
         csx = find_prefix_suffix(obj)
 
     # name of the database
-    if db_dict[obj]["dataType"] == "Workspace":
-        db_name = obj
-    else:
-        ws = db_dict[obj]["workspace"].connectionProperties.database
-        db_name = Path(ws).stem
+    # if db_dict[obj]["dataType"] == "Workspace":
+    #     db_name = obj
+    # else:
+    #     ws = db_dict[obj]["workspace"].connectionProperties.database
+    #     db_name = Path(ws).stem
 
     # if a table was sent, look for a feature dataset
     table_definition = ""
@@ -499,6 +516,230 @@ def extend_branch(node, xpath):
                 node = etree.SubElement(node, nibble)
 
     return node
+
+
+def _contact_person(node):
+    """Return the person name of a contact node, or None.
+
+    cntper may appear inside either a cntperp (person-primary) or a
+    cntorgp (org-primary) wrapper, so search anywhere beneath the node."""
+    cntper = node.find(".//cntper")
+    if cntper is not None and cntper.text and cntper.text.strip():
+        return cntper.text.strip()
+    return None
+
+
+def _contact_org(node):
+    """Return the organization name of a contact node, or None."""
+    cntorg = node.find(".//cntorg")
+    if cntorg is not None and cntorg.text and cntorg.text.strip():
+        return cntorg.text.strip()
+    return None
+
+
+def _contact_identity(node):
+    """Identity used to de-duplicate contacts: the person name when present,
+    otherwise the organization name, lowercased. Falls back to the serialized
+    element for contacts that have neither so they are never silently dropped."""
+    person = _contact_person(node)
+    if person:
+        return ("per", person.lower())
+    org = _contact_org(node)
+    if org:
+        return ("org", org.lower())
+    return ("xml", etree.tostring(node))
+
+
+def _contact_last_name(name):
+    """Extract a last name from a person name string, handling both
+    'Last, First' and 'First [Middle] Last' orderings."""
+    if "," in name:
+        return name.split(",", 1)[0].strip()
+    return name.split()[-1]
+
+
+def _contact_sort_key(node):
+    """Sort key for a contact: last name when a person is named, otherwise the
+    organization name (both lowercased). Contacts with neither sort last."""
+    person = _contact_person(node)
+    if person:
+        return _contact_last_name(person).lower()
+    org = _contact_org(node)
+    if org:
+        return org.lower()
+    return "\uffff"
+
+
+def merge_xmany_nodes(dom, template_tree, node_xpath, directive):
+    """Merge the repeatable ("x-many") nodes at node_xpath from template_tree
+    into dom according to directive.
+
+    directive == "replace": drop the matching nodes already in dom and insert
+        copies of the template nodes.
+    directive == "append": keep every node already in dom and add a template
+        node only when its contact identity (person name, else organization
+        name) is not already present, guarding against duplicates within the
+        template itself. The combined set is sorted by contact last name (or
+        organization name when there is no person) before being re-attached.
+
+    No-op when the template has no nodes at node_xpath."""
+    template_nodes = template_tree.xpath(node_xpath)
+    if not template_nodes:
+        return
+
+    # derive the parent xpath and tag directly from the string.
+    # (do NOT use getpath, which returns an absolute, indexed path that breaks
+    # extend_branch and fabricates a phantom <metadata> node)
+    parent_xpath, tag = node_xpath.rsplit("/", 1)
+    dom_parent = extend_branch(dom, parent_xpath)
+    existing_nodes = list(dom_parent.findall(tag))
+
+    if directive == "replace":
+        # drop every existing node and insert copies of ALL template nodes at a
+        # schema-valid position (plain append would place e.g. metc after
+        # metstdn/metstdv and break the metainfo content model)
+        for child in existing_nodes:
+            dom_parent.remove(child)
+        _insert_in_order(
+            dom_parent, tag, [copy.deepcopy(n) for n in template_nodes]
+        )
+        return
+
+    # directive == "append"
+    # existing nodes are always kept; collect their identities so template
+    # nodes that duplicate them (or each other) are skipped.
+    final_nodes = list(existing_nodes)
+    seen_ids = {_contact_identity(n) for n in existing_nodes}
+    for template_node in template_nodes:
+        identity = _contact_identity(template_node)
+        if identity not in seen_ids:
+            seen_ids.add(identity)
+            final_nodes.append(copy.deepcopy(template_node))
+
+    # sort the combined, de-duplicated set, then re-attach in order
+    final_nodes.sort(key=_contact_sort_key)
+    for node in existing_nodes:
+        dom_parent.remove(node)
+    _insert_in_order(dom_parent, tag, final_nodes)
+
+
+# FGDC CSDGM child ordering for the parents whose children are re-inserted by
+# merge_xmany_nodes and replace_single_node. Used to place a node at a
+# schema-valid position instead of blindly appending it to the end of the
+# parent (which, for metainfo, would place metc after metstdn/metstdv, or for
+# idinfo would place ptcontac after datacred, and break the schema).
+XMANY_PARENT_ORDER = {
+    "metainfo": [
+        "metd", "metrd", "metfrd", "metc", "metstdn", "metstdv",
+        "mettc", "metac", "metuc", "metsi", "metextns",
+    ],
+    "idinfo": [
+        "citation", "descript", "timeperd", "status", "spdom", "keywords",
+        "plume", "taxonomy", "accconst", "useconst", "ptcontac", "browse",
+        "datacred", "secinfo", "native", "crossref", "tool",
+    ],
+}
+
+
+def _insert_in_order(parent, tag, nodes):
+    """Insert nodes (all having the given tag) into parent at the position
+    dictated by XMANY_PARENT_ORDER for parent's tag. Falls back to appending
+    at the end when the parent or tag has no known ordering."""
+    order = XMANY_PARENT_ORDER.get(parent.tag)
+    if not order or tag not in order:
+        for node in nodes:
+            parent.append(node)
+        return
+
+    # tags that must come after `tag` in a valid document
+    later_tags = set(order[order.index(tag) + 1:])
+
+    # find the first existing child whose tag sorts after `tag`;
+    # insert the new nodes immediately before it, else append
+    anchor = None
+    for child in parent:
+        if child.tag in later_tags:
+            anchor = child
+            break
+
+    if anchor is None:
+        for node in nodes:
+            parent.append(node)
+    else:
+        index = list(parent).index(anchor)
+        for offset, node in enumerate(nodes):
+            parent.insert(index + offset, node)
+
+
+def xmany_skip_tags():
+    """Map each SINGLE_NODES xpath to the set of child tags that are owned by
+    XMANY_NODES under that same parent, so the wholesale single-node copy can
+    skip them and leave them to merge_xmany_nodes.
+
+    e.g. SINGLE_NODES has "metinfo" and XMANY_NODES has "metinfo/metc",
+    so this returns {"metinfo": {"metc"}}. Keeping this derived from the two
+    constants means adding a new overlapping xpath to either list keeps the
+    de-duplication correct automatically."""
+    skip = {}
+    for single_xpath in SINGLE_NODES:
+        tags = set()
+        for xmany_xpath in XMANY_NODES:
+            parent, _, tag = xmany_xpath.rpartition("/")
+            if parent == single_xpath:
+                tags.add(tag)
+        if tags:
+            skip[single_xpath] = tags
+    return skip
+
+
+def replace_single_node(dom, template_tree, node_xpath, skip_tags=None):
+    """Replace a single (non-repeatable) node at node_xpath in dom with the
+    matching node from template_tree. No-op when the template has no match
+    with content.
+
+    Two modes, chosen by whether skip_tags is given:
+
+    1. Whole-element replace (skip_tags is empty) - used for elements like
+       idinfo/ptcontac that may appear more than once in the embedded/exported
+       metadata but that the schema allows only once. ALL existing instances of
+       the element are removed and a single copy of the template element is
+       inserted at a schema-valid position. This both replaces the content and
+       collapses any duplicates to one.
+
+    2. Container content-replace (skip_tags given) - used for container nodes
+       like metainfo whose own children are partly owned by another mechanism
+       (metc is handled by merge_xmany_nodes). The container element itself is
+       kept; its children are replaced from the template EXCEPT the skip_tags,
+       which are left in place. The node is NOT indexed with [0] (an earlier
+       version did, which nested content inside the first child, e.g. dumping
+       metc elements inside metd)."""
+    skip_tags = set(skip_tags or ())
+    template_match = template_tree.xpath(node_xpath)
+    if not template_match or not len(template_match[0]):
+        return
+    template_node = template_match[0]
+
+    parent_xpath, _, tag = node_xpath.rpartition("/")
+
+    if not skip_tags:
+        # whole-element replace, collapsing duplicates to a single node
+        dom_parent = extend_branch(dom, parent_xpath) if parent_xpath else dom
+        for existing in dom_parent.findall(tag):
+            dom_parent.remove(existing)
+        _insert_in_order(dom_parent, tag, [copy.deepcopy(template_node)])
+        return
+
+    # container content-replace, preserving children owned by another mechanism
+    dom_node = extend_branch(dom, node_xpath)
+    for child in list(dom_node):
+        if child.tag not in skip_tags:
+            dom_node.remove(child)
+    # insert each template child at a schema-valid position so the preserved
+    # skip_tag children (e.g. metc) and the replaced children stay correctly
+    # ordered relative to one another
+    for child in template_node:
+        if child.tag not in skip_tags:
+            _insert_in_order(dom_node, child.tag, [copy.deepcopy(child)])
 
 
 def sort_attr(detailed):
@@ -831,7 +1072,7 @@ def sources_wizard(
 def history_wizard(dom, history_choice, temp_dom=None):
     """Decide what to do with history (lineate/procsteps)"""
 
-    # there are two history choices where all process steps in embedded are to be remove
+    # there are two history choices where all process steps in embedded are to be removed
     if history_choice in (1, 3):
         for procstep in dom.xpath("dataqual/lineage/procstep"):
             procstep.getparent().remove(procstep)
@@ -850,12 +1091,10 @@ def history_wizard(dom, history_choice, temp_dom=None):
     # template at the end of the list of self.dom procsteps
     template_procsteps = []
     if history_choice in (3, 4):
+
         if temp_dom:  # there better be a template because that's what choice 4 implies!
             # save the process steps in a list
             template_procsteps = temp_dom.xpath("dataqual/lineage/procstep")
-            # and delete them from the template so they don't get added in _add_template_metadata
-            # for procstep in self.template_tree.xpath("dataqual/lineage/procstep"):
-            #     procstep.getparent().remove(procstep)
 
         # find or create the lineage element
         if dom.xpath("dataqual/lineage"):

@@ -344,7 +344,7 @@ class CollateTableMetadata:
         if len(temp_dets_list) == 1:
             temp_detailed = temp_dets_list[0]
         else:
-            # if there are multiple detailed nodes, as in a single template file describinh
+            # if there are multiple detailed nodes, as in a single template file describing
             # many tables, look for the detailed/enttyp/enttypl label that matches the current table name
             xpath_search = self.template_tree.xpath(
                 f"eainfo/detailed/enttyp/enttypl[text()='{self.table}']/parent::*/parent::*"
@@ -388,10 +388,22 @@ class CollateTableMetadata:
             for attr in detailed.findall("attr"):
                 label = attr.find("attrlabl").text
 
-                # look for the field name in the attribute definition dictionary from the template
-                # and make a copy
+                # Match this field to a template attr. Normally this is an
+                # exact field-name match. The primary-key field is a special
+                # case: in a real table it is named <TableName>_ID (e.g.
+                # MapUnitPolys_ID), but the template (ANY_TABLE) describes it
+                # generically under the label "_ID". So if there is no exact
+                # match and the field name ends in "_ID", fall back to the
+                # template's "_ID" entry.
+                is_id_field = False
+                temp_attr = None
                 if label in temp_detailed_dict:
                     temp_attr = temp_detailed_dict[label]
+                elif label and label.endswith("_ID") and "_ID" in temp_detailed_dict:
+                    temp_attr = temp_detailed_dict["_ID"]
+                    is_id_field = True
+
+                if temp_attr is not None:
 
                     # "attrdef", "attrdefs" are in all template attr elements
                     for n in ("attrdef", "attrdefs"):
@@ -401,15 +413,37 @@ class CollateTableMetadata:
                         # and set the text to the text in the template
                         el.text = temp_attr.find(n).text
 
-                    # if there are any attrdomv elements in the template, delete the one in
-                    if (
-                        self.temp_directive == "replace"
-                        or self.table == "GeoMaterialDict"
-                    ):
-                        els = temp_attr.findall("attrdomv")
-                        if len(els):
-                            # try/except block rather than testing first for existence of attrdomv
-                            # in self.dom
+                    # Handle the template's attrdomv (domain) elements.
+                    if is_id_field:
+                        # The primary-key _ID field is not a GeMS enumerated
+                        # domain and gets no table-derived domain in
+                        # _add_domains, so its domain must come from the
+                        # template. Always write the template's attrdomv,
+                        # replacing any from the embedded metadata.
+                        temp_doms = temp_attr.findall("attrdomv")
+                        if temp_doms:
+                            for existing_dom in attr.findall("attrdomv"):
+                                attr.remove(existing_dom)
+                            for temp_dom in temp_doms:
+                                attr.append(copy.deepcopy(temp_dom))
+                    elif self.table == "GeoMaterialDict":
+                        # GeoMaterialDict domains are defined ONLY in the
+                        # template (_add_domains is skipped for this table), so
+                        # the template's attrdomv must always be written to the
+                        # output, replacing any coming from the embedded
+                        # metadata. Remove existing attrdomv, then copy the
+                        # template's in.
+                        temp_doms = temp_attr.findall("attrdomv")
+                        if temp_doms:
+                            for existing_dom in attr.findall("attrdomv"):
+                                attr.remove(existing_dom)
+                            for temp_dom in temp_doms:
+                                attr.append(copy.deepcopy(temp_dom))
+                    elif self.temp_directive == "replace":
+                        # For other tables in replace mode, drop any embedded
+                        # attrdomv so _add_domains can repopulate it from the
+                        # definitions CSV / GeMS enumerated-domain logic.
+                        if temp_attr.findall("attrdomv"):
                             try:
                                 attr.remove(attr.find("attrdomv"))
                             except:
@@ -443,53 +477,45 @@ class CollateTableMetadata:
                         )
 
                         # consider the temp_directive
-                        if self.temp_directive == "append":
-                            # look for existing text
-                            if dom_el.text:
-                                if dom_el.text.strip():
-                                    # and try to make the addition grammatically correct; add a period if necessary.
-                                    if dom_el.text.endswith("."):
-                                        dom_el.text = f"{dom_el.text} {temp_text}"
-                                    else:
-                                        dom_el.text = f"{dom_el.text}. {temp_text}"
-                                else:
-                                    dom_el.text = temp_text
-                            # otherwise temp_directive is "replace"
+                        if self.temp_directive == "append" and dom_el.text and dom_el.text.strip():
+                            # append: concatenate template text after existing
+                            # embedded text, adding a period if needed to keep
+                            # it grammatically sensible
+                            if dom_el.text.endswith("."):
+                                dom_el.text = f"{dom_el.text} {temp_text}"
                             else:
-                                dom_el.text = temp_text
+                                dom_el.text = f"{dom_el.text}. {temp_text}"
+                        else:
+                            # replace (always), or append with no existing text:
+                            # the template text supersedes
+                            dom_el.text = temp_text
 
-        # Third, add nodes from single_nodes
-        # check for the node in the template
-        # always replace regardless of temp_directive
+        # Third, the single (non-repeatable) container nodes. These have no
+        # valid "append" semantics - you cannot meaningfully append a second
+        # status, distinfo, metainfo, or (per the schema) a second ptcontac -
+        # so the template ALWAYS supersedes the embedded node here, regardless
+        # of temp_directive. Child tags owned by XMANY_NODES (e.g. metc under
+        # metainfo) are skipped so they are not duplicated; merge_xmany_nodes
+        # handles those below.
+        xmany_skip = mu.xmany_skip_tags()
         for node_xpath in mu.SINGLE_NODES:
-            temp_el = self.template_tree.xpath(node_xpath)
-            if temp_el:
-                if len(temp_el[0]):
-                    # return the node in self.dom, creating it from scratch if necessary with _extend_branch
-                    dom_el = mu.extend_branch(self.dom, node_xpath)
-                    # check for children
-                    if dom_el:
-                        if list(dom_el[0]):
-                            for n in dom_el[0]:
-                                dom_el[0].remove(n)
-                        # append the children from the template
-                        for n in temp_el[0]:
-                            dom_el[0].append(copy.deepcopy(n))
+            mu.replace_single_node(
+                self.dom,
+                self.template_tree,
+                node_xpath,
+                skip_tags=xmany_skip.get(node_xpath, ()),
+            )
 
         # Fourth, add nodes that can be repeated x-many times.
-        # Look for a list of elements at each of the xpaths in xmany_nodes
+        # For each xpath in XMANY_NODES, merge the template's repeatable nodes
+        # into self.dom. "append" keeps existing contacts, adds only
+        # non-duplicate template contacts, and sorts by contact last name
+        # (or organization name); "replace" swaps in the template nodes.
+        # Nodes are inserted at a schema-valid position within their parent.
         for node_xpath in mu.XMANY_NODES:
-            add_nodes = self.template_tree.xpath(node_xpath)
-            if add_nodes:
-                parent = add_nodes[0].getparent()
-                dom_parent = mu.extend_branch(
-                    self.dom, self.template_tree.getpath(parent)
-                )
-                if self.temp_directive == "replace":
-                    for child in dom_parent:
-                        dom_parent.remove(child)
-                for add_node in add_nodes:
-                    dom_parent.append(add_node)
+            mu.merge_xmany_nodes(
+                self.dom, self.template_tree, node_xpath, self.temp_directive
+            )
 
         # adding keywords is a special case
         # 'replace' only replaces keywords from matching thesaurus
@@ -766,16 +792,30 @@ class CollateTableMetadata:
                 ] or fname.lower() in [
                     guf.camel_to_snake(n).lower() for n in gems_edom
                 ]:
-                    # delete the single childless attrdomv so that we can add multiple
-                    # children in a loop
-                    if attr.find("attrdomv") is not None:
-                        attr.remove(attr.find("attrdomv"))
+                    # Enumerated domains are ALWAYS generated from the values
+                    # actually present in the table - never taken from the
+                    # template or embedded metadata. Remove every existing
+                    # attrdomv (there may be more than one if a template placed
+                    # several) so the domain below is built solely from the
+                    # table's values.
+                    for existing_dom in attr.findall("attrdomv"):
+                        attr.remove(existing_dom)
 
                     # collect a unique set of all the values in this field
                     with arcpy.da.SearchCursor(
                         self.db_dict[self.table]["catalogPath"], fname
                     ) as cursor:
                         fld_vals = set([row[0] for row in cursor if not row[0] is None])
+
+                    # if the field holds no non-null values, there is nothing to
+                    # enumerate. Record that explicitly with an unrepresentable
+                    # domain rather than leaving the attr without any attrdomv.
+                    if not fld_vals:
+                        attrdomv = etree.SubElement(attr, "attrdomv")
+                        etree.SubElement(attrdomv, "udom").text = (
+                            "Unrepresentable domain. Field contains only NULL values"
+                        )
+                        continue
 
                     # if statement below means pipe-delimited values in GeMS enumerated domain
                     # attributes can be concatenated
@@ -809,10 +849,16 @@ class CollateTableMetadata:
                         etree.SubElement(edom, "edomvds").text = val_source
 
                 else:
-                    attrdomv = etree.SubElement(attr, "attrdomv")
-                    udom = etree.SubElement(attrdomv, "udom").text = (
-                        "Unrepresentable domain"
-                    )
+                    # No CSV definition and not a GeMS enumerated-domain field.
+                    # Only add a generic unrepresentable domain if the field has
+                    # no domain already - otherwise we would clobber/duplicate a
+                    # domain supplied by the template (e.g. the primary-key _ID
+                    # field, whose domain is defined in ANY_TABLE).
+                    if attr.find("attrdomv") is None:
+                        attrdomv = etree.SubElement(attr, "attrdomv")
+                        etree.SubElement(attrdomv, "udom").text = (
+                            "Unrepresentable domain"
+                        )
 
     def _add_raster_attr(self):
         # make a dictionary of raster properties to turn into attributes
@@ -880,8 +926,6 @@ class CollateTableMetadata:
         """Helper function for building definition and definition source elements"""
         # whether missing or blank add node and/or definition and definition source text
         # to an entity or attribute node
-        # if def_xpath == "attrdef":
-        #     arcpy.AddMessage(text_list)
         if parent.find(def_xpath) is None:
             # it doesn't make sense if definition is blank when there exists a
             # definition source node, however, don't check the text, just remove
@@ -1105,11 +1149,16 @@ class CollateDatabaseMetadata:
         # unlikely though possible that this record has eainfo/detailed nodes, but
         # remove them if that's the case.
         for detailed in eainfo[0].xpath("detailed"):
-            eainfo.remove(detailed)
+            eainfo[0].remove(detailed)
 
         # build the {table name: detailed node} dictionary
+        # feature datasets are skipped here - they have no attribute table, so
+        # any eainfo/detailed on their record is just an empty stub. Their
+        # content is carried as an eainfo/overview node below instead.
         detailed_nodes = {}
         for k, v in self.md_dict.items():
+            if self.db_dict.get(k, {}).get("dataType") == "FeatureDataset":
+                continue
             found_detail = self._get_detailed(v, k)
             if found_detail:
                 detailed_nodes[k] = found_detail
@@ -1133,6 +1182,29 @@ class CollateDatabaseMetadata:
             if add_detailed in detailed_nodes:
                 arcpy.AddMessage(f"    {add_detailed}")
                 eainfo.append(detailed_nodes[add_detailed])
+
+        # Feature datasets (e.g. GeologicMap) have no attribute table, so they
+        # produce no eainfo/detailed node. Their template content lives in an
+        # eainfo/overview node instead. Carry those overview nodes from the
+        # per-object md_dict records into the database-level eainfo so that a
+        # feature-dataset template is actually reflected in the output.
+        # Per FGDC CSDGM, eainfo is (detailed*, overview*), so overview nodes
+        # are appended after the detailed nodes.
+        # remove any overview nodes already present to avoid duplication
+        for overview in eainfo.xpath("overview"):
+            eainfo.remove(overview)
+
+        for fd_name in add_list:
+            if self.db_dict.get(fd_name, {}).get("dataType") != "FeatureDataset":
+                continue
+            fd_dom = self.md_dict.get(fd_name)
+            if fd_dom is None:
+                continue
+            fd_overviews = fd_dom.xpath("eainfo/overview")
+            if fd_overviews:
+                arcpy.AddMessage(f"    {fd_name} (feature dataset overview)")
+                for overview in fd_overviews:
+                    eainfo.append(copy.deepcopy(overview))
 
     def _get_detailed(self, xml_dom, entity_label):
         """Find the eainfo/detailed node in the XML file"""
@@ -1167,56 +1239,48 @@ class CollateDatabaseMetadata:
                         # prepare the string from the template to put into the self.dom node
                         temp_text = temp_text.replace("[[DATABASE]]", "").strip()
                         dom_el = mu.extend_branch(self.dom, text_xpath)
-                        temp_text = mu.tokens(temp_text, self.db_dict, ver_string)
+                        temp_text = mu.tokens(temp_text, self.db_dict, ver_string, self.db_name )
 
                         # consider the temp_directive
-                        if self.temp_directive == "append":
-                            # look for existing text
-                            if dom_el.text:
-                                if dom_el.text.strip():
-                                    # and try to make the addition grammatically correct; add a period if necessary.
-                                    if dom_el.text.endswith("."):
-                                        dom_el.text = f"{dom_el.text} {temp_text}"
-                                    else:
-                                        dom_el.text = f"{dom_el.text}. {temp_text}"
-                                else:
-                                    dom_el.text = temp_text
-                            # otherwise temp_directive is "replace"
+                        if self.temp_directive == "append" and dom_el.text and dom_el.text.strip():
+                            # append: concatenate template text after existing
+                            # embedded text, adding a period if needed to keep
+                            # it grammatically sensible
+                            if dom_el.text.endswith("."):
+                                dom_el.text = f"{dom_el.text} {temp_text}"
                             else:
-                                dom_el.text = temp_text
+                                dom_el.text = f"{dom_el.text}. {temp_text}"
+                        else:
+                            # replace (always), or append with no existing text:
+                            # the template text supersedes
+                            dom_el.text = temp_text
 
-        # Third, add nodes from single_nodes
-        # check for the node in the template
-        # always replace regardless of temp_directive
+        # Third, the single (non-repeatable) container nodes. These have no
+        # valid "append" semantics - you cannot meaningfully append a second
+        # status, distinfo, metainfo, or (per the schema) a second ptcontac -
+        # so the template ALWAYS supersedes the embedded node here, regardless
+        # of temp_directive. Child tags owned by XMANY_NODES (e.g. metc under
+        # metainfo) are skipped so they are not duplicated; merge_xmany_nodes
+        # handles those below.
+        xmany_skip = mu.xmany_skip_tags()
         for node_xpath in mu.SINGLE_NODES:
-            temp_el = self.template_tree.xpath(node_xpath)
-            if temp_el:
-                if len(temp_el[0]):
-                    # return the node in self.dom, creating it from scratch if necessary with _extend_branch
-                    dom_el = mu.extend_branch(self.dom, node_xpath)
-                    # check for children
-                    if dom_el:
-                        if list(dom_el[0]):
-                            for n in dom_el[0]:
-                                dom_el[0].remove(n)
-                        # append the children from the template
-                        for n in temp_el[0]:
-                            dom_el[0].append(copy.deepcopy(n))
+            mu.replace_single_node(
+                self.dom,
+                self.template_tree,
+                node_xpath,
+                skip_tags=xmany_skip.get(node_xpath, ()),
+            )
 
         # Fourth, add nodes that can be repeated x-many times.
-        # Look for a list of elements at each of the xpaths in xmany_nodes
+        # For each xpath in XMANY_NODES, merge the template's repeatable nodes
+        # into self.dom. "append" keeps existing contacts, adds only
+        # non-duplicate template contacts, and sorts by contact last name
+        # (or organization name); "replace" swaps in the template nodes.
+        # Nodes are inserted at a schema-valid position within their parent.
         for node_xpath in mu.XMANY_NODES:
-            add_nodes = self.template_tree.xpath(node_xpath)
-            if add_nodes:
-                parent = add_nodes[0].getparent()
-                dom_parent = mu.extend_branch(
-                    self.dom, self.template_tree.getpath(parent)
-                )
-                if self.temp_directive == "replace":
-                    for child in dom_parent:
-                        dom_parent.remove(child)
-                for add_node in add_nodes:
-                    dom_parent.append(add_node)
+            mu.merge_xmany_nodes(
+                self.dom, self.template_tree, node_xpath, self.temp_directive
+            )
 
         # adding keywords is a special case
         # 'replace' only replaces keywords from matching thesaurus
@@ -1240,12 +1304,12 @@ class CollateDatabaseMetadata:
                     if k in temp_kw_dict:
                         # get the parent of the relevant <*kt> element from self.dom and the template
                         dom_kt = self.dom.xpath(
-                            f"idinfo/keywords/{k[0]}/*[name() = '{k[0]}kt' and text() = '{k[1]}']"
+                            f"idinfo/keywords/{k[0]}/*[name() = '{mu.KW_LOOKUP[k[0]]}kt' and text() = '{k[1]}']"
                         )[0]
                         dom_kwtype = dom_kt.getparent()
 
                         temp_kt = self.template_tree.xpath(
-                            f"idinfo/keywords/{k[0]}/*[name() = '{k[0]}kt' and text() = '{k[1]}']"
+                            f"idinfo/keywords/{k[0]}/*[name() = '{mu.KW_LOOKUP[k[0]]}kt' and text() = '{k[1]}']"
                         )[0]
                         temp_kwtype = temp_kt.getparent()
 
@@ -1270,6 +1334,10 @@ class CollateDatabaseMetadata:
                             for n in dom_kt.itersiblings():
                                 if n.tag.endswith("key"):
                                     dom_kwtype.remove(n)
+
+                            # remove duplicate nodes (when theme keyword elements are found in both the embedded metadata and the template xml)
+                            seen = set()
+                            node_list = (node for node in node_list if not (node.text in seen or seen.add(node.text)))
 
                             # sort keywords alphabetically and append to the keyword type node
                             for sort_key in sorted(node_list, key=lambda x: x.text):

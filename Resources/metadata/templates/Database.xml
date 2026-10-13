@@ -690,7 +690,7 @@
         </attrdomv>
       </attr>
       <attr>
-        <attrlabl>StationID</attrlabl>
+        <attrlabl>>StationsID></attrlabl>
         <attrdef>Unique identifier of station.</attrdef>
         <attrdefs>GeMS (Geologic Map Schema) - a standard format for the digital publication of geologic maps, available at http://ngmdb.usgs.gov/Info/standards/GeMS/</attrdefs>
         <attrdomv>
@@ -1068,7 +1068,7 @@
         </attrdomv>
       </attr>
       <attr>
-        <attrlabl>StationID</attrlabl>
+        <attrlabl>>StationsID></attrlabl>
         <attrdef>Unique identifier of station.</attrdef>
         <attrdefs>GeMS (Geologic Map Schema) - a standard format for the digital publication of geologic maps, available at http://ngmdb.usgs.gov/Info/standards/GeMS/</attrdefs>
         <attrdomv>
@@ -1167,7 +1167,7 @@
         </attrdomv>
       </attr>
       <attr>
-        <attrlabl>StationID</attrlabl>
+        <attrlabl>>StationsID></attrlabl>
         <attrdef>Unique identifier of station.</attrdef>
         <attrdefs>GeMS (Geologic Map Schema) - a standard format for the digital publication of geologic maps, available at http://ngmdb.usgs.gov/Info/standards/GeMS/</attrdefs>
         <attrdomv>
@@ -1319,7 +1319,7 @@
         </attrdomv>
       </attr>
       <attr>
-        <attrlabl>StationID</attrlabl>
+        <attrlabl>StationsID</attrlabl>
         <attrdef>Unique identifier of station.</attrdef>
         <attrdefs>GeMS (Geologic Map Schema) - a standard format for the digital publication of geologic maps, available at http://ngmdb.usgs.gov/Info/standards/GeMS/</attrdefs>
         <attrdomv>
@@ -1948,7 +1948,7 @@
         </attrdomv>
       </attr>
       <attr>
-        <attrlabl>StationID</attrlabl>
+        <attrlabl>StationsID</attrlabl>
         <attrdef>Unique identifier of station.</attrdef>
         <attrdefs>GeMS (Geologic Map Schema) - a standard format for the digital publication of geologic maps, available at http://ngmdb.usgs.gov/Info/standards/GeMS/</attrdefs>
         <attrdomv>

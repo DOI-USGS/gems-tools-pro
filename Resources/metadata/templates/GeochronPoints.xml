@@ -154,7 +154,7 @@
         </attrdomv>
       </attr>
       <attr>
-        <attrlabl>StationID</attrlabl>
+        <attrlabl>>StationsID></attrlabl>
         <attrdomv>
           <udom>Unrepresentable domain.</udom>
         </attrdomv>

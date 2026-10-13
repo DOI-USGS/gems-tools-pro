@@ -35,7 +35,7 @@ for m in (gemsmd, guf, mu):
 toolbox_folder = Path(__file__).parent.parent
 templates_folder = toolbox_folder / "Resources" / "metadata" / "templates"
 
-versionString = "GeMS_ImportTemplate.py, version of 5/152025"
+versionString = "GeMS_ImportTemplate.py, version of 10/13/2026"
 rawurl = "https://raw.githubusercontent.com/DOI-USGS/gems-tools-pro/Version3/Scripts/GeMS_CollateMetadataSources.py"
 guf.checkVersion(versionString, rawurl, "gems-tools-pro")
 
@@ -131,7 +131,7 @@ def main(params):
     # dictionary of template files in the templates folder
     # {template name: template file path}
     temp_dict = {}
-    if params[5].endswith(".xml"):
+    if params[4].endswith(".xml"):
         temp_dict = {"DATABASE": params[4]}
     else:
         temp_dict = mu.md_dict_from_folder(params[4])
@@ -189,7 +189,6 @@ def main(params):
                 if exact:
                     obj_temp_dict[obj_name] = temp_dict[exact[0]]
                     match_found = True
-                    # arcpy.AddMessage(f"Using template {exact[0]} for {obj_name}")
 
                 # annotation
                 if obj_name.endswith("Anno"):
@@ -275,13 +274,15 @@ def main(params):
         k for k in objects if db_dict[k]["dataType"] == "Workspace"
     ):
         # work on a database-level metadata file
+        # Priority: a template named after the database wins over the generic
+        # DATABASE template. (initialize temp_path so it is always defined,
+        # even when no templates are in use)
+        temp_path = None
         if temp_dict:
             if db_name in temp_dict.keys():
                 temp_path = temp_dict[db_name]
             elif "DATABASE" in temp_dict.keys():
                 temp_path = temp_dict["DATABASE"]
-            else:
-                temp_path = None
 
         params = {
             "db_path": gdb,
@@ -295,7 +296,6 @@ def main(params):
         }
 
         # Build a single database-level record
-        db_name = Path(gdb).stem
         arcpy.AddMessage(
             f"Generating a database-level metadata record for {Path(gdb).name} that describes all tables."
         )
