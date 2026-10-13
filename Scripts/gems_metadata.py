@@ -79,6 +79,7 @@ class CollateTableMetadata:
         definitions=None,
         history=2,
         sources=2,
+        temp_dict=None,
     ):
         self.table = table
         self.db_dict = gdb_dict
@@ -90,6 +91,10 @@ class CollateTableMetadata:
         self.definitions = definitions
         self.history = history
         self.sources = sources
+        # dictionary of {template name: path} used to resolve per-member
+        # templates when this object is a feature dataset; None when the caller
+        # has no template-folder/combined-file context to share
+        self.temp_dict = temp_dict
         # self.dtype = mu.find_type(self.db_dict, self.table)
 
         self.table_defs = {}
@@ -208,8 +213,10 @@ class CollateTableMetadata:
             self._add_raster_attr()
 
         if (self.table_defs or self.field_defs) and "fields" in self.db_dict[self.table]:
-            if any(n in self.table_defs for n in (self.table, "ANY_TABLE")) or any(
-                n in self.field_defs for n in (self.table, "ANY_TABLE")
+            # the generic/any-table key is stored as "ANY TABLE" (with a space)
+            # by table_defs_from_csv / field_defs_from_csv - match that spelling
+            if any(n in self.table_defs for n in (self.table, "ANY TABLE")) or any(
+                n in self.field_defs for n in (self.table, "ANY TABLE")
             ):
                 self._ea_defs_from_csv()
 
@@ -218,6 +225,11 @@ class CollateTableMetadata:
 
         if "fields" in self.db_dict[self.table]:
             self._ESRI_fields()
+
+        # for a feature dataset, serialize a detailed entity/attribute node for
+        # each member object, the same way a database-level record does
+        if self.db_dict[self.table]["dataType"] == "FeatureDataset":
+            self._add_member_detailed_nodes()
 
         self.dom, self.mp_errors = mu.mp_upgrade(self.dom)
 
@@ -313,6 +325,94 @@ class CollateTableMetadata:
             ):
                 return name
         return None
+
+    def _member_objects(self):
+        """Names of the objects that belong to this feature dataset, limited to
+        the data types this tool already processes (i.e. those that carry a
+        field list - feature classes). Returned sorted by name for a stable,
+        readable order in the output."""
+        members = [
+            name
+            for name, props in self.db_dict.items()
+            if props.get("feature_dataset") == self.table
+            and "fields" in props
+        ]
+        return sorted(members)
+
+    def _add_member_detailed_nodes(self):
+        """For a feature-dataset record, add an eainfo/detailed node for each
+        member object, mirroring how the database-level file serializes a
+        detailed node per object.
+
+        Each member's detailed node is produced by building that member's own
+        metadata with CollateTableMetadata (same definitions/history/sources),
+        then lifting its eainfo/detailed into this record. The empty detailed
+        stub that _check_children creates for the feature dataset itself is
+        removed. Detailed nodes are inserted before any eainfo/overview so the
+        result conforms to the FGDC eainfo content model (detailed*, overview*).
+        """
+        eainfo = mu.extend_branch(self.dom, "eainfo")
+
+        # drop the feature dataset's own empty detailed stub (enttypl == table
+        # name, no attr children) - the dataset has no attributes of its own
+        for detailed in eainfo.findall("detailed"):
+            enttypl = detailed.find("enttyp/enttypl")
+            if (
+                enttypl is not None
+                and enttypl.text == self.table
+                and not detailed.findall("attr")
+            ):
+                eainfo.remove(detailed)
+
+        # build each member's metadata and lift out its detailed node
+        member_detaileds = []
+        for member in self._member_objects():
+            # resolve the member's own template so its attribute definitions and
+            # sources come from a matching template file in the folder, or the
+            # matching entity section of a single combined template file - the
+            # same resolution top-level objects get. Fall back to the feature
+            # dataset's own template if no shared temp_dict is available.
+            if self.temp_dict:
+                member_template = mu.match_object_template(member, self.temp_dict)
+            else:
+                member_template = self.template
+
+            try:
+                member_md = CollateTableMetadata(
+                    table=member,
+                    gdb_dict=self.db_dict,
+                    arc_md=self.arc_md,
+                    template=member_template,
+                    temp_directive=self.temp_directive,
+                    definitions=self.definitions,
+                    history=self.history,
+                    sources=self.sources,
+                    temp_dict=self.temp_dict,
+                )
+            except Exception as e:
+                arcpy.AddWarning(
+                    f"Could not build entity-attribute metadata for member {member}"
+                )
+                arcpy.AddWarning(str(e))
+                continue
+
+            detailed = member_md.dom.xpath(
+                f"eainfo/detailed/enttyp/enttypl[text()='{member}']/parent::*/parent::*"
+            )
+            if detailed:
+                arcpy.AddMessage(f"    {member}")
+                member_detaileds.append(copy.deepcopy(detailed[0]))
+
+        # insert the member detailed nodes before the first overview (if any),
+        # otherwise append them
+        first_overview = eainfo.find("overview")
+        if first_overview is None:
+            for detailed in member_detaileds:
+                eainfo.append(detailed)
+        else:
+            index = list(eainfo).index(first_overview)
+            for offset, detailed in enumerate(member_detaileds):
+                eainfo.insert(index + offset, detailed)
 
     def _add_spdoinfo(self):
         """Create a spatial data information element for the object. If raster, use
@@ -447,40 +547,25 @@ class CollateTableMetadata:
                         el.text = temp_attr.find(n).text
 
                     # Handle the template's attrdomv (domain) elements.
-                    if is_id_field:
-                        # The primary-key _ID field is not a GeMS enumerated
-                        # domain and gets no table-derived domain in
-                        # _add_domains, so its domain must come from the
-                        # template. Always write the template's attrdomv,
-                        # replacing any from the embedded metadata.
-                        temp_doms = temp_attr.findall("attrdomv")
-                        if temp_doms:
-                            for existing_dom in attr.findall("attrdomv"):
-                                attr.remove(existing_dom)
-                            for temp_dom in temp_doms:
-                                attr.append(copy.deepcopy(temp_dom))
-                    elif self.table == "GeoMaterialDict":
-                        # GeoMaterialDict domains are defined ONLY in the
-                        # template (_add_domains is skipped for this table), so
-                        # the template's attrdomv must always be written to the
-                        # output, replacing any coming from the embedded
-                        # metadata. Remove existing attrdomv, then copy the
-                        # template's in.
-                        temp_doms = temp_attr.findall("attrdomv")
-                        if temp_doms:
-                            for existing_dom in attr.findall("attrdomv"):
-                                attr.remove(existing_dom)
-                            for temp_dom in temp_doms:
-                                attr.append(copy.deepcopy(temp_dom))
-                    elif self.temp_directive == "replace":
-                        # For other tables in replace mode, drop any embedded
-                        # attrdomv so _add_domains can repopulate it from the
-                        # definitions CSV / GeMS enumerated-domain logic.
-                        if temp_attr.findall("attrdomv"):
-                            try:
-                                attr.remove(attr.find("attrdomv"))
-                            except:
-                                pass
+                    # Whenever the template defines a domain for this field, that
+                    # domain supersedes any embedded one: remove the embedded
+                    # attrdomv and copy the template's in. This is what lets
+                    # fields whose domain is defined ONLY in the template (e.g.
+                    # Symbol, the primary-key _ID field, or every GeoMaterialDict
+                    # field) keep their domain in the output.
+                    #
+                    # _add_domains runs afterward and still takes precedence for
+                    # the fields it owns: it removes and rebuilds the attrdomv
+                    # for GeMS enumerated-domain fields (from the table values)
+                    # and for fields defined in the definitions CSV. Fields that
+                    # are neither (like Symbol) keep the template domain copied
+                    # here.
+                    temp_doms = temp_attr.findall("attrdomv")
+                    if temp_doms:
+                        for existing_dom in attr.findall("attrdomv"):
+                            attr.remove(existing_dom)
+                        for temp_dom in temp_doms:
+                            attr.append(copy.deepcopy(temp_dom))
 
         # Second, append or replace text at the end of text_xpaths
         for text_xpath in mu.TEXT_XPATHS:
@@ -734,6 +819,7 @@ class CollateTableMetadata:
                 # field_defs is built from csv definitions file
                 # priority goes to a field in this specific table
                 # finding a field properties list that is longer than 4 means there is domain information
+                field_w_dom = None
                 if self.field_defs.get(self.table):
                     field_w_dom = [
                         n
@@ -742,14 +828,13 @@ class CollateTableMetadata:
                     ]
 
                 # backup looking for a definition that can be in ANY TABLE
-                field_w_dom = None
-                if not field_w_dom:
-                    if self.field_defs:
-                        field_w_dom = [
-                            n
-                            for n in self.field_defs["ANY_TABLE"]
-                            if n[0] == fname and len(n) > 3
-                        ]
+                # (stored under the "ANY TABLE" key, with a space)
+                if not field_w_dom and self.field_defs.get("ANY TABLE"):
+                    field_w_dom = [
+                        n
+                        for n in self.field_defs["ANY TABLE"]
+                        if n[0] == fname and len(n) > 3
+                    ]
 
                 # if field_w_dom, then we have domain information from the csv file
                 if field_w_dom:

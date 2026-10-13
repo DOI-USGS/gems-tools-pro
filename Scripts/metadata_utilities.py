@@ -6,6 +6,7 @@ Methods shared by various metadata classes
 import arcpy
 from lxml import etree
 import copy
+import os
 import tempfile
 import csv
 from pathlib import Path
@@ -19,6 +20,22 @@ import spatial_utils as su
 toolbox_folder = Path(__file__).parent.parent
 scripts_folder = toolbox_folder / "Scripts"
 metadata_folder = toolbox_folder / "Resources" / "metadata"
+
+
+def _no_window_kwargs():
+    """subprocess kwargs that keep a console app (mp.exe) from flashing a
+    console window on Windows. Returns an empty dict on non-Windows platforms
+    so the same call works everywhere."""
+    if os.name != "nt":
+        return {}
+    startupinfo = subprocess.STARTUPINFO()
+    startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+    startupinfo.wShowWindow = subprocess.SW_HIDE
+    return {
+        "startupinfo": startupinfo,
+        "creationflags": subprocess.CREATE_NO_WINDOW,
+    }
+
 
 ## CONSTANT LISTS, DICTIONARIES, AND STRINGS
 KW_DICT = {
@@ -110,6 +127,48 @@ def md_dict_from_folder(folder):
         xml_dict[filename] = child
 
     return xml_dict
+
+
+def match_object_template(obj_name, temp_dict):
+    """Resolve the template file for a single object from temp_dict, using the
+    same precedence the collate tool applies to top-level objects:
+
+      - single combined file: temp_dict == {"DATABASE": path} - every object
+        uses that one file (its own entity section is resolved internally)
+      - exact template-name match
+      - "Anno" template for annotation feature classes
+      - a single partial match where a template name is a substring of the
+        object name (e.g. "ContactsAndFaults" serves "BedrockContactsAndFaults")
+      - the generic "AnyTable" template as a fallback
+
+    Returns the resolved template path (str or Path) or None when nothing
+    matches. Keeping this in one place lets both the driver and a
+    feature-dataset record resolve member templates the same way."""
+    if not temp_dict:
+        return None
+
+    # single combined template file applies to everything
+    if list(temp_dict.keys()) == ["DATABASE"]:
+        return temp_dict["DATABASE"]
+
+    # exact name match
+    if obj_name in temp_dict:
+        return temp_dict[obj_name]
+
+    # annotation
+    if obj_name.endswith("Anno") and "Anno" in temp_dict:
+        return temp_dict["Anno"]
+
+    # single partial (template-name is a substring of the object name)
+    matches = [k for k in temp_dict.keys() if k in obj_name]
+    if len(matches) == 1:
+        return temp_dict[matches[0]]
+
+    # fall back to the generic AnyTable template
+    if "AnyTable" in temp_dict:
+        return temp_dict["AnyTable"]
+
+    return None
 
 
 def object_template_dict(db_dict, xml_dict, filter_list=None):
@@ -247,6 +306,20 @@ def object_template_dict(db_dict, xml_dict, filter_list=None):
     return obj_xml_dict
 
 
+# the custom-definitions CSV may spell the generic any-table row as either
+# "ANY TABLE" or "ANY_TABLE" (any case). These are normalized to this single
+# canonical key so downstream lookups only need to check one spelling.
+ANY_TABLE_KEY = "ANY TABLE"
+
+
+def is_any_table(name):
+    """True if a CSV table-column value names the generic any-table row,
+    accepting either "ANY TABLE" or "ANY_TABLE" in any case."""
+    if name is None:
+        return False
+    return name.strip().lower().replace("_", " ") == "any table"
+
+
 def table_defs_from_csv(csv_path):
     """Build dictionary of custom definitions for tables from a csv definitions file
     {table name: [definition, definition source]}
@@ -260,7 +333,8 @@ def table_defs_from_csv(csv_path):
             row[0]: [row[2], row[3]]
             for row in defs_csv
             if len(row) > 1
-            and not row[0].lower() in ("table", "any table")
+            and not row[0].lower() == "table"
+            and not is_any_table(row[0])
             and not row[1]
         }
 
@@ -292,8 +366,8 @@ def field_defs_from_csv(csv_path):
         ]
 
         for field in fields:
-            if field[0].lower() == "any table":
-                table = "ANY TABLE"
+            if is_any_table(field[0]):
+                table = ANY_TABLE_KEY
             else:
                 table = field[0]
 
@@ -909,6 +983,9 @@ def mp_upgrade(dom):
     config_path = metadata_folder / "mp_config"
     tree = etree.ElementTree(dom)
 
+    # keep mp.exe (a console app) from flashing a console window on Windows
+    no_window = _no_window_kwargs()
+
     # save self.dom in a temporary directory
     with tempfile.TemporaryDirectory() as tempdirname:
         dom_xml = Path(tempdirname) / "dom_out.xml"
@@ -926,7 +1003,7 @@ def mp_upgrade(dom):
             "-x",
             str(x_out),
         ]
-        subprocess.call(mp_args)
+        subprocess.call(mp_args, **no_window)
 
         # now that our xml has been upgraded, check the output just written for errors
         # call mp again
@@ -936,7 +1013,7 @@ def mp_upgrade(dom):
             "-e",
             str(err_out),
         ]
-        subprocess.call(mp_args)
+        subprocess.call(mp_args, **no_window)
 
         # redefine dom as the mp-upgraded xml
         dom = etree.parse(str(x_out)).getroot()

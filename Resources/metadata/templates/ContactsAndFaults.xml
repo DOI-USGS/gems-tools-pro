@@ -109,6 +109,9 @@
         <attrlabl>Symbol</attrlabl>
         <attrdef>Identifier or code for the symbol to be used to portray the feature. Definition here should include the name of the style file, symbol set, gallery, etc. that contains the symbol.</attrdef>
         <attrdefs>GeMS (Geologic Map Schema) - a standard format for the digital publication of geologic maps, available at http://ngmdb.usgs.gov/Info/standards/GeMS/</attrdefs>
+        <attrdomv>
+          <udom>Unrepresentable domain.</udom>
+        </attrdomv>
       </attr>
       <attr>
         <attrlabl>Type</attrlabl>

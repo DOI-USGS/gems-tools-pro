@@ -260,6 +260,9 @@ def main(params):
             "definitions": definitions_path,
             "history": history,
             "sources": sources,
+            # pass the whole template dictionary so a feature dataset can
+            # resolve templates for its member feature classes
+            "temp_dict": temp_dict,
         }
 
         md = gemsmd.CollateTableMetadata(**params)
